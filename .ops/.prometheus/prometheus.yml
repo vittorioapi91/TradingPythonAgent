@@ -1,0 +1,53 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'macro-cycle-hmm'
+    environment: 'development'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts.yml"
+
+scrape_configs:
+  # Scrape Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Scrape HMM model metrics
+  - job_name: 'macro-cycle-hmm'
+    static_configs:
+      - targets: ['host.docker.internal:8000']  # For Docker Desktop
+        labels:
+          service: 'hmm-model'
+          component: 'model'
+    # For Kubernetes, use:
+    # kubernetes_sd_configs:
+    #   - role: pod
+    #     namespaces:
+    #       names:
+    #         - default
+    # relabel_configs:
+    #   - source_labels: [__meta_kubernetes_pod_label_app]
+    #     regex: macro-cycle-hmm
+    #     action: keep
+    #   - source_labels: [__meta_kubernetes_pod_ip]
+    #     target_label: __address__
+    #     replacement: $1:8000
+
+  # Scrape MLflow metrics (if enabled)
+  - job_name: 'mlflow'
+    static_configs:
+      - targets: ['mlflow:5000']
+        labels:
+          service: 'mlflow'
+          component: 'tracking'
+

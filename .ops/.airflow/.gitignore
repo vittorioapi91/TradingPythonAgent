@@ -1,0 +1,19 @@
+# Airflow database
+airflow.db
+airflow.db-journal
+
+# Airflow configuration (may contain sensitive data)
+airflow.cfg
+
+# Logs
+logs/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Environment files
+.env
+.venv
+
