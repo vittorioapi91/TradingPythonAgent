@@ -8,8 +8,7 @@ The project uses a **branch-aware Jenkinsfile** that automatically detects the G
 
 ## Files
 
-- **`Jenkinsfile`** - Main branch-aware pipeline (used for both `main` and `dev` branches)
-- **`Jenkinsfile.dev`** - Standalone dev-specific pipeline (optional, for explicit dev-only pipelines)
+- **`Jenkinsfile`** - Branch-aware pipeline (automatically handles both `main` and `dev` branches)
 - **`.ops/.jenkins/jenkins-deployment.yaml`** - Kubernetes deployment manifest for Jenkins itself
 
 ## Branch-Aware Configuration
