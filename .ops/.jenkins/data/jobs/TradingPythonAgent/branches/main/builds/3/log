@@ -1,0 +1,242 @@
+Started by user [8mha:////4Ls+RhWNr4Jd5XYM2xVj23jpACE3aQnZkvYjA4/i2nI0AAAAnR+LCAAAAAAAAP9b85aBtbiIQTGjNKU4P08vOT+vOD8nVc83PyU1x6OyILUoJzMv2y+/JJUBAhiZGBgqihhk0NSjKDWzXb3RdlLBUSYGJk8GtpzUvPSSDB8G5tKinBIGIZ+sxLJE/ZzEvHT94JKizLx0a6BxUmjGOUNodHsLgAzBEgZB/dLi1CL9ssySkvyizPzEgkwAxWsLYcYAAAA=[0mVittorio Apicella
+[8mha:////4I2PvOEEk09f7ej0CLP3navgvdut2Xg1Wz6byrrlXbZeAAAAhB+LCAAAAAAAAP9b85aBtbiIwSa/KF0vKzUvOzOvODlTryCnNB3I0kvPLMkoTYpPKkrMS86IL84vLUpO1XPPLPEoTXLOzyvOz0n1yy9JZYAARiYGRi8GzpLM3NTiksTcgooiBqmM0pTi/Dy9ZIhiPayaGCoKgPTstYdLcgFYfUXTjgAAAA==[0mConnecting to https://api.github.com using vittorioapi/******
+Obtained Jenkinsfile from 457c96133d5b390bdc7570d4fe1bfab00eee5439
+[8mha:////4B57qAAQJ+fr54w/aueQpcHVLZHnAzaO2sRN44GZwLq+AAAAoh+LCAAAAAAAAP9tjTEOwjAQBM8BClpKHuFItIiK1krDC0x8GCfWnbEdkooX8TX+gCESFVvtrLSa5wtWKcKBo5UdUu8otU4GP9jS5Mixv3geZcdn2TIl9igbHBs2eJyx4YwwR1SwULBGaj0nRzbDRnX6rmuvydanHMu2V1A5c4MHCFXMWcf8hSnC9jqYxPTz/BXAFEIGsfuclm8zQVqFvQAAAA==[0m[Pipeline] Start of Pipeline
+[8mha:////4C+ksdUh52SZeUvnNjTm298AMMKfGRqapsMhdsci+nJOAAAApR+LCAAAAAAAAP9tjTEOwjAUQ3+KOrAycohUghExsUZZOEFIQkgb/d8mKe3EibgadyBQiQlLlmxL1nu+oE4RjhQdby12HpP2vA+jK4lPFLtroIm3dOGaMFGwXNpJkrGnpUrKFhaxClYC1hZ1oOTRZdiIVt1VExS65pxj2Q4CKm8GeAAThZxVzN8yR9jeRpMIf5y/AJj7DGxXvP/86jduZBmjwAAAAA==[0m[Pipeline] node
+Running on [8mha:////4E97G5WhKyXwfFLQP1ACU1W0O8cdynT9CKz9HxHyOi0cAAAAoR+LCAAAAAAAAP9b85aBtbiIQTGjNKU4P08vOT+vOD8nVc83PyU1x6OyILUoJzMv2y+/JJUBAhiZGBgqihhk0NSjKDWzXb3RdlLBUSYGJk8GtpzUvPSSDB8G5tKinBIGIZ+sxLJE/ZzEvHT94JKizLx0a6BxUmjGOUNodHsLgAz2EgZR/eT83ILSktQifY2k0sycEt3MPE19AHHxbH3KAAAA[0mJenkins in /var/jenkins_home/workspace/TradingPythonAgent_main
+[8mha:////4AxEtG/RFBG8GAZIPh+l+DAuapTisoiWXk9KvAidZko7AAAApR+LCAAAAAAAAP9tjTEOwjAUQ3+KOrAycoh0gA0xsUZZOEFIQkgb/d8mKe3EibgadyBQiQlLlmxL1nu+oE4RjhQdby12HpP2vA+jK4lPFLtroIm3dOGaMFGwXNpJkrGnpUrKFhaxClYC1hZ1oOTRZdiIVt1VExS65pxj2Q4CKm8GeAAThZxVzN8yR9jeRpMIf5y/AJj7DGxXvP/86jfoP95RwAAAAA==[0m[Pipeline] {
+[8mha:////4D4WFsI6noMahhIFxUXn/p0ABT0/gVNSCwwZjrzvmqhwAAAApR+LCAAAAAAAAP9tjTEOwjAUQ3+KOrAycoh0gQkxsUZZOEFIQkgb/d8mKe3EibgadyBQiQlLlmxL1nu+oE4RjhQdby12HpP2vA+jK4lPFLtroIm3dOGaMFGwXNpJkrGnpUrKFhaxClYC1hZ1oOTRZdiIVt1VExS65pxj2Q4CKm8GeAAThZxVzN8yR9jeRpMIf5y/AJj7DGxXvP/86jc09154wAAAAA==[0m[Pipeline] stage
+[8mha:////4GAmnnSnrHDg6gyGAuDexMNFQoKYzfRmogxGpEcG7be1AAAApR+LCAAAAAAAAP9tjTEOwjAUQ3+KOrAycoh0ggUxsUZZOEFIQkgb/d8mKe3EibgadyBQiQlLlmxL1nu+oE4RjhQdby12HpP2vA+jK4lPFLtroIm3dOGaMFGwXNpJkrGnpUrKFhaxClYC1hZ1oOTRZdiIVt1VExS65pxj2Q4CKm8GeAAThZxVzN8yR9jeRpMIf5y/AJj7DGxXvP/86jek7ggRwAAAAA==[0m[Pipeline] { (Declarative: Checkout SCM)
+[8mha:////4FWrQ8KuUxWGvlX501hWbVh8qsaGCtwWAHdiugpZaNPDAAAAoh+LCAAAAAAAAP9tjTEOAiEURD9rLGwtPQTbaWGsbAmNJ0AWEZb8zwLrbuWJvJp3kLiJlZNMMm+a93rDOic4UbLcG+wdZu14DKOti0+U+lugiXu6ck2YKRguzSSpM+cFJRUDS1gDKwEbgzpQdmgLbIVXD9UGhba9lFS/o4DGdQM8gYlqLiqVL8wJdvexy4Q/z18BzLEA29ce4gfg7KmOvAAAAA==[0m[Pipeline] checkout
+The recommended git tool is: NONE
+using credential 39a94d87-8a43-468b-9138-14b4f86d7b93
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/TradingPythonAgent_main/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/vittorioapi91/TradingPythonAgent.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://github.com/vittorioapi91/TradingPythonAgent.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+using GIT_ASKPASS to set credentials 
+ > git fetch --no-tags --force --progress -- https://github.com/vittorioapi91/TradingPythonAgent.git +refs/heads/main:refs/remotes/origin/main # timeout=10
+Checking out Revision 457c96133d5b390bdc7570d4fe1bfab00eee5439 (main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 457c96133d5b390bdc7570d4fe1bfab00eee5439 # timeout=10
+Commit message: "Remove redundant Jenkinsfile.dev - main Jenkinsfile handles both branches"
+ > git rev-list --no-walk 457c96133d5b390bdc7570d4fe1bfab00eee5439 # timeout=10
+[8mha:////4CftqDcUg+CVf+kAD0fF/UeK95cFUAAUVA/HmvZly37GAAAAoh+LCAAAAAAAAP9tjTEOAiEURD9rLGwtPQTbGRNjZUtoPAGyiLDkfxZYdytP5NW8g8RNrJxkknnTvNcb1jnBiZLl3mDvMGvHYxhtXXyi1N8CTdzTlWvCTMFwaSZJnTkvKKkYWMIaWAnYGNSBskNbYCu8eqg2KLTtpaT6HQU0rhvgCUxUc1GpfGFOsLuPXSb8ef4KYI6xADvU7j9Dg2gqvAAAAA==[0m[Pipeline] }
+[8mha:////4NFbCLFzr4vakf5FsaFnfa6AyD4/tw2jL7ZtbV5Ys+U5AAAAoh+LCAAAAAAAAP9tjTEOAiEURD9rLGwtPQRbWRhjZUtoPAGyiLDkfxZYdytP5NW8g8RNrJxkknnTvNcb1jnBiZLl3mDvMGvHYxhtXXyi1N8CTdzTlWvCTMFwaSZJnTkvKKkYWMIaWAnYGNSBskNbYCu8eqg2KLTtpaT6HQU0rhvgCUxUc1GpfGFOsLuPXSb8ef4KYI6xADvU7j9J+wGOvAAAAA==[0m[Pipeline] // stage
+[8mha:////4OeqpwebfipGPpDq4XNRqcJe5V8Ji/+aewb0sVOggBNnAAAAph+LCAAAAAAAAP9tjTEOwjAQBM9BKWgpeYQDEh2iorXc8AITG+PEugv2haTiRXyNPxCIRMVWOyut5vmCMic4UPKycdgGzHWQXez91ORAqb1EGmRDZ1kTZopOajdosu44oyZ2MEcUsFCwdFhHygE9w0o15m6qaNBXJ07TtldQBHuDBwg1mdkk/sKYYH3tbSb8ef4KYOwYxI6h2G4+x/INtuQqUcEAAAA=[0m[Pipeline] withEnv
+[8mha:////4G5s24D2ZXUZEUUIzamDz9FeoLHrx61BnrDmQpj1dhTrAAAApR+LCAAAAAAAAP9tjTEOwjAUQ3+DOrAycoiUzoiJNerCCUITQtLo/zZJSSdOxNW4Ay2VmPBg2Zas93pDGQOcKBjuNHYWY2t570czJ54pdDdPmTu68pYwkte80bkhpc9rbShpWFUw2AjYamw9RYsmwU44+ZCVl2iqSwrzdhTArBrgCYWYyUmG9C1TgP19VJHwx/kLgKlPwOrDYvXyLD8BobDcwgAAAA==[0m[Pipeline] {
+[8mha:////4KimVjdC4+2CU1X0qYUxs6f0QVHUzwZ5yBYCNtzbzOsaAAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUZUVMrFEWThCaEJJG/7dJSjpxIq7GHWipxIQHy7ZkvdcbqhjgRMEwp7GzGFvLej+aObFMobt5yszRlbWEkbxmQmdBSp/XKihpWFWUsOGw1dh6ihZNgh138iFrL9HUlxTm7cihtGqAJxR8JicZ0rdMAfb3UUXCH+cvAKY+Qdk0ix2WZ/UBbwyqm8IAAAA=[0m[Pipeline] withEnv
+[8mha:////4OBEEfDgbAvwUO7IcEz7kc18tSUNBdiE1k1DZAeZays6AAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUwIiYukZZOEFoQkgb/V9+UtqJE3E17kBLJSY8WLYl673eUESGE7ETjcXWY6y96ELvpiQG4vYaaBANXURNGClYoeygyNhqqYqShUVZDisJa4t1oOjRJdjIRj90GTS68px42o4Scm/u8IRMTuSkOX3LyLC99SYS/jh/ATB2CfLdfrbD/Cw+y7kUycIAAAA=[0m[Pipeline] {
+[8mha:////4PpS4cIj1KuMjwRi4t+2cZeIT39AWHeinQgu0VzfxUNdAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUCDbE1DXKwglCE0La6P/yk9JOnIircQdaKjHhwbItWe/1hiIynIidaCy2HmPtRRd6NyUxELfXQINo6CJqwkjBCmUHRcZWS1WULCzKclhJWFusA0WPLsFGNvqhy6DRlefE03aUkHtzhydkciInzelbRobtrTeR8Mf5C4CxS5Dv9rMd5mfxAbNWnxXCAAAA[0m[Pipeline] stage
+[8mha:////4DKnNAbwGmml2TLJDymtemaOl0VwCj9H1O3D4+pOjXEbAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUSDAhpq5RFk4QmhDSRv+Xn5R24kRcjTvQUokJD5ZtyXqvNxSR4UTsRGOx9RhrL7rQuymJgbi9BhpEQxdRE0YKVig7KDK2WqqiZGFRlsNKwtpiHSh6dAk2stEPXQaNrjwnnrajhNybOzwhkxM5aU7fMjJsb72JhD/OXwCMXYJ8t5/tMD+LD5WQ+PfCAAAA[0m[Pipeline] { (Checkout)
+[8mha:////4A2tw/0uRAzPnjYmCuEfmA3sXuiGACm1MtX3IzHM8s2GAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiCmgQVVrLDS8wsTFOrDtjOyQVL+Jr/IFAJCq2WO1sM88XLFOEI0eLraHOUWocBt/baeHAsbt4HrDlMzZMib1BaQbJ2tQzSs4G5hQlLASsDDWekyObYS1adVeVV2SrU47TdxBQOn2DBxRiMmcV8xfGCJtrrxPTz/NXAGPIUG53n9qHN7LjSKW+AAAA[0m[Pipeline] checkout
+The recommended git tool is: NONE
+using credential 39a94d87-8a43-468b-9138-14b4f86d7b93
+ > git rev-parse --resolve-git-dir /var/jenkins_home/workspace/TradingPythonAgent_main/.git # timeout=10
+Fetching changes from the remote Git repository
+ > git config remote.origin.url https://github.com/vittorioapi91/TradingPythonAgent.git # timeout=10
+Fetching without tags
+Fetching upstream changes from https://github.com/vittorioapi91/TradingPythonAgent.git
+ > git --version # timeout=10
+ > git --version # 'git version 2.47.3'
+using GIT_ASKPASS to set credentials 
+ > git fetch --no-tags --force --progress -- https://github.com/vittorioapi91/TradingPythonAgent.git +refs/heads/main:refs/remotes/origin/main # timeout=10
+Checking out Revision 457c96133d5b390bdc7570d4fe1bfab00eee5439 (main)
+ > git config core.sparsecheckout # timeout=10
+ > git checkout -f 457c96133d5b390bdc7570d4fe1bfab00eee5439 # timeout=10
+Commit message: "Remove redundant Jenkinsfile.dev - main Jenkinsfile handles both branches"
+[8mha:////4LOi2Wasft+uwKhaKRTpw6RzxmccxBuAaMhPdxR5tacZAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUDIgBMXWNsnCC0ISQNvq//KS0EyfiatyBlkpMeLBsS9Z7vaGIDCdiJxqLrcdYe9GF3k1JDMTtNdAgGrqImjBSsELZQZGx1VIVJQuLshxWEtYW60DRo0uwkY1+6DJodOU58bQdJeTe3OEJmZzISXP6lpFhe+tNJPxx/gJg7BLku/1sh/lZfABe7r57wgAAAA==[0m[Pipeline] script
+[8mha:////4MSXhPvwpZ22cHQAWBP0uckIpFw0gpPfbWKPDc03rH5qAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUTCAhpq5RFk4QmhDSRv+Xn5R24kRcjTvQUokJD5ZtyXqvNxSR4UTsRGOx9RhrL7rQuymJgbi9BhpEQxdRE0YKVig7KDK2WqqiZGFRlsNKwtpiHSh6dAk2stEPXQaNrjwnnrajhNybOzwhkxM5aU7fMjJsb72JhD/OXwCMXYJ8t5/tMD+LD0rlhNLCAAAA[0m[Pipeline] {
+[8mha:////4M1pnNr2htVYf1LAmbFq1B9VKpkEX4rpHKnJBpPUCXGBAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiOhCiSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwZyu3uU/vwBr2eB0O+AAAA[0m[Pipeline] sh
++ git rev-parse --short HEAD
+[8mha:////4EZ0vIZpSv12YW6KRFCq5TQlbMWOuX7si5TO+3UwBaSWAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOICVEgoFa3lhheYxBgn1l2wHZyKF/E1/oBFJCq2WO1sM683LIOHmr3BTlNvKTQWBzeavDCx76+OE3Z8wYYpsNModZLc6tOMkqOGOUUJCwErTY3jYMlEWItOPVTlFJnqHH3+jgJK297hCYXI5qh8/MLkYXMb28D08/wVwDREKHeHXPvt8AGtm4OQvgAAAA==[0m[Pipeline] sh
++ git rev-parse --abbrev-ref HEAD
+[8mha:////4CbLCazI9eaGIZSfrISCKuD9sTUzexqk6E3mrEhZnlq2AAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOKiUCEhqrRWGl5gYmOcWHfGdkgqXsTX+AMWkajYYrWzzbzesI4BThwM9poGS7Gz6N1o8sKJw3B1PGHPF+yYIjuNrZ5aVrpZsOWkYUlRwkrARlPnOFoyCbailw9ZOUmmOqeQv6OA0qo7PKEQ2ZxkSF+YA+xuo4pMP89fAcw+QVkfcu1r/wHsqpiJvgAAAA==[0m[Pipeline] echo
+Building for branch: main
+[8mha:////4Jooea4urjbedO8UGVbLhBMTCNX1Wm8QtT0fT935u9TRAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPMIRqZAQVVorDS8w8WGcWHfGdkgqXsTX+AMWkajYYrWzzbzesI4BThyM6JEGS7GzwrvR5CUmDsPV8SR6voiOKbJD0eLUssZmwZYTwpKihJWEDVLnOFoyCbayVw9VOUWmOqeQv6OE0uo7PKGQ2ZxUSF+YA+xuo45MP89fAcw+Qbk/5Kpr/wEv+bWivgAAAA==[0m[Pipeline] echo
+Environment: production
+[8mha:////4Okqouu2pvMVBzBJL0u/xoQEmwbcxsQORphNtO9LPwqsAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIioEFCqWgtN7zAJMY4se6C7eBUvIiv8QcsIlGxxWpnm3m9YRk81OwNdpp6S6GxOLjR5IWJfX91nLDjCzZMgZ1GqZPkVp9mlBw1zClKWAhYaWocB0smwlp06qEqp8hU5+jzdxRQ2vYOTyhENkfl4xcmD5vb2Aamn+evAKYhQrk95Nrthw9uyK67vgAAAA==[0m[Pipeline] echo
+Image: hmm-model-training:3-457c961
+[8mha:////4K49hE/WjjTAEagiK7oKbahtosnIssy48ljrKB304R8iAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiEAUSSkVrueEFJjHGiXUXbAen4kV8jT9gEYmKLVY728zrDcvgoWZvsNPUWwqNxcGNJi9M7Pur44QdX7BhCuw0Sp0kt/o0o+SoYU5RwkLASlPjOFgyEdaiUw9VOUWmOkefv6OA0rZ3eEIhsjkqH78wedjcxjYw/Tx/BTANEcrtIdduP3wAqV7v9L4AAAA=[0m[Pipeline] echo
+Namespace: trading-monitoring
+[8mha:////4NsnGmMoUVf7Nut8hyi6HmtkgdsDuTTbp5ELoQ0iFKnmAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIikJCQUCpayw0vMIkxTqy7YDs4FS/ia/wBi0hUbLHa2WZeb1gGDzV7g52m3lJoLA5uNHlhYt9fHSfs+IINU2CnUeokudWnGSVHDXOKEhYCVpoax8GSibAWnXqoyiky1Tn6/B0FlLa9wxMKkc1R+fiFycPmNraB6ef5K4BpGCKUu32u7eEDpaQUeb4AAAA=[0m[Pipeline] }
+[8mha:////4NYGbtN2gar9TSgBbDVrPFKGewo/RL8AaQxlP+G0/7B6AAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiKKBAqWgtN7zAJMY4se6C7eBUvIiv8QcsIlGxxWpnm3m9YRk81OwNdpp6S6GxOLjR5IWJfX91nLDjCzZMgZ1GqZPkVp9mlBw1zClKWAhYaWocB0smwlp06qEqp8hU5+jzdxRQ2vYOTyhENkfl4xcmD5vb2Aamn+evAKZhiFDu9rm2hw+ayz9vvgAAAA==[0m[Pipeline] // script
+[8mha:////4DiWxMkWnHmmGt5JecrVtUB1m6U2RGyV9gwFQ2DlQNOEAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIikBAFSkVrueEFJjHGiXUXbAen4kV8jT9gEYmKLVY728zrDcvgoWZvsNPUWwqNxcGNJi9M7Pur44QdX7BhCuw0Sp0kt/o0o+SoYU5RwkLASlPjOFgyEdaiUw9VOUWmOkefv6OA0rZ3eEIhsjkqH78wedjcxjYw/Tx/BTANQ4Ryd8i13X8AE3ltSr4AAAA=[0m[Pipeline] }
+[8mha:////4KGnGXlgPsalVxHB8FQpF9E+3RI1BVMxNp9kMVs+Vd0dAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiEAUSSkVrueEFJjHGiXUXbAen4kV8jT9gEYmKLVY728zrDcvgoWZvsNPUWwqNxcGNJi9M7Pur44QdX7BhCuw0Sp0kt/o0o+SoYU5RwkLASlPjOFgyEdaiUw9VOUWmOkefv6OA0rZ3eEIhsjkqH78wedjcxjYw/Tx/BTANQ4Ryd8i13X8AUPs8zL4AAAA=[0m[Pipeline] // stage
+[8mha:////4NS0PC0ixphdbDSsLaPAF9coQ+hA6vNYDuEJ7LybL5x1AAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUwIRQJ9aoCycITQhJo/9LkpJOnIircQcClZjwYNmWrPd8QRU8NOQ1swp7g6EzbHCjzokl8v3FUWKWzqwjDOQUa1VqSarjXFuKCmYVJSw4LBV2joJBHWHFrbiL2gnU9Sn6vB04lEbe4AEFz+QofPyWycP6OspA+OP8BcA0RCg3u2zb/edZvQHwX+mYwgAAAA==[0m[Pipeline] stage
+[8mha:////4HPBaWlcyrfbcyHer/U6iUrOgbx/HkH09WyGHGO60wVyAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycogUwYRQJ9aoCycITQhJo/9LkpJOnIircQcClZjwYNmWrPd8QRU8NOQ1swp7g6EzbHCjzokl8v3FUWKWzqwjDOQUa1VqSarjXFuKCmYVJSw4LBV2joJBHWHFrbiL2gnU9Sn6vB04lEbe4AEFz+QofPyWycP6OspA+OP8BcA0RCi3+2y7zedZvQH4j6CMwgAAAA==[0m[Pipeline] { (Build Docker Image)
+[8mha:////4OHD4dJOPmM8SN4bMj1IN2nQhjSFmRqzKRcea1K2x21EAAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycogUxIiYukZZOEFoQkgb/V9+UtqJE3E17kBLJSY8WLYl673eUESGE7ETjcXWY6y96ELvpiQG4vYaaBANXURNGClYoeygyNhqqYqShUVZDisJa4t1oOjRJdjIRj90GTS68px42o4Scm/u8IRMTuSkOX3LyLC99SYS/jh/ATB2CfLDbrb9/Cw+ty4Up8IAAAA=[0m[Pipeline] script
+[8mha:////4KmI4qcb32Lh+vRteOllNxq4YVLRpZtG6zGxeqPRzT7JAAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUwIiYukZZOEFoQkgb/V9+UtqJE3E17kBLJSY8WLYl673eUESGE7ETjcXWY6y96ELvpiQG4vYaaBANXURNGClYoeygyNhqqYqShUVZDisJa4t1oOjRJdjIRj90GTS68px42o4Scm/u8IRMTuSkOX3LyLC99SYS/jh/ATB2CfLDbrb9/Cw+2YMO4MIAAAA=[0m[Pipeline] {
+[8mha:////4ADW6gMzSK1u7DLfyP0JGtl7Y+nncDlYHJR59MT1MKoPAAAAox+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIikRJR0VppeIFJjLFj3Tm2g1PxIr7GHwhEomKL1c4283zBOgY4ctBoFfWGYmvQu1HPCzOH/uo4o+ULtkyRncJG5YY7dVqw4aRgSVHCSsBGUes4GtIJtsLKu6ycJF2dU5i/g4DSdAM8oBCzOcmQvjAF2N3GLjL9PH8FMPkEZb3/VO3favo5XL4AAAA=[0m[Pipeline] echo
+Building Docker image: hmm-model-training:3-457c961
+[8mha:////4ENtyVask7ajq3DcWgi03OHPuHVhnPjlE32dvQQ7MjIOAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiAR2iSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwZyt32U/vwBq1seBO+AAAA[0m[Pipeline] sh
++ docker build -f .ops/.kubernetes/Dockerfile.model-training -t hmm-model-training:3-457c961 -t hmm-model-training:latest .
+DEPRECATED: The legacy builder is deprecated and will be removed in a future release.
+            Install the buildx component to build images with BuildKit:
+            https://docs.docker.com/go/buildx/
+
+Sending build context to Docker daemon  6.036MB
+Step 1/9 : FROM python:3.11-slim
+ ---> 158caf0e080e
+Step 2/9 : WORKDIR /workspace
+ ---> Running in 1079d2652e42
+ ---> Removed intermediate container 1079d2652e42
+ ---> 5e3600ca2e39
+Step 3/9 : RUN apt-get update && apt-get install -y     gcc     g++     postgresql-client     && rm -rf /var/lib/apt/lists/*
+ ---> Running in 170e85ad65b1
+Get:1 http://deb.debian.org/debian trixie InRelease [140 kB]
+Get:2 http://deb.debian.org/debian trixie-updates InRelease [47.3 kB]
+Get:3 http://deb.debian.org/debian-security trixie-security InRelease [43.4 kB]
+Get:4 http://deb.debian.org/debian trixie/main arm64 Packages [9607 kB]
+Get:5 http://deb.debian.org/debian trixie-updates/main arm64 Packages [5404 B]
+Get:6 http://deb.debian.org/debian-security trixie-security/main arm64 Packages [94.8 kB]
+Fetched 9939 kB in 2s (4117 kB/s)
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  binutils binutils-aarch64-linux-gnu binutils-common cpp cpp-14
+  cpp-14-aarch64-linux-gnu cpp-aarch64-linux-gnu g++-14
+  g++-14-aarch64-linux-gnu g++-aarch64-linux-gnu gcc-14
+  gcc-14-aarch64-linux-gnu gcc-aarch64-linux-gnu krb5-locales libasan8
+  libatomic1 libbinutils libc-bin libc-dev-bin libc6 libc6-dev libcc1-0
+  libcom-err2 libcrypt-dev libctf-nobfd0 libctf0 libgcc-14-dev
+  libgdbm-compat4t64 libgomp1 libgprofng0 libgssapi-krb5-2 libhwasan0 libisl23
+  libitm1 libjansson4 libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0
+  libldap-common libldap2 liblsan0 libmpc3 libmpfr6 libperl5.40 libpq5
+  libsasl2-2 libsasl2-modules libsasl2-modules-db libsframe1 libstdc++-14-dev
+  libtsan2 libubsan1 linux-libc-dev manpages manpages-dev perl
+  perl-modules-5.40 postgresql-client-17 postgresql-client-common rpcsvc-proto
+  sensible-utils
+Suggested packages:
+  binutils-doc gprofng-gui binutils-gold cpp-doc gcc-14-locales cpp-14-doc
+  gcc-14-doc gcc-multilib make autoconf automake libtool flex bison gdb
+  gcc-doc gdb-aarch64-linux-gnu libc-devtools glibc-doc krb5-doc krb5-user
+  libsasl2-modules-gssapi-mit | libsasl2-modules-gssapi-heimdal
+  libsasl2-modules-ldap libsasl2-modules-otp libsasl2-modules-sql
+  libstdc++-14-doc man-browser perl-doc libterm-readline-gnu-perl
+  | libterm-readline-perl-perl libtap-harness-archive-perl postgresql-17
+  postgresql-doc-17
+The following NEW packages will be installed:
+  binutils binutils-aarch64-linux-gnu binutils-common cpp cpp-14
+  cpp-14-aarch64-linux-gnu cpp-aarch64-linux-gnu g++ g++-14
+  g++-14-aarch64-linux-gnu g++-aarch64-linux-gnu gcc gcc-14
+  gcc-14-aarch64-linux-gnu gcc-aarch64-linux-gnu krb5-locales libasan8
+  libatomic1 libbinutils libc-dev-bin libc6-dev libcc1-0 libcom-err2
+  libcrypt-dev libctf-nobfd0 libctf0 libgcc-14-dev libgdbm-compat4t64 libgomp1
+  libgprofng0 libgssapi-krb5-2 libhwasan0 libisl23 libitm1 libjansson4
+  libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0 libldap-common libldap2
+  liblsan0 libmpc3 libmpfr6 libperl5.40 libpq5 libsasl2-2 libsasl2-modules
+  libsasl2-modules-db libsframe1 libstdc++-14-dev libtsan2 libubsan1
+  linux-libc-dev manpages manpages-dev perl perl-modules-5.40
+  postgresql-client postgresql-client-17 postgresql-client-common rpcsvc-proto
+  sensible-utils
+The following packages will be upgraded:
+  libc-bin libc6
+2 upgraded, 63 newly installed, 0 to remove and 4 not upgraded.
+Need to get 79.5 MB of archives.
+After this operation, 338 MB of additional disk space will be used.
+Get:1 http://deb.debian.org/debian trixie/main arm64 libc6 arm64 2.41-12+deb13u1 [2484 kB]
+Get:2 http://deb.debian.org/debian trixie/main arm64 libc-bin arm64 2.41-12+deb13u1 [550 kB]
+Get:3 http://deb.debian.org/debian trixie/main arm64 sensible-utils all 0.0.25 [25.0 kB]
+Get:4 http://deb.debian.org/debian trixie/main arm64 krb5-locales all 1.21.3-5 [101 kB]
+Get:5 http://deb.debian.org/debian trixie/main arm64 manpages all 6.9.1-1 [1393 kB]
+Get:6 http://deb.debian.org/debian trixie/main arm64 perl-modules-5.40 all 5.40.1-6 [3019 kB]
+Get:7 http://deb.debian.org/debian trixie/main arm64 libgdbm-compat4t64 arm64 1.24-2 [50.3 kB]
+Get:8 http://deb.debian.org/debian trixie/main arm64 libperl5.40 arm64 5.40.1-6 [4142 kB]
+Get:9 http://deb.debian.org/debian trixie/main arm64 perl arm64 5.40.1-6 [267 kB]
+Get:10 http://deb.debian.org/debian trixie/main arm64 libsframe1 arm64 2.44-3 [77.8 kB]
+Get:11 http://deb.debian.org/debian trixie/main arm64 binutils-common arm64 2.44-3 [2509 kB]
+Get:12 http://deb.debian.org/debian trixie/main arm64 libbinutils arm64 2.44-3 [660 kB]
+Get:13 http://deb.debian.org/debian trixie/main arm64 libgprofng0 arm64 2.44-3 [668 kB]
+Get:14 http://deb.debian.org/debian trixie/main arm64 libctf-nobfd0 arm64 2.44-3 [152 kB]
+Get:15 http://deb.debian.org/debian trixie/main arm64 libctf0 arm64 2.44-3 [84.2 kB]
+Get:16 http://deb.debian.org/debian trixie/main arm64 libjansson4 arm64 2.14-2+b3 [39.2 kB]
+Get:17 http://deb.debian.org/debian trixie/main arm64 binutils-aarch64-linux-gnu arm64 2.44-3 [820 kB]
+Get:18 http://deb.debian.org/debian trixie/main arm64 binutils arm64 2.44-3 [262 kB]
+Get:19 http://deb.debian.org/debian trixie/main arm64 libisl23 arm64 0.27-1 [601 kB]
+Get:20 http://deb.debian.org/debian trixie/main arm64 libmpfr6 arm64 4.2.2-1 [685 kB]
+Get:21 http://deb.debian.org/debian trixie/main arm64 libmpc3 arm64 1.3.1-1+b3 [50.5 kB]
+Get:22 http://deb.debian.org/debian trixie/main arm64 cpp-14-aarch64-linux-gnu arm64 14.2.0-19 [9169 kB]
+Get:23 http://deb.debian.org/debian trixie/main arm64 cpp-14 arm64 14.2.0-19 [1276 B]
+Get:24 http://deb.debian.org/debian trixie/main arm64 cpp-aarch64-linux-gnu arm64 4:14.2.0-1 [4832 B]
+Get:25 http://deb.debian.org/debian trixie/main arm64 cpp arm64 4:14.2.0-1 [1568 B]
+Get:26 http://deb.debian.org/debian trixie/main arm64 libcc1-0 arm64 14.2.0-19 [42.2 kB]
+Get:27 http://deb.debian.org/debian trixie/main arm64 libgomp1 arm64 14.2.0-19 [124 kB]
+Get:28 http://deb.debian.org/debian trixie/main arm64 libitm1 arm64 14.2.0-19 [24.2 kB]
+Get:29 http://deb.debian.org/debian trixie/main arm64 libatomic1 arm64 14.2.0-19 [10.1 kB]
+Get:30 http://deb.debian.org/debian trixie/main arm64 libasan8 arm64 14.2.0-19 [2578 kB]
+Get:31 http://deb.debian.org/debian trixie/main arm64 liblsan0 arm64 14.2.0-19 [1161 kB]
+Get:32 http://deb.debian.org/debian trixie/main arm64 libtsan2 arm64 14.2.0-19 [2383 kB]
+Get:33 http://deb.debian.org/debian trixie/main arm64 libubsan1 arm64 14.2.0-19 [1039 kB]
+Pausing (shutting down)
+Resuming build at Sun Jan 11 15:54:34 UTC 2026 after Jenkins restart
+Ready to run at Sun Jan 11 15:54:34 UTC 2026
+Get:34 http://deb.debian.org/debian trixie/main arm64 libhwasan0 arm64 14.2.0-19 [1442 kB]
+Get:35 http://deb.debian.org/debian trixie/main arm64 libgcc-14-dev arm64 14.2.0-19 [2359 kB]
+Pausing (shutting down)
+Resuming build at Sun Jan 11 15:54:51 UTC 2026 after Jenkins restart
+Ready to run at Sun Jan 11 15:54:51 UTC 2026
+Sending interrupt signal to process
+Aborted by [8mha:////4Ls+RhWNr4Jd5XYM2xVj23jpACE3aQnZkvYjA4/i2nI0AAAAnR+LCAAAAAAAAP9b85aBtbiIQTGjNKU4P08vOT+vOD8nVc83PyU1x6OyILUoJzMv2y+/JJUBAhiZGBgqihhk0NSjKDWzXb3RdlLBUSYGJk8GtpzUvPSSDB8G5tKinBIGIZ+sxLJE/ZzEvHT94JKizLx0a6BxUmjGOUNodHsLgAzBEgZB/dLi1CL9ssySkvyizPzEgkwAxWsLYcYAAAA=[0mVittorio Apicella
+Sending interrupt signal to process
+[8mha:////4NsQeHUibY/Wp5y3c3HFqqj3+ls4hCEfakv0DMiinRp/AAABAB+LCAAAAAAAAP9djjFOAzEURP9uBDWiRHT0NggJokAKBAVIEURKLmA2xvau87+xv0nScAiuAQ0SV+AQXICOmoKGha1gmhmN9Ebz9AFrKcIZRSNqjY3DVDkRfDZtEguKzY2nhUg5BIosEuuQhMOQWYyvJtPzVdDRO2wuifXGW+/l8/DrvYRiBL0cPcPmqFZ3SnqFRk44OjRHywjbNs8SoagIE3kt/qwcDB+fhw/htYTyAta9RsO2m7uFeyhafOsfftr5DwydihJgGdogGIodhmPLHAZSeqqUt5R40N/t78maruU0qll7a7xiS3hiNPJvPVcO5b5kHeffVYV6XSMBAAA=[0mClick here to forcibly terminate running steps
+After 20s process did not stop
+[8mha:////4JqroqDH2rVeoj6MEyu3A/GLXluVjxdeXVuErUap9ZIvAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIigagQVVrLDS8wsTFOrDtjOyQVL+Jr/IFAJCq2WO1sM88XLFOEI0eLraHOUWocBt/baeHAsbt4HrDlMzZMib1BaQbJ2tQzSs4G5hQlLASsDDWekyObYS1adVeVV2SrU47TdxBQOn2DBxRiMmcV8xfGCJtrrxPTz/NXAGMIGcrd/lPbN40kgA2+AAAA[0m[Pipeline] }
+[8mha:////4J72T98CgbvREm3I6esfSFpzqbZVMU4oPwYKlB9s4MTJAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIihESDqNJabniBiY1xYt0Z2yGpeBFf4w8EIlGxxWpnm3m+YJkiHDlabA11jlLjMPjeTgsHjt3F84Atn7FhSuwNSjNI1qaeUXI2MKcoYSFgZajxnBzZDGvRqruqvCJbnXKcvoOA0ukbPKAQkzmrmL8wRthce52Yfp6/AhhDyFDu9p/avgGZBx0SvgAAAA==[0m[Pipeline] // script
+[8mha:////4K7oSYParinjUIRzWYpk1tax4ZuY4ALF1nVLY59p0T3JAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOKCREGBqNJabniBiY1xYt0Z2yGpeBFf4w8EIlGxxWpnm3m+YJkiHDlabA11jlLjMPjeTgsHjt3F84Atn7FhSuwNSjNI1qaeUXI2MKcoYSFgZajxnBzZDGvRqruqvCJbnXKcvoOA0ukbPKAQkzmrmL8wRthce52Yfp6/AhhDyFDu9p/avgGq5EauvgAAAA==[0m[Pipeline] }
+[8mha:////4GfEmoRREZKovbMXn/NUBFPEVV58bVlddn3CMIYCL5ZXAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiQQNCqWgtN7zAJMY4se6C7eBUvIiv8QcsIlGxxWpnm3m9YRk81OwNdpp6S6GxOLjR5IWJfX91nLDjCzZMgZ1GqZPkVp9mlBw1zClKWAhYaWocB0smwlp06qEqp8hU5+jzdxRQ2vYOTyhENkfl4xcmD5vb2Aamn+evAKZhiFDu9rm2hw+a39c/vgAAAA==[0m[Pipeline] // stage
+[8mha:////4N0ZmCfFTfEXAieyFyK6/822bpEsKR2Fkf2g/v0VZXiaAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUqBNCTF2jLJwgJCGkjf4vSUo7cSKuxh0IVGLCg2Vbst7zBVUMcKRgWWewdxiVY4MfbU5sotBfPE2sozNThJG8YcJMgrRplyooGVhUlLDisDaoPEWHNsGGd/Iuay/R1qcU8nbgUDp9gwcUPJOTDOlb5gDb66gj4Y/zFwDzkKDcNdma/edZvQFEVJ4+wgAAAA==[0m[Pipeline] stage
+[8mha:////4Poy8fAVHu9ERyrE17vQ9N5+ZayEOOGNBDqt7GA5HeZxAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycogUCRaEOrFGXThBaEJIGv1fkpR04kRcjTsQqMSEB8u2ZL3nC6rgoSGvmVXYGwydYYMbdU4ske8vjhKzdGYdYSCnWKtSS1Id59pSVDCrKGHBYamwcxQM6ggrbsVd1E6grk/R5+3AoTTyBg8oeCZH4eO3TB7W11EGwh/nLwCmIUK53WfbbT7P6g0Z/aLSwgAAAA==[0m[Pipeline] { (Load Image into Kind Cluster)
+Stage "Load Image into Kind Cluster" skipped due to earlier failure(s)
+[8mha:////4NnhzdENQTGtXHAMhEB5aPaJYsdamr/tugZUBwW/vcBmAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOICEh2iSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwZyv32U7vwBl2WGva+AAAA[0m[Pipeline] getContext
+[8mha:////4G8G93Co1vj6tB5cNd/NYd5//tjAd2C1hXRlrSWJiLdIAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOKCEB2iSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwhQ7nffWr7BlDdbXS+AAAA[0m[Pipeline] }
+[8mha:////4JPxzX2LExcyh2XroMBY31pUl272U4QpC9Ki7A2Un3YIAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOJShAYhqrRWGl5gYmOcWHfGdkgqXsTX+AMWkajYYrWzzbzesI4BThwM9poGS7Gz6N1o8sKJw3B1PGHPF+yYIjuNrZ5aVrpZsOWkYUlRwkrARlPnOFoyCbailw9ZOUmmOqeQv6OA0qo7PKEQ2ZxkSF+YA+xuo4pMP89fAczeJyj3da768AGWIKyJvgAAAA==[0m[Pipeline] // stage
+[8mha:////4AuxOa14mzExvcMSo0WjtkmB/P6UOAu0/eH0+hY7M8oVAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUiG6IqWuUhROEJIS00f8lSWknTsTVuAOBSkx4sGxL1nu+oIoBjhQs6wz2DqNybPCjzYlNFPqLp4l1dGaKMJI3TJhJkDbtUgUlA4uKElYc1gaVp+jQJtjwTt5l7SXa+pRC3g4cSqdv8ICCZ3KSIX3LHGB7HXUk/HH+AmAeEpS7fbam+TyrNxR5p0fCAAAA[0m[Pipeline] stage
+[8mha:////4JSNko16N3qWtZSkXI9HVsgxS4gy+s5B/depOZZoW1NgAAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycoh0KRNiYo2ycILQhJA0+r9NUtKJE3E17kBLJSY8WLYl673eUMUAJwqGOY2dxdha1vvRzIllCt3NU2aOrqwljOQ1EzoLUvq8VkFJw6qihA2HrcbWU7RoEuy4kw9Ze4mmvqQwb0cOpVUDPKHgMznJkL5lCrC/jyoS/jh/ATD1CcqmWeywPKsPIshjPcIAAAA=[0m[Pipeline] { (Create Namespace (if needed))
+Stage "Create Namespace (if needed)" skipped due to earlier failure(s)
+[8mha:////4HOrVoce9hZ/eJxwwbMRG13oG3fSbJQl76sOYJMNUTT6AAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOLSAA2iSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwZyu3uU/vwBj0vY+u+AAAA[0m[Pipeline] getContext
+[8mha:////4Ie4teN5HnF0LPAWtB8TcDWX27rgy9gweIOzyy25RgL/AAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOLSgCgQVVrLDS8wsTFOrDtjOyQVL+Jr/IFAJCq2WO1sM88XLFOEI0eLraHOUWocBt/baeHAsbt4HrDlMzZMib1BaQbJ2tQzSs4G5hQlLASsDDWekyObYS1adVeVV2SrU47TdxBQOn2DBxRiMmcV8xfGCJtrrxPTz/NXAGMIGcrt/lO7N2y4ylS+AAAA[0m[Pipeline] }
+[8mha:////4Fpz91xRJWWHfgoDbve4hXbRV6lw5mxQcG6eiRkT6DmxAAAApB+LCAAAAAAAAP9tjTESwiAURH/iWNhaegjSpHDGsbJlaDwBJogQ5n8CRFJ5Iq/mHUQzY+UWO/u2ec8XrGOAIwXNrMLBYOwM827SZbFMYbg6yszShXWEkZxiQmVBvTotKCgpWFLVsOKwUdg5igZ1gi238i4bJ1E35xTKd+BQm36EB1S8mJMM6QtzgN1t6iPhz/NXALP3Cep2/6n2DS86m9K+AAAA[0m[Pipeline] // stage
+[8mha:////4KcUZweYFjjz7aetv87KyuqDkI7OqOKQmo7sHdCUvRFTAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUCBaEOrFGXThBaEJIGv1fkpR04kRcjTsQqMSEB8u2ZL3nC6rgoSGvmVXYGwydYYMbdU4ske8vjhKzdGYdYSCnWKtSS1Id59pSVDCrKGHBYamwcxQM6ggrbsVd1E6grk/R5+3AoTTyBg8oeCZH4eO3TB7W11EGwh/nLwCmIUK52Wbb7T/P6g3Kajn7wgAAAA==[0m[Pipeline] stage
+[8mha:////4Ak8MElvAP+2v1x7NEUAxNEe2ng4qum2G6IPtCUu28W5AAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycoiUAQaEOrFGXThBaEJIGv1fkpR04kRcjTsQqMSEB8u2ZL3nC6rgoSGvmVXYGwydYYMbdU4ske8vjhKzdGYdYSCnWKtSS1Id59pSVDCrKGHBYamwcxQM6ggrbsVd1E6grk/R5+3AoTTyBg8oeCZH4eO3TB7W11EGwh/nLwCmIUK53WfbbT7P6g0iH00AwgAAAA==[0m[Pipeline] { (Update Kubernetes Job)
+Stage "Update Kubernetes Job" skipped due to earlier failure(s)
+[8mha:////4ADuOGu5f3wx1ZxecB733WTNBGJ5E+y0BFbPjrhxMXBYAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOICBRWiSmu54QUmNsaJdWdsh6TiRXyNPxCIRMUWq51t5vmCZYpw5GixNdQ5So3D4Hs7LRw4dhfPA7Z8xoYpsTcozSBZm3pGydnAnKKEhYCVocZzcmQzrEWr7qryimx1ynH6DgJKp2/wgEJM5qxi/sIYYXPtdWL6ef4KYAwZyv32U7vwBvT8cju+AAAA[0m[Pipeline] getContext
+[8mha:////4IZTluTU707EdY8YuBdVy+//NlhS1biKjWmTMKsvfuBNAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOKCkKgQVVrLDS8wsTFOrDtjOyQVL+Jr/IFAJCq2WO1sM88XLFOEI0eLraHOUWocBt/baeHAsbt4HrDlMzZMib1BaQbJ2tQzSs4G5hQlLASsDDWekyObYS1adVeVV2SrU47TdxBQOn2DBxRiMmcV8xfGCJtrrxPTz/NXAGMIGcr97lPbN6XnAcu+AAAA[0m[Pipeline] }
+[8mha:////4IEf8YPezxXZhlk/0TiUxmJya8ZIc07hMYdlr80kVgn3AAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOJSAAVCqWgtN7zAJMY4se6C7eBUvIiv8QcsIlGxxWpnm3m9YRk81OwNdpp6S6GxOLjR5IWJfX91nLDjCzZMgZ1GqZPkVp9mlBw1zClKWAhYaWocB0smwlp06qEqp8hU5+jzdxRQ2vYOTyhENkfl4xcmD5vb2Aamn+evAKZhiFDut7l2hw/lvZpgvgAAAA==[0m[Pipeline] // stage
+[8mha:////4LD1G1GD4/xBk4RR4AqU2irT9vLSJ15pqvXIt+8fCTelAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUCJhQJ9aoCycITQhJo/9LkpJOnIircQcClZjwYNmWrPd8QRU8NOQ1swp7g6EzbHCjzokl8v3FUWKWzqwjDOQUa1VqSarjXFuKCmYVJSw4LBV2joJBHWHFrbiL2gnU9Sn6vB04lEbe4AEFz+QofPyWycP6OspA+OP8BcA0RCg322z73edZvQGgctDhwgAAAA==[0m[Pipeline] stage
+[8mha:////4FKAiZ/qg6whVOAwQNsLT3yssy22DVYPg2fowPHTpMVwAAAAph+LCAAAAAAAAP9tjTEOwjAUQ3+DOrAycoh0oRNiYo26cILQhJA0+r9NUtKJE3E17kBLJSY8WLYl673eUMYAJwqGO42dxdha3vvRzIlnCt3NU+aOrrwljOQ1b3RuSOnzWhtKGlYVDDYCthpbT9GiSbATTj5k5SWa6pLCvB0FMKsGeEIhZnKSIX3LFGB/H1Uk/HH+AmDqE7D6sFi9PMsP+Y+xAMIAAAA=[0m[Pipeline] { (Verify Deployment)
+Stage "Verify Deployment" skipped due to earlier failure(s)
+[8mha:////4N3Z8vK68EI1BY4owNleYaoeweAVbZfHyMkkiRkVADVOAAAAox+LCAAAAAAAAP9tjTESwiAURH/iWNhaeghSxcaxsmVoPAEmiBDmfwJEUnkir+YdRDNj5RY7+7Z5zxesY4AjBc2swsFg7AzzbtJlsUxhuDrKzNKFdYSRnGJCZUG9Oi0oKClYUtWw4rBR2DmKBnWCLbfyLhsnUTfnFMp34FCbfoQHVLyYkwzpC3OA3W3qI+HP81cAs09Qt+2n9v4NlEULJr4AAAA=[0m[Pipeline] getContext
+[8mha:////4KNukB/3xmK2APAAxsTYPxln/cP4RzvDdoOu9sMzL73wAAAAox+LCAAAAAAAAP9tjTESwiAURH/iWNhaeghSZSwcK1uGxhNggghh/idAJJUn8mreQTQzVm6xs2+b93zBOgY4UtDMKhwMxs4w7yZdFssUhqujzCxdWEcYySkmVBbUq9OCgpKCJVUNKw4bhZ2jaFAn2HIr77JxEnVzTqF8Bw616Ud4QMWLOcmQvjAH2N2mPhL+PH8FMHufoG73n2rfmYKm674AAAA=[0m[Pipeline] }
+[8mha:////4NqcXjN5334ruCjOKjw16M/ansX9mT5w/4gIZQhhCLPyAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOLSgISEqNJabniBiY1xYt0Z2yGpeBFf4w8EIlGxxWpnm3m+YJkiHDlabA11jlLjMPjeTgsHjt3F84Atn7FhSuwNSjNI1qaeUXI2MKcoYSFgZajxnBzZDGvRqruqvCJbnXKcvoOA0ukbPKAQkzmrmL8wRthce52Yfp6/AhhDyFDu9p/avgHaAPdtvgAAAA==[0m[Pipeline] // stage
+[8mha:////4Jru2BoZs48f88oanIjheISGBXTDnid8wCjH0zcJswxjAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUCDEg1Ik16sIJQhNC0uj/kqSkEyfiatyBQCUmPFi2Jes9X1AFDw15zazC3mDoDBvcqHNiiXx/cZSYpTPrCAM5xVqVWpLqONeWooJZRQkLDkuFnaNgUEdYcSvuonYCdX2KPm8HDqWRN3hAwTM5Ch+/ZfKwvo4yEP44fwEwDRHKzTbbbv95Vm9+YU5dwgAAAA==[0m[Pipeline] stage
+[8mha:////4HNvYaDkfA8/xIrNEa/32VEOGaSty5Wv6QsnO7bGqRGhAAAAqB+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycoiUBSSEOrFGXThBaEJIGv1fkpR04kRcjTsQqMSEB8u2ZL3nC6rgoSGvmVXYGwydYYMbdU4ske8vjhKzdGYdYSCnWKtSS1Id59pSVDCrKGHBYamwcxQM6ggrbsVd1E6grk/R5+3AoTTyBg8oeCZH4eO3TB7W11EGwh/nLwCmIUK53WfbbT7P6g3QSQCqwgAAAA==[0m[Pipeline] { (Declarative: Post Actions)
+[8mha:////4LsD5ZUVB7hpyUd03+oG+hbJPuJMtbW+ISyDDqTVmhnUAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycogUFhbE1DXKwglCE0La6P/yk9JOnIircQdaKjHhwbItWe/1hiIynIidaCy2HmPtRRd6NyUxELfXQINo6CJqwkjBCmUHRcZWS1WULCzKclhJWFusA0WPLsFGNvqhy6DRlefE03aUkHtzhydkciInzelbRobtrTeR8Mf5C4CxS5AfdrPt52fxAQB2j23CAAAA[0m[Pipeline] script
+[8mha:////4C+j6Y0jbXdwiyxiQsrPHF/lA1DflvkzOW24yMmPDZHRAAAApx+LCAAAAAAAAP9tjTEOwjAUQ3+LOrAycohUMLAgpq5RFk4QmhDSRv+Xn5R24kRcjTvQUokJD5ZtyXqvNxSR4UTsRGOx9RhrL7rQuymJgbi9BhpEQxdRE0YKVig7KDK2WqqiZGFRlsNKwtpiHSh6dAk2stEPXQaNrjwnnrajhNybOzwhkxM5aU7fMjJsb72JhD/OXwCMXYL8sJttPz+LD27blSrCAAAA[0m[Pipeline] {
+[8mha:////4CcXhzZDzjB/EJ5aO+7lIAqq6m3Kim/pdAK9k3MYR30mAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIigUSDqNJabniBiY1xYt0Z2yGpeBFf4w8EIlGxxWpnm3m+YJkiHDlabA11jlLjMPjeTgsHjt3F84Atn7FhSuwNSjNI1qaeUXI2MKcoYSFgZajxnBzZDGvRqruqvCJbnXKcvoOA0ukbPKAQkzmrmL8wRthce52Yfp6/AhhDhnK//dQuvAHlNhISvgAAAA==[0m[Pipeline] sh
++ + + + tail -n+ xargs -rsort -t-grep -E +11
+docker images -I {} -k1 -nr ^[0-9]+-
+ hmm-model-training --format docker rmi
+ {{.Tag}}
+ hmm-model-training:{}
+[8mha:////4ATRPN8k0TncQW1kcfS1a2/upuBuH9hS3OMzu8ZAEGP0AAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiIUSDqNJabniBiY1xYt0Z2yGpeBFf4w8EIlGxxWpnm3m+YJkiHDlabA11jlLjMPjeTgsHjt3F84Atn7FhSuwNSjNI1qaeUXI2MKcoYSFgZajxnBzZDGvRqruqvCJbnXKcvoOA0ukbPKAQkzmrmL8wRthce52Yfp6/AhhDyFDud5/avgHKLJPpvgAAAA==[0m[Pipeline] }
+[8mha:////4MZJ2Wbhd+G5I6sF/e0LcNtRQEXAtvV/1BWHcwQgGzTtAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiCmgQVVrLDS8wsTFOrDtjOyQVL+Jr/IFAJCq2WO1sM88XLFOEI0eLraHOUWocBt/baeHAsbt4HrDlMzZMib1BaQbJ2tQzSs4G5hQlLASsDDWekyObYS1adVeVV2SrU47TdxBQOn2DBxRiMmcV8xfGCJtrrxPTz/NXAGMIGcr97lPbN9Wuxru+AAAA[0m[Pipeline] // script
+[8mha:////4McxLeJB4vVn4L8ZKlxcSMWSlgDwuzY6IPUqXiyZMa9/AAAAox+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOJClQZR0VppeIFJjLFj3Tm2g1PxIr7GHwhEomKL1c4283zBOgY4ctBoFfWGYmvQu1HPCzOH/uo4o+ULtkyRncJG5YY7dVqw4aRgSVHCSsBGUes4GtIJtsLKu6ycJF2dU5i/g4DSdAM8oBCzOcmQvjAF2N3GLjL9PH8FMHmfoKzrT+3f7exVSr4AAAA=[0m[Pipeline] }
+[8mha:////4D3NMPdrRpYAYiVil3IIE7BYtYtEt6rUoenNZjbD6ZXoAAAApR+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOJSAUIoFa3lhheYxBgn1l2wHZyKF/E1/oBFJCq2WO1sM683LIOHmr3BTlNvKTQWBzeavDCx76+OE3Z8wYYpsNModZLc6tOMkqOGOUUJCwErTY3jYMlEWItOPVTlFJnqHH3+jgJK297hCYXI5qh8/MLkYXMb28D08/wVwDQMEcrdPtf28AEv1PjTvgAAAA==[0m[Pipeline] // stage
+[8mha:////4KZFPVd/0UHr7AzKX5vNMDmJ30FqAf9cTwg2Sb0F++OLAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIihISQUCpayw0vMIkxTqy7YDs4FS/ia/wBi0hUbLHa2WZeb1gGDzV7g52m3lJoLA5uNHlhYt9fHSfs+IINU2CnUeokudWnGSVHDXOKEhYCVpoax8GSibAWnXqoyiky1Tn6/B0FlLa9wxMKkc1R+fiFycPmNraB6ef5K4BpGCKU+0Ou7e4D4EoXpr4AAAA=[0m[Pipeline] }
+[8mha:////4IUiJwwC4WBKuzS89dLorrk3sMaaPBfT4TmxjeiJdNdPAAAAph+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPOIiKJAQSkVrueEFJjHGiXUXbAen4kV8jT9gEYmKLVY728zrDcvgoWZvsNPUWwqNxcGNJi9M7Pur44QdX7BhCuw0Sp0kt/o0o+SoYU5RwkLASlPjOFgyEdaiUw9VOUWmOkefv6OA0rZ3eEIhsjkqH78wedjcxjYw/Tx/BTANQ4Ryf8i13X0A06lMGr4AAAA=[0m[Pipeline] // withEnv
+[8mha:////4PTP6OrKNCc8gIaCbNK8Htz09Ur6Ds9jGPzpB8cIu4rjAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPMIhFQWiSmul4QUmPowT687YDknFi/gaf8AiEhVbrHa2mdcb1jHAiYMRPdJgKXZWeDeavMTEYbg6nkTPF9ExRXYoWpxa1tgs2HJCWFKUsJKwQeocR0smwVb26qEqp8hU5xTyd5RQWn2HJxQym5MK6QtzgN1t1JHp5/krgNn7BOVhn6uuPxWiPQK+AAAA[0m[Pipeline] }
+[8mha:////4LDZVnXYpB7wo/nddFGPZcOm3KN1/HuVPK9NbmlmRcIkAAAApB+LCAAAAAAAAP9tjTEOwjAQBC9BFLSUPMIhFQWiSmul4QUmPowT687YDknFi/gaf8AiEhVbrHa2mdcb1jHAiYMRPdJgKXZWeDeavMTEYbg6nkTPF9ExRXYoWpxa1tgs2HJCWFKUsJKwQeocR0smwVb26qEqp8hU5xTyd5RQWn2HJxQym5MK6QtzgN1t1JHp5/krgNn7BOWhzlXvPyZBZr6+AAAA[0m[Pipeline] // withEnv
+[8mha:////4FNXDDv6FUb3qtJlEu/VslEBqYM2nxPXxCyw9eH6JjogAAAApB+LCAAAAAAAAP9tjTEOwjAQBDdBFLSUPMKREBIFoqK10vACkxjjxLoL9oWk4kV8jT8QEYmKrXammdcbyxRx5OhUY6n1lCqvutC76amBY3sNPKiGL6piShysKu1Qcm1PM5YsFvOyHAuNlaUqcPLkBGvdmIcpgiFXnCVO7qCR+/qOJzI9lcVE+cIYsbn1dWL6df4GMHadIN9vBdnuA/ib3H69AAAA[0m[Pipeline] }
+[8mha:////4NYseJtCJeYHlgIVxeI3Bc5UbObZbOZCtIC7/UFDGfEFAAAAox+LCAAAAAAAAP9tjTESgjAQRT84FraWHiIUFBaOlW2GxhNEiDGQ2cVkESpP5NW8g4zMWPmr/17zXm+sU8SRo1Otpc5Tqr3qw+Dmp0aO3TXwqFq+qJopcbCqsmPFjT0tWLFYLMtyrDQ2lurAyZMTbHVrHqYIhlxxlji7g0bumzueyPRcFhPlC1PE7jY0ienX+RvA1PeCfF8KsvID6yfY3b0AAAA=[0m[Pipeline] // node
+[8mha:////4AOx1C7fCXwAYLkb+emOyF6EIrI5jICPG1rDiVGfud4lAAAApB+LCAAAAAAAAP9tjTEOwjAQBDdBFLSUPMKREBIFoqK10vACkxjjxLoL9oWk4kV8jT8QEYmKrXammdcbyxRx5OhUY6n1lCqvutC76amBY3sNPKiGL6piShysKu1Qcm1PM5YsFvOyHAuNlaUqcPLkBGvdmIcpgiFXnCVO7qCR+/qOJzI9lcVE+cIYsbn1dWL6df4GMHadIN/vBNn2A23L/xi9AAAA[0m[Pipeline] End of Pipeline
+org.jenkinsci.plugins.workflow.actions.ErrorAction$ErrorId: 1ceab7bb-ab05-4a23-b7f0-bd04b6bb64a2
+
+GitHub has been notified of this commit’s build result
+
+Finished: ABORTED

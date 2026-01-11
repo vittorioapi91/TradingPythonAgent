@@ -1,0 +1,19 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<com.cloudbees.jenkins.plugins.bitbucket.endpoints.BitbucketEndpointConfiguration plugin="cloudbees-bitbucket-branch-source@937.2.3">
+  <endpoints class="java.util.concurrent.CopyOnWriteArrayList">
+    <com.cloudbees.jenkins.plugins.bitbucket.endpoints.BitbucketCloudEndpoint>
+      <manageHooks>false</manageHooks>
+      <enableHookSignature>false</enableHookSignature>
+      <webhook class="com.cloudbees.jenkins.plugins.bitbucket.impl.webhook.cloud.CloudWebhookConfiguration">
+        <manageHooks>false</manageHooks>
+        <enableHookSignature>false</enableHookSignature>
+        <skipCertVerification>false</skipCertVerification>
+        <enableCache>false</enableCache>
+        <webhooksCacheDuration>180</webhooksCacheDuration>
+      </webhook>
+      <enableCache>false</enableCache>
+      <teamCacheDuration>0</teamCacheDuration>
+      <repositoriesCacheDuration>0</repositoriesCacheDuration>
+    </com.cloudbees.jenkins.plugins.bitbucket.endpoints.BitbucketCloudEndpoint>
+  </endpoints>
+</com.cloudbees.jenkins.plugins.bitbucket.endpoints.BitbucketEndpointConfiguration>

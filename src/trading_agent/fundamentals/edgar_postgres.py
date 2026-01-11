@@ -12,23 +12,27 @@ from psycopg2.extras import execute_values, RealDictCursor
 from psycopg2 import sql
 
 
-def get_postgres_connection(dbname: str = "edgar", user: str = "postgres", 
-                            host: str = "localhost", password: Optional[str] = None,
-                            port: int = 5432) -> psycopg2.extensions.connection:
+def get_postgres_connection(dbname: str = "edgar", user: Optional[str] = None, 
+                            host: Optional[str] = None, password: Optional[str] = None,
+                            port: Optional[int] = None) -> psycopg2.extensions.connection:
     """
     Get PostgreSQL connection
     
     Args:
         dbname: Database name (default: 'edgar')
-        user: Database user (default: 'postgres')
-        host: Database host (default: 'localhost')
-        password: Database password (optional, can use environment variable)
-        port: Database port (default: 5432)
+        user: Database user (optional, can use POSTGRES_USER env var, default: 'tradingAgent')
+        host: Database host (optional, can use POSTGRES_HOST env var, default: 'localhost')
+        password: Database password (optional, can use POSTGRES_PASSWORD env var)
+        port: Database port (optional, can use POSTGRES_PORT env var, default: 55432 for Docker Compose)
     
     Returns:
         PostgreSQL connection
     """
+    # Use env vars with fallbacks
+    user = user or os.getenv('POSTGRES_USER', 'tradingAgent')
+    host = host or os.getenv('POSTGRES_HOST', 'localhost')
     password = password or os.getenv('POSTGRES_PASSWORD', '')
+    port = port if port is not None else int(os.getenv('POSTGRES_PORT', '55432'))
     
     return psycopg2.connect(
         dbname=dbname,
@@ -172,30 +176,30 @@ def init_edgar_postgres_tables(conn: psycopg2.extensions.connection) -> None:
     
     # Create year_completion_ledger table (ledger pattern for tracking year completion)
     year_completion_ledger_existed = table_exists('year_completion_ledger')
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS year_completion_ledger (
-            year INTEGER NOT NULL,
-            filing_type VARCHAR(50) NOT NULL,  -- 'TOTAL' for total, or specific type like '10-K', '10-Q', etc.
-            sec_index_count INTEGER DEFAULT 0,
-            db_count INTEGER DEFAULT 0,
-            is_complete BOOLEAN DEFAULT FALSE,
-            last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            PRIMARY KEY (year, filing_type)
-        )
-    """)
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS year_completion_ledger (
+                year INTEGER NOT NULL,
+                filing_type VARCHAR(50) NOT NULL,  -- 'TOTAL' for total, or specific type like '10-K', '10-Q', etc.
+                sec_index_count INTEGER DEFAULT 0,
+                db_count INTEGER DEFAULT 0,
+                is_complete BOOLEAN DEFAULT FALSE,
+                last_checked TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (year, filing_type)
+            )
+        """)
     if not year_completion_ledger_existed:
         print("  ✓ Created year_completion_ledger table")
-    
-    # Create index on year_completion_ledger
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_year_completion_ledger_year 
-        ON year_completion_ledger(year)
-    """)
-    
-    cur.execute("""
-        CREATE INDEX IF NOT EXISTS idx_year_completion_ledger_is_complete 
-        ON year_completion_ledger(is_complete)
-    """)
+        
+        # Create index on year_completion_ledger
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_year_completion_ledger_year 
+            ON year_completion_ledger(year)
+        """)
+        
+        cur.execute("""
+            CREATE INDEX IF NOT EXISTS idx_year_completion_ledger_is_complete 
+            ON year_completion_ledger(is_complete)
+        """)
     
     # Initialize metadata if empty
     cur.execute("SELECT COUNT(*) FROM metadata")

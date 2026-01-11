@@ -22,26 +22,27 @@ class MacroDataLoader:
     Load macro economic time series data from FRED PostgreSQL database
     """
     
-    def __init__(self, dbname: str = "fred", user: str = "tradingAgent",
-                 host: str = "localhost", password: Optional[str] = None,
+    def __init__(self, dbname: str = "fred", user: Optional[str] = None,
+                 host: Optional[str] = None, password: Optional[str] = None,
                  port: Optional[int] = None):
         """
         Initialize data loader
         
         Args:
             dbname: Database name
-            user: Database user
-            host: Database host
-            password: Database password (optional, can use env var)
-            port: Database port (optional, can use POSTGRES_PORT env var, default: 5432)
+            user: Database user (optional, can use POSTGRES_USER env var, default: 'tradingAgent')
+            host: Database host (optional, can use POSTGRES_HOST env var, default: 'localhost')
+            password: Database password (optional, can use POSTGRES_PASSWORD env var)
+            port: Database port (optional, can use POSTGRES_PORT env var, default: 55432 for Docker Compose)
         """
         self.dbname = dbname
-        self.user = user
-        self.host = host
+        # Use env vars with fallbacks
+        self.user = user or os.getenv('POSTGRES_USER', 'tradingAgent')
+        self.host = host or os.getenv('POSTGRES_HOST', 'localhost')
         self.password = password or os.getenv('POSTGRES_PASSWORD', '')
         # Support port from env var for Docker setups (e.g., 55432)
         if port is None:
-            port_str = os.getenv('POSTGRES_PORT', '5432')
+            port_str = os.getenv('POSTGRES_PORT', '55432')
             self.port = int(port_str)
         else:
             self.port = port

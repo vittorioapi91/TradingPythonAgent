@@ -32,7 +32,7 @@ pipeline {
                         env.IMAGE_NAME = 'hmm-model-training'
                         env.NAMESPACE = 'trading-monitoring'
                         env.JOB_NAME = 'hmm-model-calibration'
-                        env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
+                    env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
                     }
                     
                     echo "Building for branch: ${env.GIT_BRANCH}"
@@ -126,13 +126,13 @@ pipeline {
             // Clean up old images (optional - keep last 10 builds)
             script {
                 def pattern = env.ENV_SUFFIX ? "^${env.ENV_SUFFIX}-[0-9]+-" : "^[0-9]+-"
-                sh """
+            sh """
                     docker images ${env.IMAGE_NAME} --format '{{.Tag}}' | \\
                         grep -E '${pattern}' | \\
                         sort -t- -k${env.ENV_SUFFIX ? '2' : '1'} -nr | \\
-                        tail -n +11 | \\
+                    tail -n +11 | \\
                         xargs -r -I {} docker rmi ${env.IMAGE_NAME}:{} || true
-                """
+            """
             }
         }
     }

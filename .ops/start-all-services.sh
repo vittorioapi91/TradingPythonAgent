@@ -59,29 +59,8 @@ else
     log "${YELLOW}You may need to create it manually: kind create cluster --name trading-cluster${NC}"
 fi
 
-# Wait for Jenkins pod to be ready (if deployed)
-log "${YELLOW}Checking Jenkins deployment...${NC}"
-if kubectl get pods -n jenkins --context "$KUBECTL_CONTEXT" > /dev/null 2>&1; then
-    log "${GREEN}✓ Jenkins namespace exists${NC}"
-    
-    # Wait for Jenkins pod to be ready (with timeout)
-    if kubectl wait --for=condition=ready pod -l app=jenkins -n jenkins --context "$KUBECTL_CONTEXT" --timeout=60s > /dev/null 2>&1; then
-        log "${GREEN}✓ Jenkins pod is ready${NC}"
-    else
-        log "${YELLOW}Warning: Jenkins pod may not be ready yet${NC}"
-    fi
-else
-    log "${YELLOW}Jenkins not deployed yet. Deploy with: kubectl apply -f $PROJECT_ROOT/.ops/.jenkins/jenkins-deployment.yaml${NC}"
-fi
-
-# Set up port forwarding for Jenkins (background)
-log "${YELLOW}Setting up port forwarding for Jenkins...${NC}"
-if pgrep -f "kubectl port-forward.*jenkins.*8081" > /dev/null; then
-    log "${YELLOW}Jenkins port forwarding already running${NC}"
-else
-    kubectl port-forward -n jenkins service/jenkins 8081:8080 --context "$KUBECTL_CONTEXT" >> "$LOG_FILE" 2>&1 &
-    log "${GREEN}✓ Jenkins port forwarding started on port 8081${NC}"
-fi
+# Jenkins is now running in Docker Compose (no Kubernetes deployment needed)
+log "${GREEN}✓ Jenkins is managed by Docker Compose${NC}"
 
 # Set up port forwarding for Kubernetes Dashboard (background)
 log "${YELLOW}Setting up port forwarding for Kubernetes Dashboard...${NC}"

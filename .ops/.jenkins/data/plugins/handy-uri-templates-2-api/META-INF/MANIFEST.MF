@@ -1,0 +1,27 @@
+Manifest-Version: 1.0
+Created-By: Maven Archiver 3.6.4
+Build-Jdk-Spec: 21
+Specification-Title: Handy Uri Templates 2.x API Plugin
+Specification-Version: 2.1
+Implementation-Title: Handy Uri Templates 2.x API Plugin
+Implementation-Version: 2.1.8-38.vcea_5d521d5f3
+Group-Id: org.jenkins-ci.plugins
+Artifact-Id: handy-uri-templates-2-api
+Short-Name: handy-uri-templates-2-api
+Long-Name: Handy Uri Templates 2.x API Plugin
+Url: https://github.com/jenkinsci/handy-uri-templates-2-api-plugin
+Plugin-Version: 2.1.8-38.vcea_5d521d5f3
+Hudson-Version: 2.479.1
+Jenkins-Version: 2.479.1
+Plugin-Dependencies: joda-time-api:2.13.0-93.v9934da_29b_a_e9
+Plugin-Developers: Joseph Petersen:jetersen:
+Support-Dynamic-Loading: true
+Plugin-License-Name: MIT License
+Plugin-License-Url: https://opensource.org/licenses/MIT
+Plugin-ScmConnection: scm:git:https://github.com/jenkinsci/handy-uri-tem
+ plates-2-api-plugin.git
+Plugin-ScmTag: cea5d521d5f3d6dfd0f3e3ad9f5f950d31e85520
+Plugin-ScmUrl: https://github.com/jenkinsci/handy-uri-templates-2-api-pl
+ ugin
+Implementation-Build: cea5d521d5f3d6dfd0f3e3ad9f5f950d31e85520
+

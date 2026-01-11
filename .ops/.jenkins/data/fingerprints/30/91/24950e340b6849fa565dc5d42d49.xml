@@ -1,0 +1,17 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<fingerprint>
+  <timestamp>2026-01-11 11:12:11.686 UTC</timestamp>
+  <md5sum>309124950e340b6849fa565dc5d42d49</md5sum>
+  <fileName>Credential id=39a94d87-8a43-468b-9138-14b4f86d7b93 name=vittorioapi/******</fileName>
+  <usages>
+    <entry>
+      <string>TradingPythonAgent/dev</string>
+      <ranges>1</ranges>
+    </entry>
+    <entry>
+      <string>TradingPythonAgent/main</string>
+      <ranges>1-4</ranges>
+    </entry>
+  </usages>
+  <facets/>
+</fingerprint>

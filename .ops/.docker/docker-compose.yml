@@ -138,6 +138,41 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # Jenkins CI/CD server
+  jenkins:
+    image: jenkins-custom:lts  # Custom image with kubectl, kind, and Docker CLI pre-installed
+    container_name: jenkins
+    ports:
+      - "8081:8080"  # Match current port forwarding setup (8081 on host)
+      - "50000:50000"
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    volumes:
+      - ../.jenkins/data:/var/jenkins_home  # Mount extracted Jenkins data
+      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for docker build
+      - ${HOME}/.kube:/root/.kube  # Kubernetes config for kubectl access
+    networks:
+      - monitoring
+    restart: unless-stopped
+    user: root  # Needed for Docker socket access
+    entrypoint: >
+      bash -c "
+        # Update kubeconfig to use host.docker.internal for localhost connections (Mac Docker Desktop)
+        # Tools (docker, kubectl, kind) are already pre-installed in the custom image
+        if [ -f /root/.kube/config ] && command -v kubectl &> /dev/null; then
+          # Backup original config
+          cp /root/.kube/config /root/.kube/config.bak
+          # Replace 127.0.0.1 and localhost with host.docker.internal
+          sed -i 's|https://127.0.0.1:\([0-9]*\)|https://host.docker.internal:\1|g' /root/.kube/config || true
+          sed -i 's|https://localhost:\([0-9]*\)|https://host.docker.internal:\1|g' /root/.kube/config || true
+          # Add insecure-skip-tls-verify for kind-trading-cluster (cert doesn't include host.docker.internal)
+          # This is safe for local development only
+          kubectl config set-cluster kind-trading-cluster --insecure-skip-tls-verify=true 2>/dev/null || true
+        fi
+        # Start Jenkins with original entrypoint
+        exec /usr/local/bin/jenkins.sh
+      "
+
 volumes:
   prometheus-data:
   grafana-data:

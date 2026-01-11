@@ -1,0 +1,64 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@1559.va_a_533730b_ea_d">
+  <actions>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobAction plugin="pipeline-model-definition@2.2277.v00573e73ddf1"/>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction plugin="pipeline-model-definition@2.2277.v00573e73ddf1">
+      <jobProperties/>
+      <triggers/>
+      <parameters/>
+      <options/>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.DeclarativeJobPropertyTrackerAction>
+  </actions>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <org.jenkinsci.plugins.workflow.multibranch.BranchJobProperty plugin="workflow-multibranch@821.vc3b_4ea_780798">
+      <branch plugin="branch-api@2.1268.v044a_87612da_8">
+        <sourceId>1</sourceId>
+        <head class="org.jenkinsci.plugins.github_branch_source.BranchSCMHead" plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
+          <name>dev</name>
+        </head>
+        <scm class="hudson.plugins.git.GitSCM" plugin="git@5.8.1">
+          <configVersion>2</configVersion>
+          <userRemoteConfigs>
+            <hudson.plugins.git.UserRemoteConfig>
+              <name>origin</name>
+              <refspec>+refs/heads/dev:refs/remotes/origin/dev</refspec>
+              <url>https://github.com/vittorioapi91/TradingPythonAgent.git</url>
+              <credentialsId>39a94d87-8a43-468b-9138-14b4f86d7b93</credentialsId>
+            </hudson.plugins.git.UserRemoteConfig>
+          </userRemoteConfigs>
+          <branches class="singleton-list">
+            <hudson.plugins.git.BranchSpec>
+              <name>dev</name>
+            </hudson.plugins.git.BranchSpec>
+          </branches>
+          <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+          <browser class="hudson.plugins.git.browser.GithubWeb">
+            <url>https://github.com/vittorioapi91/TradingPythonAgent</url>
+          </browser>
+          <submoduleCfg class="empty-list"/>
+          <extensions>
+            <jenkins.plugins.git.GitSCMSourceDefaults>
+              <includeTags>false</includeTags>
+            </jenkins.plugins.git.GitSCMSourceDefaults>
+          </extensions>
+        </scm>
+        <properties/>
+        <actions>
+          <org.jenkinsci.plugins.github__branch__source.GitHubLink plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
+            <url>https://github.com/vittorioapi91/TradingPythonAgent/tree/dev</url>
+          </org.jenkinsci.plugins.github__branch__source.GitHubLink>
+          <jenkins.scm.api.metadata.ObjectMetadataAction plugin="scm-api@724.v7d839074eb_5c">
+            <objectDisplayName>dev</objectDisplayName>
+            <objectUrl>https://github.com/vittorioapi91/TradingPythonAgent/tree/dev</objectUrl>
+          </jenkins.scm.api.metadata.ObjectMetadataAction>
+        </actions>
+      </branch>
+    </org.jenkinsci.plugins.workflow.multibranch.BranchJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.multibranch.SCMBinder" plugin="workflow-multibranch@821.vc3b_4ea_780798">
+    <scriptPath>Jenkinsfile</scriptPath>
+  </definition>
+  <triggers/>
+  <disabled>false</disabled>
+</flow-definition>

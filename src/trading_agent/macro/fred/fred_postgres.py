@@ -13,23 +13,27 @@ from psycopg2.extras import execute_values, RealDictCursor
 from psycopg2 import sql
 
 
-def get_postgres_connection(dbname: str = "fred", user: str = "postgres", 
-                            host: str = "localhost", password: Optional[str] = None,
-                            port: int = 5432) -> psycopg2.extensions.connection:
+def get_postgres_connection(dbname: str = "fred", user: Optional[str] = None, 
+                            host: Optional[str] = None, password: Optional[str] = None,
+                            port: Optional[int] = None) -> psycopg2.extensions.connection:
     """
     Get PostgreSQL connection
     
     Args:
         dbname: Database name (default: 'fred')
-        user: Database user (default: 'postgres')
-        host: Database host (default: 'localhost')
-        password: Database password (optional, can use environment variable)
-        port: Database port (default: 5432)
+        user: Database user (optional, can use POSTGRES_USER env var, default: 'tradingAgent')
+        host: Database host (optional, can use POSTGRES_HOST env var, default: 'localhost')
+        password: Database password (optional, can use POSTGRES_PASSWORD env var)
+        port: Database port (optional, can use POSTGRES_PORT env var, default: 55432 for Docker Compose)
     
     Returns:
         PostgreSQL connection
     """
+    # Use env vars with fallbacks
+    user = user or os.getenv('POSTGRES_USER', 'tradingAgent')
+    host = host or os.getenv('POSTGRES_HOST', 'localhost')
     password = password or os.getenv('POSTGRES_PASSWORD', '')
+    port = port if port is not None else int(os.getenv('POSTGRES_PORT', '55432'))
     
     return psycopg2.connect(
         dbname=dbname,
