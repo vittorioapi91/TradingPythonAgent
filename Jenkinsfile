@@ -19,6 +19,21 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
+                    // Parse branch pattern: dev/feature-{project}-{module}
+                    // Examples: dev/feature-trading_agent-fundamentals, dev/feature-trading_agent-macro
+                    env.PROJECT_NAME = ''
+                    env.MODULE_NAME = ''
+                    env.IS_FEATURE_BRANCH = 'false'
+                    
+                    def featureBranchPattern = ~/^dev\/feature-([^-]+)-(.+)$/
+                    def matcher = env.GIT_BRANCH =~ featureBranchPattern
+                    
+                    if (matcher) {
+                        env.IS_FEATURE_BRANCH = 'true'
+                        env.PROJECT_NAME = matcher[0][1]  // e.g., 'trading_agent'
+                        env.MODULE_NAME = matcher[0][2]   // e.g., 'fundamentals', 'macro'
+                    }
+                    
                     // Determine environment based on branch
                     if (env.GIT_BRANCH == 'dev' || env.GIT_BRANCH.startsWith('dev/')) {
                         env.ENV_SUFFIX = 'dev'
@@ -32,13 +47,47 @@ pipeline {
                         env.IMAGE_NAME = 'hmm-model-training'
                         env.NAMESPACE = 'trading-monitoring'
                         env.JOB_NAME = 'hmm-model-calibration'
-                    env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
+                        env.IMAGE_TAG = "${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}"
+                    }
+                    
+                    // Set module-specific paths (using relative paths from workspace root)
+                    if (env.IS_FEATURE_BRANCH == 'true') {
+                        env.MODULE_PATH = "src/${env.PROJECT_NAME}/${env.MODULE_NAME}"
+                    } else {
+                        env.MODULE_PATH = ''
                     }
                     
                     echo "Building for branch: ${env.GIT_BRANCH}"
                     echo "Environment: ${env.ENV_SUFFIX ?: 'production'}"
+                    if (env.IS_FEATURE_BRANCH == 'true') {
+                        echo "Feature branch detected: project=${env.PROJECT_NAME}, module=${env.MODULE_NAME}"
+                        echo "Module path: ${env.MODULE_PATH}"
+                    }
                     echo "Image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                     echo "Namespace: ${env.NAMESPACE}"
+                }
+            }
+        }
+        
+        // Module-specific validation stage (only for feature branches)
+        stage('Validate Module') {
+            when {
+                expression { env.IS_FEATURE_BRANCH == 'true' }
+            }
+            steps {
+                script {
+                    echo "Validating module path: ${env.MODULE_PATH}"
+                    sh """
+                        if [ ! -d "${env.MODULE_PATH}" ]; then
+                            echo "ERROR: Module path does not exist: ${env.MODULE_PATH}"
+                            echo "Available modules in src/${env.PROJECT_NAME}/:"
+                            ls -d src/${env.PROJECT_NAME}/*/ 2>/dev/null | xargs -n 1 basename || echo "No modules found"
+                            exit 1
+                        fi
+                        echo "✓ Module path exists: ${env.MODULE_PATH}"
+                        echo "Module contents:"
+                        ls -la "${env.MODULE_PATH}" | head -20
+                    """
                 }
             }
         }
