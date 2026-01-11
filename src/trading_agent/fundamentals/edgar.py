@@ -9,13 +9,11 @@ import os
 import time
 import shutil
 import requests
+import asyncio
+import aiohttp
 from typing import List, Dict, Optional, Set
 from datetime import datetime
 import json
-import duckdb
-import pyarrow as pa
-import pyarrow.parquet as pq
-import pandas as pd
 import warnings
 import zipfile
 import io
@@ -27,16 +25,37 @@ import logging
 import traceback
 import gzip
 from html.parser import HTMLParser
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from threading import Lock
+import pandas as pd
 
 from tqdm import tqdm
 
 # Handle import for both module import and direct script execution
 try:
     from .download_logger import get_download_logger
-    from .edgar_parquet import init_duckdb_tables, get_parquet_paths, add_filings_atomically, add_filings_fast
+    from .edgar_postgres import (
+        get_postgres_connection, init_edgar_postgres_tables,
+        add_companies_fast, add_filings_fast, get_existing_accessions,
+        load_companies_from_postgres, load_filings_from_postgres,
+        add_company_history_snapshot, update_edgar_metadata,
+        get_edgar_metadata, get_edgar_statistics, update_filing_downloaded_path,
+        get_processed_years, mark_year_processed, get_enriched_ciks,
+        get_year_completion_status, update_year_completion_ledger,
+        get_db_filing_counts_by_year, is_year_complete, get_incomplete_years
+    )
 except ImportError:
     from download_logger import get_download_logger
-    from edgar_parquet import init_duckdb_tables, get_parquet_paths, add_filings_atomically, add_filings_fast
+    from edgar_postgres import (
+        get_postgres_connection, init_edgar_postgres_tables,
+        add_companies_fast, add_filings_fast, get_existing_accessions,
+        load_companies_from_postgres, load_filings_from_postgres,
+        add_company_history_snapshot, update_edgar_metadata,
+        get_edgar_metadata, get_edgar_statistics, update_filing_downloaded_path,
+        get_processed_years, mark_year_processed, get_enriched_ciks,
+        get_year_completion_status, update_year_completion_ledger,
+        get_db_filing_counts_by_year, is_year_complete, get_incomplete_years
+    )
 
 warnings.filterwarnings('ignore')
 
@@ -103,13 +122,13 @@ class EDGARDownloader:
         parser.feed(html_content)
         return parser.items
     
-    def _parse_master_idx(self, content: bytes, target_forms: Set[str]) -> Dict[str, str]:
+    def _parse_master_idx(self, content: bytes, target_forms: Optional[Set[str]] = None) -> Dict[str, str]:
         """
         Parse master.idx file content to extract CIKs and company names for target form types
         
         Args:
             content: Content of master.idx file (bytes, may be gzipped)
-            target_forms: Set of form types to filter (e.g., {'10-K', '10-Q', '10-K/A', '10-Q/A'})
+            target_forms: Optional set of form types to filter (None for all forms)
             
         Returns:
             Dictionary mapping CIK (as 10-digit string) to company name
@@ -143,10 +162,16 @@ class EDGARDownloader:
                     company_name = parts[1].strip()
                     form_type = parts[2].strip()
                     
-                    # Check if this form type matches our target forms
-                    if form_type in target_forms:
-                        # Normalize CIK to 10 digits
-                        cik_normalized = cik.zfill(10)
+                    # Check if this form type matches our target forms (or include all if None)
+                    if target_forms is None or form_type in target_forms:
+                        # Normalize CIK to 10 digits (master.idx CIKs don't have leading zeros)
+                        # Convert to int first to remove any leading zeros, then pad to 10 digits
+                        try:
+                            cik_int = int(cik)  # Remove leading zeros if any
+                            cik_normalized = str(cik_int).zfill(10)
+                        except ValueError:
+                            # If not a number, just pad as-is
+                            cik_normalized = cik.zfill(10)
                         # Store company name (keep first occurrence or most recent)
                         if cik_normalized not in companies:
                             companies[cik_normalized] = company_name
@@ -154,6 +179,129 @@ class EDGARDownloader:
                     continue
         
         return companies
+    
+    def _count_filings_from_master_idx(self, content: bytes, year: int, 
+                                       target_forms: Optional[Set[str]] = None) -> Dict[str, int]:
+        """
+        Count filings from master.idx file content by filing type for a specific year
+        
+        Args:
+            content: Content of master.idx file (bytes, may be gzipped)
+            year: Year to filter by
+            target_forms: Optional set of form types to filter (None for all)
+            
+        Returns:
+            Dictionary mapping filing_type to count
+        """
+        counts = {}
+        
+        # Try to decompress if it's gzipped
+        try:
+            content = gzip.decompress(content)
+        except (gzip.BadGzipFile, OSError):
+            # Not gzipped, use as-is
+            pass
+        
+        # Decode to string
+        try:
+            text = content.decode('utf-8', errors='ignore')
+        except:
+            text = content.decode('latin-1', errors='ignore')
+        
+        # Parse each line (skip header lines)
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line or line.startswith('---') or 'CIK' in line.upper():
+                continue
+            
+            # Format: CIK|Company Name|Form Type|Date Filed|Filename
+            parts = line.split('|')
+            if len(parts) >= 4:
+                try:
+                    form_type = parts[2].strip()
+                    date_filed = parts[3].strip()
+                    
+                    # Check if date matches year
+                    if date_filed.startswith(str(year)):
+                        # Check if form type matches target forms (if specified)
+                        if target_forms is None or form_type in target_forms:
+                            counts[form_type] = counts.get(form_type, 0) + 1
+                except (ValueError, IndexError):
+                    continue
+        
+        return counts
+    
+    async def count_sec_index_filings_by_year(self, year: int, 
+                                               filing_types: Optional[List[str]] = None) -> Dict[str, int]:
+        """
+        Count filings from SEC index for a specific year, grouped by filing type
+        
+        Args:
+            year: Year to count
+            filing_types: Optional list of filing types to filter (None for all)
+            
+        Returns:
+            Dictionary mapping filing_type to count
+        """
+        target_forms = set(filing_types) if filing_types else None
+        counts = {}
+        
+        try:
+            # Base URL for full-index
+            base_url = f"{self.base_url}/Archives/edgar/full-index/"
+            year_url = f"{base_url}{year}/"
+            
+            # Get list of quarters (async)
+            async with aiohttp.ClientSession() as session:
+                async with session.get(year_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    text = await response.text()
+                    quarters = self._parse_directory_listing(text)
+                    quarters = [q for q in quarters if q.startswith('QTR')]
+                
+                # Process each quarter concurrently
+                async def process_quarter(quarter: str):
+                    quarter_url = f"{year_url}{quarter}/"
+                    quarter_counts = {}
+                    
+                    try:
+                        # Try to get master.idx (uncompressed) first
+                        master_url = f"{quarter_url}master.idx"
+                        async with session.get(master_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                            if response.status == 200:
+                                content = await response.read()
+                                quarter_counts = self._count_filings_from_master_idx(
+                                    content, year, target_forms
+                                )
+                            else:
+                                # Try compressed version
+                                master_gz_url = f"{quarter_url}master.idx.gz"
+                                async with session.get(master_gz_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=30)) as gz_response:
+                                    if gz_response.status == 200:
+                                        content = await gz_response.read()
+                                        quarter_counts = self._count_filings_from_master_idx(
+                                            content, year, target_forms
+                                        )
+                    except Exception as e:
+                        # Continue on error
+                        pass
+                    
+                    return quarter_counts
+                
+                # Process all quarters concurrently
+                tasks = [process_quarter(quarter) for quarter in quarters]
+                quarter_results = await asyncio.gather(*tasks, return_exceptions=True)
+                
+                # Aggregate counts
+                for quarter_counts in quarter_results:
+                    if isinstance(quarter_counts, dict):
+                        for form_type, count in quarter_counts.items():
+                            counts[form_type] = counts.get(form_type, 0) + count
+                    
+        except Exception as e:
+            print(f"Error counting SEC index filings for year {year}: {e}")
+        
+        return counts
     
     def _get_company_ticker(self, cik: str) -> Optional[str]:
         """
@@ -184,6 +332,228 @@ class EDGARDownloader:
         except Exception as e:
             # Log error but don't fail
             return None
+    
+    async def _fetch_ticker_map_async(self) -> Dict[str, str]:
+        """
+        Async fetch of company_tickers.json to get ticker mappings
+        
+        Returns:
+            Dictionary mapping CIK -> ticker
+        """
+        ticker_map = {}
+        try:
+            ticker_url = f"{self.base_url}/files/company_tickers.json"
+            async with aiohttp.ClientSession() as session:
+                async with session.get(ticker_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    ticker_data = await response.json()
+                    
+                    for entry in ticker_data.values():
+                        # company_tickers.json has 'cik_str' which is already a string, may or may not have leading zeros
+                        # Normalize to ensure consistent 10-digit format
+                        cik_value = entry.get('cik_str', '')
+                        if cik_value:
+                            # Convert to int first to remove any leading zeros, then pad to 10 digits
+                            try:
+                                cik_int = int(cik_value)  # Remove leading zeros if any
+                                cik_str = str(cik_int).zfill(10)
+                            except (ValueError, TypeError):
+                                # If not a number, try to pad as string
+                                cik_str = str(cik_value).zfill(10)
+                            ticker = entry.get('ticker', '')
+                            if cik_str and ticker:
+                                ticker_map[cik_str] = ticker
+        except Exception as e:
+            print(f"  Warning: Could not fetch ticker information: {e}")
+        return ticker_map
+    
+    async def _get_company_details_async(self, cik: str) -> Dict[str, Optional[str]]:
+        """
+        Async fetch of company details from SEC Submissions API
+        
+        Args:
+            cik: Company CIK (10-digit zero-padded)
+            
+        Returns:
+            Dictionary with 'name', 'sic_code', 'entity_type' (None if not available)
+        """
+        # Ensure CIK is 10-digit zero-padded
+        cik_normalized = str(cik).zfill(10)
+        
+        submissions_url = f"{self.data_base_url}/submissions/CIK{cik_normalized}.json"
+        
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(submissions_url, headers=self.data_headers, timeout=aiohttp.ClientTimeout(total=10)) as response:
+                    if response.status == 200:
+                        data = await response.json()
+                        
+                        # Extract information
+                        name = data.get('name', '')
+                        sic = data.get('sic')
+                        sic_code = str(sic) if sic is not None else None
+                        entity_type = data.get('entityType', '')
+                        
+                        return {
+                            'name': name,
+                            'sic_code': sic_code,
+                            'entity_type': entity_type if entity_type else None
+                        }
+                    else:
+                        return {
+                            'name': None,
+                            'sic_code': None,
+                            'entity_type': None
+                        }
+        except Exception as e:
+            return {
+                'name': None,
+                'sic_code': None,
+                'entity_type': None
+            }
+    
+    async def _fetch_company_details_async(self, all_companies: Dict[str, str], ticker_map: Dict[str, str],
+                                          enriched_ciks: Optional[Set[str]] = None,
+                                          conn = None) -> tuple:
+        """
+        Async fetch of company details from Submissions API
+        
+        Args:
+            all_companies: Dictionary of CIK -> company name
+            ticker_map: Dictionary of CIK -> ticker
+            enriched_ciks: Set of CIKs that are already enriched (will skip fetching details for these)
+            conn: Optional PostgreSQL connection to load already enriched companies from database
+            
+        Returns:
+            Tuple of (companies list, details_fetched count, details_failed count)
+        """
+        companies = []
+        details_fetched = 0
+        details_failed = 0
+        
+        enriched_ciks = enriched_ciks or set()
+        
+        # Load already enriched companies from database if connection is provided
+        enriched_companies_dict = {}
+        if conn and enriched_ciks:
+            from psycopg2.extras import RealDictCursor
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            placeholders = ','.join(['%s'] * len(enriched_ciks))
+            query = f"""
+                SELECT cik, ticker, name, sic_code, entity_type
+                FROM companies
+                WHERE cik IN ({placeholders})
+            """
+            cur.execute(query, list(enriched_ciks))
+            for row in cur.fetchall():
+                cik = str(row['cik']).zfill(10)
+                enriched_companies_dict[cik] = {
+                    'cik': cik,
+                    'ticker': row['ticker'],
+                    'name': row['name'],
+                    'sic_code': row['sic_code'],
+                    'entity_type': row['entity_type'],
+                    'title': row['name']  # For compatibility
+                }
+            cur.close()
+            if enriched_companies_dict:
+                companies.extend(enriched_companies_dict.values())
+                print(f"  Loaded {len(enriched_companies_dict)} already enriched companies from database")
+        
+        # DIAGNOSTIC: Check normalization before filtering
+        print(f"\n  === DIAGNOSTIC: Enrichment Processing ===")
+        print(f"  all_companies: {len(all_companies)} CIKs")
+        print(f"  enriched_ciks (raw): {len(enriched_ciks)} CIKs")
+        
+        # Normalize enriched_ciks for comparison
+        enriched_ciks_normalized = {str(cik).zfill(10) for cik in enriched_ciks}
+        print(f"  enriched_ciks (normalized): {len(enriched_ciks_normalized)} CIKs")
+        
+        # Check how many all_companies CIKs are in enriched_ciks (with normalization)
+        all_companies_normalized_set = {str(cik).zfill(10) for cik in all_companies.keys()}
+        already_enriched_count = len(all_companies_normalized_set & enriched_ciks_normalized)
+        print(f"  CIKs in all_companies that are already enriched: {already_enriched_count}")
+        print(f"  CIKs in all_companies that need enrichment: {len(all_companies) - already_enriched_count}")
+        
+        # Check how many CIKs in all_companies have tickers
+        # IMPORTANT: ticker_map keys are already normalized, so we need to normalize all_companies keys for lookup
+        all_companies_with_tickers = sum(1 for cik in all_companies.keys() 
+                                        if str(cik).zfill(10) in ticker_map)
+        print(f"  CIKs in all_companies that have tickers: {all_companies_with_tickers}")
+        
+        # DEBUG: Show a few examples of CIKs that should match but don't
+        if all_companies_with_tickers < len(all_companies):
+            sample_ciks = list(all_companies.keys())[:10]
+            print(f"  DEBUG: Checking first 10 CIKs from all_companies:")
+            for cik in sample_ciks:
+                cik_norm = str(cik).zfill(10)
+                in_ticker = cik_norm in ticker_map
+                ticker_value = ticker_map.get(cik_norm, "NOT FOUND")
+                print(f"    CIK: {cik} (type: {type(cik).__name__}) -> normalized: {cik_norm} -> in ticker_map: {in_ticker} -> ticker: {ticker_value}")
+        print(f"  === END DIAGNOSTIC ===\n")
+        
+        # Filter out already enriched CIKs from the list to process
+        # IMPORTANT: Compare normalized CIKs
+        ciks_to_enrich = {
+            cik: name for cik, name in all_companies.items()
+            if str(cik).zfill(10) not in enriched_ciks_normalized
+        }
+        
+        if not ciks_to_enrich:
+            print(f"  All {len(all_companies)} companies are already enriched, skipping API calls")
+            return companies, details_fetched, details_failed
+        
+        print(f"  Fetching details for {len(ciks_to_enrich)} companies (skipping {len(enriched_ciks_normalized)} already enriched)")
+        
+        # Semaphore to limit concurrent requests (10 req/sec = max 10 concurrent)
+        semaphore = asyncio.Semaphore(10)
+        
+        async def fetch_single_company(cik: str, name: str) -> tuple:
+            """Fetch details for a single company"""
+            async with semaphore:
+                # Normalize CIK first (needed for both API call and ticker lookup)
+                cik_normalized = str(cik).zfill(10)
+                details = await self._get_company_details_async(cik_normalized)
+                
+                # Use name from Submissions API if available, otherwise use name from master.idx
+                company_name = details.get('name') or name
+                
+                # Look up ticker using normalized CIK
+                ticker = ticker_map.get(cik_normalized) if ticker_map.get(cik_normalized) else None
+                
+                company_data = {
+                    'cik': cik_normalized,  # Store normalized CIK
+                    'ticker': ticker,
+                    'name': company_name,
+                    'sic_code': details.get('sic_code'),
+                    'entity_type': details.get('entity_type'),
+                    'title': company_name  # For compatibility
+                }
+                
+                # Small delay to respect SEC rate limit
+                await asyncio.sleep(0.1)
+                return company_data, details
+        
+        # Create tasks only for companies that need enrichment
+        tasks = [fetch_single_company(cik, name) for cik, name in ciks_to_enrich.items()]
+        
+        # Process with progress bar
+        with tqdm(total=len(tasks), desc="Fetching company details", unit="CIK", leave=False) as pbar:
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    company_data, details = await coro
+                    companies.append(company_data)
+                    
+                    if details.get('sic_code') or details.get('entity_type'):
+                        details_fetched += 1
+                    else:
+                        details_failed += 1
+                    pbar.update(1)
+                except Exception as e:
+                    details_failed += 1
+                    pbar.update(1)
+        
+        return companies, details_fetched, details_failed
     
     def _get_company_details(self, cik: str) -> Dict[str, Optional[str]]:
         """
@@ -231,21 +601,32 @@ class EDGARDownloader:
                 'entity_type': None
             }
     
-    def get_all_companies(self) -> List[Dict[str, str]]:
+    async def get_all_companies_async(self, conn = None) -> List[Dict[str, str]]:
         """
-        Get list of all companies (CIKs) from EDGAR full-index that have filed 10-K, 10-Q, 10-K/A, or 10-Q/A
+        Async version: Get list of ALL companies (CIKs) from EDGAR full-index (all form types)
         
-        This method retrieves CIKs from the full-index archive, which includes delisted and defaulted companies
-        that are not in company_tickers.json
+        This method:
+        1. Parses all master.idx files once to extract all unique CIKs and company names
+        2. Enriches with ticker information from company_tickers.json
+        3. Enriches with SIC code and entity_type from SEC Submissions API
+        
+        This retrieves CIKs from the full-index archive, which includes delisted and defaulted companies
+        that are not in company_tickers.json. The details fetching phase runs asynchronously.
+        
+        If a database connection is provided, CIKs that are already enriched will be skipped during enrichment,
+        making the process resumable.
+        
+        Args:
+            conn: Optional PostgreSQL connection to check for already enriched CIKs
         
         Returns:
-            List of company dictionaries with CIK and name (ticker may be empty)
+            List of company dictionaries with CIK, name, ticker, sic_code, entity_type
         """
         print("Fetching all companies from EDGAR full-index...")
-        print("  Looking for distinct CIKs that have filed 10-K, 10-Q, 10-K/A, or 10-Q/A")
+        print("  Parsing all master.idx files to extract ALL companies (all form types)")
         
-        target_forms = {'10-K', '10-Q', '10-K/A', '10-Q/A'}
-        all_companies: Dict[str, str] = {}  # CIK -> Company Name
+        # Use DataFrame to collect all companies from all master.idx files
+        all_companies_df_list = []
         
         try:
             # Base URL for full-index
@@ -285,18 +666,26 @@ class EDGARDownloader:
                             response = requests.get(master_url, headers=self.headers, timeout=30)
                             
                             if response.status_code == 200:
-                                # Parse master.idx
-                                quarter_companies = self._parse_master_idx(response.content, target_forms)
-                                all_companies.update(quarter_companies)
+                                # Parse master.idx to DataFrame (all form types, no filtering)
+                                try:
+                                    df = self._parse_master_idx_to_dataframe(response.content)
+                                    if not df.empty:
+                                        all_companies_df_list.append(df)
+                                except Exception:
+                                    pass
                             else:
                                 # Try compressed version
                                 master_gz_url = f"{quarter_url}master.idx.gz"
                                 response = requests.get(master_gz_url, headers=self.headers, timeout=30)
                                 
                                 if response.status_code == 200:
-                                    # Parse compressed master.idx
-                                    quarter_companies = self._parse_master_idx(response.content, target_forms)
-                                    all_companies.update(quarter_companies)
+                                    # Parse compressed master.idx to DataFrame (all form types, no filtering)
+                                    try:
+                                        df = self._parse_master_idx_to_dataframe(response.content)
+                                        if not df.empty:
+                                            all_companies_df_list.append(df)
+                                    except Exception:
+                                        pass
                                     
                         except Exception as e:
                             # Continue with next quarter on error
@@ -306,56 +695,112 @@ class EDGARDownloader:
                     # Continue with next year on error
                     continue
             
-            # Enrich with ticker information from company_tickers.json
+            # Combine all DataFrames and extract unique CIKs and company names
+            if all_companies_df_list:
+                print("  Combining all master.idx files and extracting unique companies...")
+                combined_df = pd.concat(all_companies_df_list, ignore_index=True)
+                
+                # Get unique CIKs and company names (keep most recent company name for each CIK)
+                # Group by CIK and take the last company_name (most recent)
+                unique_companies_df = combined_df.groupby('cik').agg({
+                    'company_name': 'last'  # Take the last (most recent) company name
+                }).reset_index()
+                
+                # Convert to dict for compatibility with existing code
+                all_companies = dict(zip(unique_companies_df['cik'], unique_companies_df['company_name']))
+                print(f"  Found {len(all_companies)} unique companies from master.idx files")
+            else:
+                print("  No companies found in master.idx files")
+                all_companies = {}
+            
+            # Get already enriched CIKs from database if connection is provided
+            enriched_ciks = set()
+            if conn:
+                enriched_ciks = get_enriched_ciks(conn)
+                if enriched_ciks:
+                    print(f"  Found {len(enriched_ciks)} CIKs already enriched in database, will skip enrichment for these")
+            
+            # Enrich with ticker information from company_tickers.json (async)
             print("  Enriching with ticker information from company_tickers.json...")
-            ticker_map = {}  # CIK -> ticker
-            try:
-                ticker_url = f"{self.base_url}/files/company_tickers.json"
-                response = requests.get(ticker_url, headers=self.headers, timeout=30)
-                response.raise_for_status()
-                ticker_data = response.json()
-                
-                for entry in ticker_data.values():
-                    cik_str = str(entry.get('cik_str', '')).zfill(10)
-                    ticker = entry.get('ticker', '')
-                    if cik_str and ticker:
-                        ticker_map[cik_str] = ticker
-                
-                print(f"  Found {len(ticker_map)} ticker mappings")
-            except Exception as e:
-                print(f"  Warning: Could not fetch ticker information: {e}")
+            ticker_map = await self._fetch_ticker_map_async()
+            print(f"  Found {len(ticker_map)} ticker mappings")
             
-            # Fetch company details (SIC code, entityType) from Submissions API
+            # DIAGNOSTIC: Analyze CIK normalization and overlap
+            print("\n  === DIAGNOSTIC: CIK Analysis ===")
+            print(f"  all_companies: {len(all_companies)} CIKs (from full-index)")
+            print(f"  ticker_map: {len(ticker_map)} CIKs (from company_tickers.json)")
+            
+            # Normalize all_companies CIKs to 10 digits for comparison
+            # Note: all_companies keys are already normalized from _parse_master_idx, but ensure consistency
+            all_companies_normalized = {str(cik).zfill(10): name for cik, name in all_companies.items()}
+            # ticker_map keys are already normalized, but ensure consistency
+            ticker_map_normalized = {str(cik).zfill(10): ticker for cik, ticker in ticker_map.items()}
+            
+            # Check overlap
+            overlap = set(all_companies_normalized.keys()) & set(ticker_map_normalized.keys())
+            only_in_all_companies = set(all_companies_normalized.keys()) - set(ticker_map_normalized.keys())
+            only_in_ticker_map = set(ticker_map_normalized.keys()) - set(all_companies_normalized.keys())
+            
+            print(f"  Overlap (in both): {len(overlap)} CIKs")
+            print(f"  Only in all_companies: {len(only_in_all_companies)} CIKs")
+            print(f"  Only in ticker_map: {len(only_in_ticker_map)} CIKs")
+            
+            # Check for normalization issues - sample some CIKs and show actual values
+            if len(all_companies) > 0:
+                sample_ciks = list(all_companies.keys())[:5]
+                print(f"  Sample all_companies CIKs (raw keys): {sample_ciks}")
+                print(f"  Sample all_companies CIKs (types): {[type(c).__name__ for c in sample_ciks]}")
+                print(f"  Sample all_companies CIKs (normalized): {[str(c).zfill(10) for c in sample_ciks]}")
+                # Check if any are in ticker_map
+                sample_in_ticker = [str(c).zfill(10) in ticker_map_normalized for c in sample_ciks]
+                print(f"  Sample all_companies CIKs in ticker_map: {sample_in_ticker}")
+            
+            if len(ticker_map) > 0:
+                sample_ticker_ciks = list(ticker_map.keys())[:5]
+                print(f"  Sample ticker_map CIKs (raw keys): {sample_ticker_ciks}")
+                print(f"  Sample ticker_map CIKs (types): {[type(c).__name__ for c in sample_ticker_ciks]}")
+                print(f"  Sample ticker_map CIKs (normalized): {[str(c).zfill(10) for c in sample_ticker_ciks]}")
+                # Check if any are in all_companies
+                sample_in_all = [str(c).zfill(10) in all_companies_normalized for c in sample_ticker_ciks]
+                print(f"  Sample ticker_map CIKs in all_companies: {sample_in_all}")
+            
+            # Show some examples of mismatches
+            if len(only_in_all_companies) > 0:
+                sample_missing = list(only_in_all_companies)[:3]
+                print(f"  Example CIKs in all_companies but NOT in ticker_map: {sample_missing}")
+                # Try to find them in ticker_map with different normalization
+                for missing_cik in sample_missing:
+                    # Try without leading zeros
+                    try:
+                        cik_int = str(int(missing_cik))
+                        if cik_int in ticker_map or cik_int.zfill(10) in ticker_map_normalized:
+                            print(f"    {missing_cik} found in ticker_map as {cik_int} (normalization mismatch!)")
+                    except:
+                        pass
+            
+            if len(only_in_ticker_map) > 0:
+                sample_missing = list(only_in_ticker_map)[:3]
+                print(f"  Example CIKs in ticker_map but NOT in all_companies: {sample_missing}")
+            
+            # Check enriched_ciks normalization
+            if enriched_ciks:
+                enriched_normalized = {str(cik).zfill(10) for cik in enriched_ciks}
+                print(f"  enriched_ciks: {len(enriched_ciks)} CIKs (raw)")
+                print(f"  enriched_ciks (normalized): {len(enriched_normalized)} CIKs")
+                print(f"  enriched_ciks in all_companies: {len(enriched_normalized & set(all_companies_normalized.keys()))}")
+                print(f"  enriched_ciks in ticker_map: {len(enriched_normalized & set(ticker_map_normalized.keys()))}")
+            
+            print("  === END DIAGNOSTIC ===\n")
+            
+            # Fetch company details (SIC code, entityType) from Submissions API (async)
+            # This phase now runs asynchronously with respect to other operations
+            # Skip CIKs that are already enriched
             print("  Fetching company details (SIC code, entityType) from SEC Submissions API...")
-            companies = []
-            details_fetched = 0
-            details_failed = 0
+            companies, details_fetched, details_failed = await self._fetch_company_details_async(
+                all_companies, ticker_map, enriched_ciks, conn
+            )
             
-            for cik, name in tqdm(all_companies.items(), desc="Fetching company details", unit="CIK", leave=False):
-                # Fetch details from Submissions API
-                details = self._get_company_details(cik)
-                
-                # Use name from Submissions API if available, otherwise use name from master.idx
-                company_name = details.get('name') or name
-                
-                companies.append({
-                    'cik': cik,
-                    'ticker': ticker_map.get(cik) if ticker_map.get(cik) else None,  # Get ticker from mapping, None if not found
-                    'name': company_name,
-                    'sic_code': details.get('sic_code'),
-                    'entity_type': details.get('entity_type'),
-                    'title': company_name  # For compatibility
-                })
-                
-                if details.get('sic_code') or details.get('entity_type'):
-                    details_fetched += 1
-                else:
-                    details_failed += 1
-                
-                # Rate limiting: SEC allows 10 requests per second
-                time.sleep(0.1)
-            
-            print(f"  Found {len(companies)} distinct CIKs that have filed 10-K, 10-Q, 10-K/A, or 10-Q/A")
+            print(f"  Found {len(companies)} distinct CIKs from all master.idx files (all form types)")
             print(f"  {sum(1 for c in companies if c['ticker'])} CIKs have ticker symbols")
             print(f"  {details_fetched} CIKs have SIC code or entityType, {details_failed} missing")
             return companies
@@ -365,157 +810,288 @@ class EDGARDownloader:
             traceback.print_exc()
             return []
     
-    def get_company_filings(self, cik: str, start_year: Optional[int] = None, 
-                            filing_types: Optional[List[str]] = None) -> List[Dict]:
+    def get_all_companies(self) -> List[Dict[str, str]]:
         """
-        Get all filings for a specific company
+        Synchronous wrapper for get_all_companies_async()
+        
+        Returns:
+            List of company dictionaries with CIK and name (ticker may be empty)
+        """
+        return asyncio.run(self.get_all_companies_async())
+    
+    def _parse_master_idx_to_dataframe(self, content: bytes) -> pd.DataFrame:
+        """
+        Parse master.idx file content into a DataFrame with all filings (all CIKs)
+        
+        Args:
+            content: Content of master.idx file (bytes, may be gzipped)
+            
+        Returns:
+            DataFrame with columns: cik, company_name, form_type, filing_date, filename, accession_number, file_year
+        """
+        rows = []
+        
+        # Try to decompress if it's gzipped
+        try:
+            content = gzip.decompress(content)
+        except (gzip.BadGzipFile, OSError):
+            # Not gzipped, use as-is
+            pass
+        
+        # Decode to string
+        try:
+            text = content.decode('utf-8', errors='ignore')
+        except:
+            text = content.decode('latin-1', errors='ignore')
+        
+        # Parse each line (skip header lines)
+        for line in text.split('\n'):
+            line = line.strip()
+            if not line or line.startswith('---') or 'CIK' in line.upper():
+                continue
+            
+            # Format: CIK|Company Name|Form Type|Date Filed|Filename
+            parts = line.split('|')
+            if len(parts) >= 5:
+                try:
+                    line_cik = parts[0].strip()
+                    company_name = parts[1].strip()
+                    form_type = parts[2].strip()
+                    date_filed_str = parts[3].strip()
+                    filename = parts[4].strip()
+                    
+                    # Normalize CIK to 10 digits
+                    try:
+                        cik_int = int(line_cik)  # Remove leading zeros if any
+                        cik_normalized = str(cik_int).zfill(10)
+                    except ValueError:
+                        cik_normalized = line_cik.zfill(10)
+                    
+                    # Parse date (format: YYYYMMDD or YYYY-MM-DD)
+                    filing_date = None
+                    file_year = None
+                    if len(date_filed_str) == 8 and date_filed_str.isdigit():
+                        # YYYYMMDD format
+                        filing_date = f"{date_filed_str[0:4]}-{date_filed_str[4:6]}-{date_filed_str[6:8]}"
+                        file_year = int(date_filed_str[0:4])
+                    elif len(date_filed_str) == 10 and date_filed_str[4] == '-' and date_filed_str[7] == '-':
+                        # YYYY-MM-DD format
+                        filing_date = date_filed_str
+                        file_year = int(date_filed_str[0:4])
+                    else:
+                        continue  # Skip invalid dates
+                    
+                    # Skip Form 144 filings
+                    if form_type and form_type.upper() in ['144', '144/A']:
+                        continue
+                    
+                    # Extract accession number from filename
+                    # Format: edgar/data/{cik}/{accession_without_dashes}/{filename}
+                    accession_number = None
+                    if filename:
+                        path_parts = filename.split('/')
+                        if len(path_parts) >= 3:
+                            accession_without_dashes = path_parts[-2]
+                            # Convert to standard accession format: 00001234567-98-000001
+                            if len(accession_without_dashes) == 18 and accession_without_dashes.isdigit():
+                                accession_number = f"{accession_without_dashes[0:10]}-{accession_without_dashes[10:12]}-{accession_without_dashes[12:18]}"
+                            elif '-' in accession_without_dashes:
+                                accession_number = accession_without_dashes
+                    
+                    if not accession_number:
+                        continue  # Skip if we can't extract accession number
+                    
+                    rows.append({
+                        'cik': cik_normalized,
+                        'company_name': company_name,
+                        'form_type': form_type,
+                        'filing_date': filing_date,
+                        'file_year': file_year,
+                        'filename': filename,
+                        'accession_number': accession_number
+                    })
+                except (ValueError, IndexError) as e:
+                    continue
+        
+        # Create DataFrame
+        if rows:
+            df = pd.DataFrame(rows)
+            return df
+        else:
+            raise Exception('No filings found')
+    
+    async def get_company_filings_async(self, cik: str, start_year: Optional[int] = None, 
+                            master_idx_cache: Optional[Dict[str, pd.DataFrame]] = None) -> List[Dict]:
+        """
+        Get all filings for a specific company from master.idx files (SEC full-index archive)
+        
+        This method uses the SEC full-index archive master.idx files instead of the Submissions API,
+        which provides complete historical data for all years including older years like 1993.
+        
+        Uses DataFrame caching to parse each master.idx file only once, then filters by CIK.
+        Returns ALL filing types (no filtering).
         
         Args:
             cik: Company CIK (10-digit zero-padded)
             start_year: Start year for filings (None = all available filings from earliest date)
-            filing_types: List of filing types to filter (e.g., ['10-K', '10-Q', '8-K'])
-                         If None, gets all filings
+            master_idx_cache: Optional dict to cache parsed DataFrames (key: "year/quarter", value: DataFrame)
         
         Returns:
-            List of filing dictionaries
+            List of filing dictionaries (all form types)
         """
+        filings = []
+        
+        # Normalize CIK for filtering
         try:
-            # SEC EDGAR submissions JSON endpoint format: /data/submissions/CIK{cik}.json
-            # NOTE: This endpoint's 'recent' field is limited to approximately the most recent 1000-2000 filings
-            # For older historical filings (pre-2010s), you may need to use alternative methods
-            submissions_url = f"{self.data_base_url}/submissions/CIK{cik}.json"
+            cik_int = int(cik)  # Remove leading zeros
+            cik_normalized = str(cik_int).zfill(10)
+        except ValueError:
+            cik_normalized = str(cik).zfill(10)
+        
+        # Initialize cache if not provided
+        if master_idx_cache is None:
+            master_idx_cache = {}
+        
+        try:
+            # Base URL for full-index
+            base_url = f"{self.base_url}/Archives/edgar/full-index/"
             
-            response = requests.get(submissions_url, headers=self.data_headers, timeout=30)
-            
-            if response.status_code == 200:
-                data = response.json()
-                filings = []
+            # Create session that will stay alive for all async operations
+            async with aiohttp.ClientSession() as session:
+                # Get list of years
+                async with session.get(base_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    response.raise_for_status()
+                    text = await response.text()
+                    years = self._parse_directory_listing(text)
+                    # Filter to only numeric years (4 digits)
+                    years = [y for y in years if y.isdigit() and len(y) == 4]
+                    
+                    # Filter by start_year if specified
+                    if start_year is not None:
+                        years = [y for y in years if int(y) >= start_year]
+                    
+                    years.sort(reverse=False)  # Process oldest first
                 
-                # Check if there are any other fields that might contain historical data
-                # The API response structure might vary
-                if 'filings' not in data:
-                    print(f"  Warning: No 'filings' key in API response for CIK {cik}")
-                    return []
-                
-                # Process filings from 'recent' field
-                # Note: The SEC API 'recent' field actually contains ALL available filings, not just recent ones
-                # Despite the name "recent", it includes all historical filings available through the submissions endpoint
-                filing_sources = []
-                
-                if 'filings' in data:
-                    # Process 'recent' field which contains filings (typically limited to ~1000-2000 most recent)
-                    if 'recent' in data['filings']:
-                        recent_data = data['filings']['recent']
-                        filing_dates_list = recent_data.get('filingDate', [])
+                # Process each year concurrently
+                async def fetch_year_filings(year_str: str):
+                    year = int(year_str)
+                    year_url = f"{base_url}{year}/"
+                    year_filings = []
+                    
+                    try:
+                        # Get list of quarters
+                        async with session.get(year_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=60)) as response:
+                            response.raise_for_status()
+                            text = await response.text()
+                            quarters = self._parse_directory_listing(text)
+                            quarters = [q for q in quarters if q.startswith('QTR')]
                         
-                        if filing_dates_list:
-                            filing_sources.append(('recent', recent_data))
-                            filing_dates_list_sorted = sorted([d for d in filing_dates_list if d])
-                            if filing_dates_list_sorted:
-                                oldest_date = filing_dates_list_sorted[0]
-                                # Note: API returned filings, processing silently
-                    
-                    # Process 'files' field which contains references to additional JSON files with older data
-                    if 'files' in data['filings']:
-                        files_list = data['filings']['files']
-                        if isinstance(files_list, list) and len(files_list) > 0:
-                            # Found additional JSON files for historical filings, processing silently
+                        # Process each quarter concurrently
+                        async def fetch_quarter_master_idx(quarter: str):
+                            cache_key = f"{year}/{quarter}"
                             
-                            # Fetch each additional JSON file
-                            for file_info in files_list:
-                                if isinstance(file_info, dict):
-                                    # The file_info should contain 'name' or 'filename' with the JSON file path
-                                    file_name = file_info.get('name') or file_info.get('filename')
-                                    if file_name:
+                            # Check cache first
+                            if cache_key in master_idx_cache:
+                                df = master_idx_cache[cache_key]
+                            else:
+                                # Download and parse master.idx file
+                                quarter_url = f"{year_url}{quarter}/"
+                                df = None
+                                
+                                # Try to get master.idx (uncompressed) first
+                                master_url = f"{quarter_url}master.idx"
+                                try:
+                                    response = await session.get(master_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=120))
+                                    try:
+                                        if response.status == 200:
+                                            content = await response.read()
+                                            if content:
+                                                df = self._parse_master_idx_to_dataframe(content)
+                                    finally:
+                                        response.close()
+                                except Exception:
+                                    pass
+                                
+                                # Try compressed version if uncompressed failed
+                                if df is None or df.empty:
+                                    master_gz_url = f"{quarter_url}master.idx.gz"
+                                    try:
+                                        response = await session.get(master_gz_url, headers=self.headers, timeout=aiohttp.ClientTimeout(total=120))
                                         try:
-                                            # Construct URL for the additional JSON file
-                                            # These files are typically in the same submissions directory
-                                            file_url = f"{self.data_base_url}/submissions/{file_name}"
-                                            
-                                            # Fetch the additional JSON file
-                                            file_response = requests.get(file_url, headers=self.data_headers, timeout=30)
-                                            if file_response.status_code == 200:
-                                                file_data = file_response.json()
-                                                
-                                                # The file should have the same structure as 'recent'
-                                                if isinstance(file_data, dict):
-                                                    # If it's a dict with filingDate, form, etc., use it directly
-                                                    if 'filingDate' in file_data:
-                                                        filing_sources.append((f'file_{file_name}', file_data))
-                                                        # File loaded, processing silently
-                                                    # Or if it has 'filings' -> 'recent' structure
-                                                    elif 'filings' in file_data and 'recent' in file_data['filings']:
-                                                        file_recent = file_data['filings']['recent']
-                                                        filing_sources.append((f'file_{file_name}', file_recent))
-                                                        # File loaded, processing silently
-                                                
-                                                time.sleep(0.1)  # Rate limiting between requests
-                                        except Exception as e:
-                                            print(f"    Warning: Could not fetch additional file {file_name}: {e}")
-                                            continue
-                
-                # Process all filing sources
-                for source_name, source_data in filing_sources:
-                    # Get all filing dates, forms, and accession numbers (they're lists)
-                    filing_dates = source_data.get('filingDate', [])
-                    filing_forms = source_data.get('form', [])
-                    accession_numbers = source_data.get('accessionNumber', [])
-                    primary_doc_descriptions = source_data.get('primaryDocDescription', [])
-                    is_xbrl_list = source_data.get('isXBRL', [])
-                    is_inline_xbrl_list = source_data.get('isInlineXBRL', [])
-                    
-                    # Process each filing
-                    num_filings = len(filing_dates) if isinstance(filing_dates, list) else 0
-                    
-                    for i in range(num_filings):
-                        filing_date = filing_dates[i] if i < len(filing_dates) else ''
-                        if filing_date:
-                            try:
-                                # Parse date and validate format (should be YYYY-MM-DD)
-                                # Check if date format is valid
-                                date_parts = filing_date.split('-')
-                                if len(date_parts) == 3:
-                                    year = int(date_parts[0])
-                                    month = int(date_parts[1])
-                                    day = int(date_parts[2])
-                                    
-                                    # Validate date is reasonable (not in future, not before 1900)
-                                    current_year = datetime.now().year
-                                    if year > current_year or year < 1900:
-                                        continue  # Skip invalid dates
-                                    
-                                    # If start_year is specified, filter by year
-                                    if start_year is not None and year < start_year:
-                                        continue
+                                            if response.status == 200:
+                                                content = await response.read()
+                                                if content:
+                                                    df = self._parse_master_idx_to_dataframe(content)
+                                        finally:
+                                            response.close()
+                                    except Exception:
+                                        df = pd.DataFrame(columns=['cik', 'company_name', 'form_type', 'filing_date', 'file_year', 'filename', 'accession_number'])
+                                
+                                # Cache the DataFrame
+                                if df is not None and not df.empty:
+                                    master_idx_cache[cache_key] = df
                                 else:
-                                    # Invalid date format, skip
-                                    continue
-                                
-                                filing_type = filing_forms[i] if i < len(filing_forms) else ''
-                                
-                                # Skip Form 144 filings for now (user requested exclusion)
-                                if filing_type and filing_type.upper() in ['144', '144/A']:
-                                    continue
-                                
-                                if filing_types is None or filing_type in filing_types:
-                                    accession = accession_numbers[i] if i < len(accession_numbers) else ''
-                                    description = primary_doc_descriptions[i] if i < len(primary_doc_descriptions) else ''
-                                    is_xbrl = is_xbrl_list[i] if i < len(is_xbrl_list) else 0
-                                    is_inline_xbrl = is_inline_xbrl_list[i] if i < len(is_inline_xbrl_list) else 0
-                                    
-                                    filings.append({
-                                        'cik': cik,
-                                        'filing_date': filing_date,
-                                        'filing_type': filing_type,
-                                        'accession_number': accession,
-                                        'description': description,
-                                        'is_xbrl': bool(is_xbrl),
-                                        'is_inline_xbrl': bool(is_inline_xbrl),
-                                    })
-                            except (ValueError, IndexError) as e:
+                                    return []
+                            
+                            # Filter DataFrame by CIK and year (no form type filtering - get all filings)
+                            filtered_df = df[df['cik'] == cik_normalized].copy()
+                            
+                            # Filter by start_year if specified
+                            if start_year is not None:
+                                filtered_df = filtered_df[filtered_df['file_year'] >= start_year]
+                            
+                            # Convert to list of dicts
+                            result = []
+                            for _, row in filtered_df.iterrows():
+                                result.append({
+                                    'cik': row['cik'],
+                                    'filing_date': row['filing_date'],
+                                    'filing_type': row['form_type'],
+                                    'accession_number': row['accession_number'],
+                                    'description': '',  # master.idx doesn't have description
+                                    'is_xbrl': False,  # master.idx doesn't have XBRL info
+                                    'is_inline_xbrl': False,
+                                })
+                            
+                            return result
+                        
+                        # Fetch all quarters concurrently
+                        quarter_tasks = [fetch_quarter_master_idx(q) for q in quarters]
+                        quarter_results = await asyncio.gather(*quarter_tasks, return_exceptions=True)
+                        
+                        # Combine results from all quarters
+                        for result in quarter_results:
+                            if isinstance(result, list):
+                                year_filings.extend(result)
+                            elif isinstance(result, Exception):
+                                # Log error but continue
+                                continue
+                    
+                    except Exception as e:
+                        # Continue with next year on error
+                        return []
+                    
+                    return year_filings
+                
+                # Fetch all years concurrently (with semaphore to limit concurrent requests)
+                semaphore = asyncio.Semaphore(5)  # Limit to 5 concurrent years
+                
+                async def fetch_with_limit(year_str):
+                    async with semaphore:
+                        return await fetch_year_filings(year_str)
+                
+                year_tasks = [fetch_with_limit(y) for y in years]
+                year_results = await asyncio.gather(*year_tasks, return_exceptions=True)
+                
+                # Combine results from all years
+                for result in year_results:
+                    if isinstance(result, list):
+                        filings.extend(result)
+                    elif isinstance(result, Exception):
+                        # Log error but continue
                                 continue
                 
-                # Remove duplicates based on accession_number (in case both 'recent' and 'files' have same filings)
+                # Remove duplicates based on accession_number
                 seen_accessions = set()
                 unique_filings = []
                 for filing in filings:
@@ -524,12 +1100,10 @@ class EDGARDownloader:
                         seen_accessions.add(accession)
                         unique_filings.append(filing)
                 
-                # Identify amendment relationships
+                # Identify amendment relationships (same as API version)
                 unique_filings = self._identify_amendment_relationships(unique_filings)
                 
                 return unique_filings
-            else:
-                return []
             
         except Exception as e:
             return []
@@ -768,7 +1342,7 @@ class EDGARDownloader:
                        amends_accession: Optional[str] = None,
                        amends_filing_date: Optional[str] = None,
                        filing_date: Optional[str] = None,
-                       parquet_file: Optional[str] = None) -> bool:
+                       db_conn=None) -> bool:
         """
         Download a specific filing
         
@@ -855,39 +1429,29 @@ class EDGARDownloader:
             filepath = os.path.join(form_type_dir, filename)
             
             # Check if filing already exists (by unique accession number - prevents overwriting)
-            # Also check Parquet for recorded file paths and check for .htm files if ZIP might have been processed
             if os.path.exists(filepath):
                 return True  # Already downloaded
             
-            # Check Parquet for recorded file path
-            if parquet_file:
+            # Check database for recorded file path
+            if db_conn:
                 try:
-                    paths = get_parquet_paths(parquet_file)
-                    if os.path.exists(paths['filings']):
-                        conn = init_duckdb_tables(paths['base_dir'])
-                        try:
-                            query = f"""
-                                SELECT downloaded_file_path 
-                                FROM read_parquet('{paths['filings']}') 
-                                WHERE cik = '{cik}' AND accession_number = '{accession_number}'
-                            """
-                            result = conn.execute(query).fetchone()
-                            if result and result[0]:
-                                recorded_path = result[0]
-                                # Check if recorded path exists (may be relative to output_dir)
-                                check_path = os.path.join(output_dir, recorded_path) if not os.path.isabs(recorded_path) else recorded_path
-                                if os.path.exists(check_path):
-                                    conn.close()
-                                    return True  # File exists as recorded in Parquet
-                        except Exception:
-                            pass  # Column might not exist yet, continue
-                        finally:
-                            conn.close()
+                    cur = db_conn.cursor()
+                    cur.execute(
+                        "SELECT downloaded_file_path FROM filings WHERE cik = %s AND accession_number = %s",
+                        (cik, accession_number)
+                    )
+                    result = cur.fetchone()
+                    cur.close()
+                    if result and result[0]:
+                        recorded_path = result[0]
+                        # Check if recorded path exists (may be relative to output_dir)
+                        check_path = os.path.join(output_dir, recorded_path) if not os.path.isabs(recorded_path) else recorded_path
+                        if os.path.exists(check_path):
+                            return True  # File exists as recorded in database
                 except Exception:
-                    pass  # If Parquet check fails, continue with normal download
+                    pass  # If database check fails, continue with normal download
             
             # For 10-K/10-Q ZIP files, also check if a .htm file might exist (from processed ZIP)
-            # This is a fallback check if Parquet wasn't updated yet
             if url_extension == '.zip':
                 base_form_type = form_type.split('/')[0] if form_type else ''
                 if base_form_type in ['10-K', '10-Q']:
@@ -922,15 +1486,23 @@ class EDGARDownloader:
                     base_form_type = form_type.split('/')[0] if form_type else ''
                     if base_form_type in ['10-K', '10-Q']:
                         kept_file = self._process_zip_file(filepath, form_type_dir, filing_type=filing_type)
-                        # If ZIP was processed and a file was kept, update Parquet
-                        if kept_file and parquet_file:
+                        # If ZIP was processed and a file was kept, update database
+                        if kept_file and db_conn:
                             relative_path = os.path.relpath(os.path.join(form_type_dir, kept_file), output_dir)
-                            self._update_filing_downloaded_path(parquet_file, cik, accession_number, relative_path, output_dir)
+                            self._update_filing_downloaded_path(
+                                db_conn=db_conn,
+                                cik=cik, accession_number=accession_number, 
+                                file_path=relative_path, output_dir=output_dir
+                            )
                 
-                # Record downloaded file path in Parquet
-                if parquet_file and not kept_file:  # Only record if ZIP wasn't processed (kept_file is None)
+                # Record downloaded file path in database
+                if db_conn and not kept_file:  # Only record if ZIP wasn't processed (kept_file is None)
                     relative_path = os.path.relpath(filepath, output_dir)
-                    self._update_filing_downloaded_path(parquet_file, cik, accession_number, relative_path, output_dir)
+                    self._update_filing_downloaded_path(
+                        db_conn=db_conn,
+                        cik=cik, accession_number=accession_number,
+                        file_path=relative_path, output_dir=output_dir
+                    )
                 
                 # If this is an amendment, save the relationship info
                 if amends_accession:
@@ -1260,95 +1832,31 @@ class EDGARDownloader:
         
         return stats
     
-    def _update_filing_downloaded_path(self, parquet_file: str, cik: str, accession_number: str, 
-                                       file_path: str, output_dir: str) -> None:
+    def _update_filing_downloaded_path(self, db_conn, cik: str, accession_number: str, 
+                                       file_path: str, output_dir: str = None) -> None:
         """
-        Update the downloaded_file_path for a filing in Parquet
+        Update the downloaded_file_path for a filing in PostgreSQL
         
         Args:
-            parquet_file: Path to parquet directory or file
+            db_conn: PostgreSQL connection
             cik: Company CIK
             accession_number: Filing accession number
             file_path: Path to the downloaded file (absolute or relative to output_dir)
-            output_dir: Base output directory
+            output_dir: Base output directory (for making relative paths)
         """
+        if not db_conn or not cik or not accession_number or not file_path:
+            return
+        
         try:
-            paths = get_parquet_paths(parquet_file)
-            if not os.path.exists(paths['filings']):
-                return  # No filings file, nothing to update
-            
-            conn = init_duckdb_tables(paths['base_dir'])
-            
             # Make file_path relative to output_dir if it's absolute
-            if os.path.isabs(file_path):
+            if output_dir and os.path.isabs(file_path):
                 try:
                     file_path = os.path.relpath(file_path, output_dir)
                 except ValueError:
                     # If paths are on different drives (Windows), keep absolute
                     pass
             
-            # Check if downloaded_file_path column exists, if not, add it atomically
-            try:
-                conn.execute(f"SELECT downloaded_file_path FROM read_parquet('{paths['filings']}') LIMIT 1")
-            except:
-                # Column doesn't exist, need to add it atomically
-                existing_table = pq.read_table(paths['filings'])
-                existing_df = existing_table.to_pandas()
-                existing_df['downloaded_file_path'] = None
-                
-                # Write atomically using temp file + rename
-                temp_file = paths['filings'] + '.tmp'
-                try:
-                    # Get updated schema with new column
-                    updated_schema = existing_table.schema.append(pa.field('downloaded_file_path', pa.string(), nullable=True))
-                    updated_table = pa.Table.from_pandas(existing_df, schema=updated_schema)
-                    pq.write_table(updated_table, temp_file)
-                    os.replace(temp_file, paths['filings'])
-                except Exception as e:
-                    if os.path.exists(temp_file):
-                        try:
-                            os.remove(temp_file)
-                        except:
-                            pass
-                    raise
-            
-            # Update the filing record
-            update_query = f"""
-                UPDATE read_parquet('{paths['filings']}') 
-                SET downloaded_file_path = '{file_path.replace("'", "''")}'
-                WHERE cik = '{cik}' AND accession_number = '{accession_number}'
-            """
-            
-            # DuckDB UPDATE doesn't work directly on Parquet, need to use pandas
-            # Update atomically using temp file + rename
-            filings_df = pq.read_table(paths['filings']).to_pandas()
-            mask = (filings_df['cik'] == cik) & (filings_df['accession_number'] == accession_number)
-            if mask.any():
-                filings_df.loc[mask, 'downloaded_file_path'] = file_path
-                
-                # Write atomically using temp file + rename
-                temp_file = paths['filings'] + '.tmp'
-                try:
-                    # Get schema from existing file
-                    existing_table = pq.read_table(paths['filings'])
-                    schema = existing_table.schema
-                    
-                    # Write to temp file
-                    updated_table = pa.Table.from_pandas(filings_df, schema=schema)
-                    pq.write_table(updated_table, temp_file)
-                    
-                    # Atomic rename
-                    os.replace(temp_file, paths['filings'])
-                except Exception as e:
-                    # Clean up temp file on error
-                    if os.path.exists(temp_file):
-                        try:
-                            os.remove(temp_file)
-                        except:
-                            pass
-                    raise
-            
-            conn.close()
+            update_filing_downloaded_path(db_conn, cik, accession_number, file_path)
         except Exception as e:
             # Don't fail on update errors, just log
             logger = get_download_logger('edgar_downloader')
@@ -1407,265 +1915,16 @@ class EDGARDownloader:
             logger = get_download_logger('edgar_downloader')
             logger.error(f"Could not save amendment relationship: {e}")
     
-    def update_company_parquet_by_cik(self, cik: str, parquet_file: str,
-                                      start_year: Optional[int] = None,
-                                      filing_types: Optional[List[str]] = None,
-                                      safe_write: bool = False) -> Dict:
-        """
-        Update Parquet files with filings for a specific company by CIK, appending only new filings
-        Always preserves all existing companies - never overwrites the file
-        
-        Args:
-            cik: Company CIK (10-digit zero-padded)
-            parquet_file: Path to parquet directory or file
-            start_year: Start year for filings
-            filing_types: List of filing types to include
-        
-        Returns:
-            Dictionary with update statistics
-        """
-        paths = get_parquet_paths(parquet_file)
-        conn = init_duckdb_tables(paths['base_dir'])
-        
-        # Load existing company info
-        existing_company_query = f"""
-            SELECT cik, ticker, name, sic_code, entity_type
-            FROM read_parquet('{paths['companies']}')
-            WHERE cik = '{cik}'
-        """
-        existing_company_result = conn.execute(existing_company_query).fetchone()
-        
-        if existing_company_result:
-            ticker = existing_company_result[1] or cik
-            company_name = existing_company_result[2] or 'N/A'
-            existing_sic_code = existing_company_result[3] if len(existing_company_result) > 3 else None
-            existing_entity_type = existing_company_result[4] if len(existing_company_result) > 4 else None
-        else:
-            # New company - fetch ticker from company_tickers.json
-            fetched_ticker = self._get_company_ticker(cik)
-            ticker = fetched_ticker  # None if not found (ticker is nullable)
-            company_name = 'N/A'
-            existing_sic_code = None
-            existing_entity_type = None
-        
-        # Fetch company details if missing
-        if not existing_sic_code or not existing_entity_type:
-            details = self._get_company_details(cik)
-            sic_code = details.get('sic_code') or existing_sic_code
-            entity_type = details.get('entity_type') or existing_entity_type
-            if not company_name or company_name == 'N/A':
-                company_name = details.get('name') or company_name
-            time.sleep(0.1)  # Rate limiting
-        else:
-            sic_code = existing_sic_code
-            entity_type = existing_entity_type
-        
-        # Get existing accession numbers for this company
-        existing_accessions_query = f"""
-            SELECT DISTINCT accession_number
-            FROM read_parquet('{paths['filings']}')
-            WHERE cik = '{cik}'
-        """
-        existing_accessions = {row[0] for row in conn.execute(existing_accessions_query).fetchall() if row[0]}
-        
-        # Get new filings from SEC API (includes older filings from 'files' field)
-        new_filings = self.get_company_filings(cik, start_year=start_year, filing_types=filing_types)
-        
-        # Filter out filings we already have
-        truly_new_filings = [
-            f for f in new_filings 
-            if f.get('accession_number') and f.get('accession_number') not in existing_accessions
-        ]
-        
-        new_filings_count = len(truly_new_filings)
-        
-        # Prepare new filings data for insertion
-        if truly_new_filings:
-            filings_data = []
-            for filing in truly_new_filings:
-                filings_data.append({
-                    'cik': cik,
-                    'accession_number': filing.get('accession_number', ''),
-                    'filing_date': filing.get('filing_date', ''),
-                    'filing_type': filing.get('filing_type', ''),
-                    'description': filing.get('description', ''),
-                    'is_xbrl': filing.get('is_xbrl', False),
-                    'is_inline_xbrl': filing.get('is_inline_xbrl', False),
-                    'amends_accession': filing.get('amends_accession'),
-                    'amends_filing_date': filing.get('amends_filing_date'),
-                    'downloaded_file_path': None,  # Will be set when filing is downloaded
-                })
-            
-            # Insert new filings (atomic if safe_write=True, fast batch otherwise)
-            if safe_write:
-                add_filings_atomically(paths['filings'], filings_data)
-            else:
-                add_filings_fast(paths['filings'], filings_data)
-        
-        # Update or insert company record
-        companies_df = pq.read_table(paths['companies']).to_pandas()
-        # Ensure schema has new fields
-        if 'sic_code' not in companies_df.columns:
-            companies_df['sic_code'] = None
-        if 'entity_type' not in companies_df.columns:
-            companies_df['entity_type'] = None
-        
-        if cik in companies_df['cik'].values:
-            # Update existing company - fetch details if missing
-            existing_sic = companies_df.loc[companies_df['cik'] == cik, 'sic_code'].iloc[0] if len(companies_df.loc[companies_df['cik'] == cik]) > 0 else None
-            existing_entity = companies_df.loc[companies_df['cik'] == cik, 'entity_type'].iloc[0] if len(companies_df.loc[companies_df['cik'] == cik]) > 0 else None
-            
-            if not existing_sic or not existing_entity:
-                details = self._get_company_details(cik)
-                sic_code = details.get('sic_code') or existing_sic
-                entity_type = details.get('entity_type') or existing_entity
-                if not company_name or company_name == 'N/A':
-                    company_name = details.get('name') or company_name
-                time.sleep(0.1)  # Rate limiting
-            else:
-                sic_code = existing_sic
-                entity_type = existing_entity
-            
-            companies_df.loc[companies_df['cik'] == cik, 'ticker'] = ticker
-            companies_df.loc[companies_df['cik'] == cik, 'name'] = company_name
-            companies_df.loc[companies_df['cik'] == cik, 'sic_code'] = sic_code
-            companies_df.loc[companies_df['cik'] == cik, 'entity_type'] = entity_type
-            companies_df.loc[companies_df['cik'] == cik, 'updated_at'] = datetime.now().isoformat()
-        else:
-            # Fetch company details if not already present
-            details = self._get_company_details(cik)
-            sic_code = details.get('sic_code')
-            entity_type = details.get('entity_type')
-            if not company_name or company_name == 'N/A':
-                company_name = details.get('name') or company_name
-            time.sleep(0.1)  # Rate limiting
-            
-            # Add new company
-            new_company = pd.DataFrame([{
-                'cik': cik,
-                'ticker': ticker,
-                'name': company_name,
-                'sic_code': sic_code,
-                'entity_type': entity_type,
-                'updated_at': datetime.now().isoformat()
-            }])
-            companies_df = pd.concat([companies_df, new_company], ignore_index=True)
-        
-        # Ensure schema includes new fields
-        schema = pa.schema([
-            ('cik', pa.string()),
-            pa.field('ticker', pa.string(), nullable=True),
-            ('name', pa.string()),
-            pa.field('sic_code', pa.string(), nullable=True),
-            pa.field('entity_type', pa.string(), nullable=True),
-            ('updated_at', pa.string()),
-        ])
-        companies_table = pa.Table.from_pandas(companies_df, schema=schema)
-        pq.write_table(companies_table, paths['companies'])
-
-        # Append/update history for this company (one row per update)
-        try:
-            history_file = paths.get('company_history')
-            if history_file:
-                # Load existing history (if any)
-                if os.path.exists(history_file):
-                    history_df = pq.read_table(history_file).to_pandas()
-                else:
-                    history_df = pd.DataFrame(columns=companies_df.columns)
-
-                # Append current state of this CIK
-                current_row = companies_df[companies_df['cik'] == cik]
-                if not current_row.empty:
-                    history_df = pd.concat([history_df, current_row], ignore_index=True)
-
-                history_table = pa.Table.from_pandas(history_df, schema=schema)
-                pq.write_table(history_table, history_file)
-        except Exception as e:
-            print(f"  Warning: Error updating company_history.parquet for CIK {cik}: {e}")
-        
-        # Update metadata
-        metadata_df = pq.read_table(paths['metadata']).to_pandas()
-        total_companies = len(companies_df)
-        
-        total_filings_query = f"SELECT COUNT(*) FROM read_parquet('{paths['filings']}')"
-        total_filings = conn.execute(total_filings_query).fetchone()[0]
-        
-        metadata_df.loc[metadata_df['key'] == 'total_companies', 'value'] = str(total_companies)
-        metadata_df.loc[metadata_df['key'] == 'total_filings', 'value'] = str(total_filings)
-        metadata_df.loc[metadata_df['key'] == 'generated_at', 'value'] = datetime.now().isoformat()
-        metadata_df.loc[metadata_df['key'] == 'status', 'value'] = 'in_progress'
-        
-        if start_year is not None:
-            if 'start_year' not in metadata_df['key'].values:
-                new_row = pd.DataFrame([{'key': 'start_year', 'value': str(start_year), 'updated_at': datetime.now().isoformat()}])
-                metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-            else:
-                metadata_df.loc[metadata_df['key'] == 'start_year', 'value'] = str(start_year)
-        
-        if filing_types is not None:
-            filing_types_str = ','.join(filing_types) if filing_types else ''
-            if 'filing_types' not in metadata_df['key'].values:
-                new_row = pd.DataFrame([{'key': 'filing_types', 'value': filing_types_str, 'updated_at': datetime.now().isoformat()}])
-                metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-            else:
-                metadata_df.loc[metadata_df['key'] == 'filing_types', 'value'] = filing_types_str
-        
-        metadata_df.loc[metadata_df['key'].isin(['total_companies', 'total_filings', 'generated_at', 'status']), 'updated_at'] = datetime.now().isoformat()
-        
-        pq.write_table(pa.Table.from_pandas(metadata_df), paths['metadata'])
-        
-        conn.close()
-        
-        return {
-            'new_filings': new_filings_count,
-            'total_filings': total_filings,
-            'filings': new_filings,  # Return all filings for compatibility
-            'cik': cik,
-            'ticker': ticker
-        }
-    
-    def update_ticker_parquet(self, ticker: str, parquet_file: str,
-                          start_year: Optional[int] = None,
-                          filing_types: Optional[List[str]] = None,
-                          safe_write: bool = False) -> Dict:
-        """
-        Update Parquet files with filings for a specific ticker, appending only new filings
-        
-        Args:
-            ticker: Ticker symbol
-            parquet_file: Path to parquet directory or file
-            start_year: Start year for filings
-            filing_types: List of filing types to include
-        
-        Returns:
-            Dictionary with update statistics
-        """
-        
-        # Get company info
-        companies = self.get_all_companies()
-        company = next((c for c in companies 
-                      if c.get('ticker', '').upper() == ticker.upper()), None)
-        
-        if not company:
-            print(f"Company not found with ticker: {ticker}")
-            return {'new_filings': 0, 'total_filings': 0, 'cik': None, 'ticker': ticker, 'filings': []}
-        
-        cik = company['cik']
-        
-        # Use the CIK-based update method
-        return self.update_company_parquet_by_cik(cik, parquet_file, start_year, filing_types, safe_write)
     
     def download_all_filings(self, start_year: Optional[int] = None,
                              output_dir: str = 'edgar_filings',
-                             filing_types: Optional[List[str]] = None,
                              ticker: Optional[str] = None) -> Dict:
         """
-        Download all filings from all companies
+        Download all filings from all companies (all form types, no filtering)
         
         Args:
             start_year: Start year for filings (None = all available filings from earliest date)
             output_dir: Directory to save filings
-            filing_types: List of filing types to download (None for all)
             ticker: Filter by ticker symbol (optional)
         
         Returns:
@@ -1716,6 +1975,7 @@ class EDGARDownloader:
             name = company.get('title', 'N/A')
             
             company_pbar.set_description(f"Processing: {ticker}")
+              # Breakpoint: total_filings_downloaded, total_filings_found
             company_pbar.set_postfix({
                 'downloaded': stats['total_filings_downloaded'],
                 'found': stats['total_filings_found'],
@@ -1724,7 +1984,8 @@ class EDGARDownloader:
             
             try:
                 # Get filings for this company
-                filings = self.get_company_filings(cik, start_year=start_year, filing_types=filing_types)
+                filings = self.get_company_filings(cik, start_year=start_year)
+                  # Breakpoint: total_filings_found
                 stats['total_filings_found'] += len(filings)
                 
                 if len(filings) > 0:
@@ -1739,9 +2000,11 @@ class EDGARDownloader:
                             # Get is_xbrl and is_inline_xbrl flags from filing if available
                             is_xbrl = filing.get('is_xbrl', True) if isinstance(filing, dict) else True
                             is_inline_xbrl = filing.get('is_inline_xbrl', True) if isinstance(filing, dict) else True
-                            if self.download_filing(cik, accession, output_dir, ticker=ticker, filing_type=filing_type, is_xbrl=is_xbrl, is_inline_xbrl=is_inline_xbrl, parquet_file=None):
+                            if self.download_filing(cik, accession, output_dir, ticker=ticker, filing_type=filing_type, is_xbrl=is_xbrl, is_inline_xbrl=is_inline_xbrl):
+                                  # Breakpoint: total_filings_downloaded
                                 stats['total_filings_downloaded'] += 1
                             
+                              # Breakpoint: total_filings_downloaded
                             filing_pbar.set_postfix({
                                 'downloaded': stats['total_filings_downloaded'],
                                 'current': filing_type
@@ -1770,473 +2033,480 @@ class EDGARDownloader:
         print("\n" + "=" * 60)
         print("Download Summary:")
         print(f"  Companies processed: {stats['companies_processed']}/{stats['total_companies']}")
+          # Breakpoint: total_filings_found
         print(f"  Filings found: {stats['total_filings_found']}")
+          # Breakpoint: total_filings_downloaded
         print(f"  Filings downloaded: {stats['total_filings_downloaded']}")
         print(f"  Errors: {stats['errors']}")
         print("=" * 60)
         
         return stats
     
-    def get_all_companies_and_filings(self, start_year: Optional[int] = None,
-                                      filing_types: Optional[List[str]] = None,
-                                      parquet_dir: Optional[str] = None,
-                                      write_interval: int = 10,
-                                      tickers: Optional[List[str]] = None,
-                                      safe_write: bool = False) -> Dict:
+    async def get_all_companies_and_filings_async(self, start_year: Optional[int] = None,
+                                                   dbname: str = "edgar",
+                                                   dbuser: str = "postgres",
+                                                   dbhost: str = "localhost",
+                                                   dbpassword: Optional[str] = None,
+                                                   dbport: Optional[int] = None,
+                                                   tickers: Optional[List[str]] = None) -> Dict:
         """
-        Get all companies and their filings, save to Parquet files
+        Async version: Get all companies and their filings, save to PostgreSQL database
+        Batches are organized by year - processes all companies for a year before moving to next year
+        Catalogs ALL filing types (no filtering)
         
         Args:
-            start_year: Start year for filings (None = all available filings from earliest date, default: None)
-            filing_types: List of filing types to include (None for all)
-            parquet_dir: Path to directory where Parquet files will be saved
-            write_interval: Number of companies to process before writing to Parquet
+            start_year: Start year for filings (None = all available from earliest date, default: None)
+            dbname: PostgreSQL database name (default: 'edgar')
+            dbuser: PostgreSQL user (default: 'postgres')
+            dbhost: PostgreSQL host (default: 'localhost')
+            dbpassword: PostgreSQL password (optional, can use POSTGRES_PASSWORD env var)
+            dbport: PostgreSQL port (default: 5432, can use POSTGRES_PORT env var)
             tickers: Optional list of ticker symbols to filter companies (None for all companies)
         
         Returns:
             Dictionary with companies and filings
         """
         print("=" * 60)
-        print("EDGAR Companies and Filings Catalog Generator")
+        print("EDGAR Companies and Filings Catalog Generator (PostgreSQL)")
         print("=" * 60)
         if start_year:
             print(f"Start year: {start_year}")
         else:
             print("Start year: All available (from earliest date)")
-        print(f"Output Parquet directory: {parquet_dir}")
+        # Get password and port (matching FRED pattern exactly)
+        # FRED does: password = args.dbpassword or os.getenv('POSTGRES_PASSWORD', '2014')
+        password = dbpassword or os.getenv('POSTGRES_PASSWORD', '2014')
+        # Port: use provided value, or env var, or default to 5432 (like FRED but with env var support)
+        port = dbport if dbport is not None else int(os.getenv('POSTGRES_PORT', '5432'))
         
-        companies_data = []
-        companies_processed = 0
-        existing_companies_map = {}
+        print(f"Database: {dbname}@{dbhost}:{port}")
         
-        # Initialize DuckDB connection and Parquet files
-        if parquet_dir:
-            paths = get_parquet_paths(parquet_dir)
-            conn = init_duckdb_tables(paths['base_dir'])
-            
-            # Load existing companies and their accession numbers if Parquet files exist
-            if os.path.exists(paths['companies']):
-                try:
-                    companies_query = f"SELECT cik, ticker, name, sic_code, entity_type FROM read_parquet('{paths['companies']}')"
-                    companies_result = conn.execute(companies_query).fetchall()
-                    
-                    load_pbar = tqdm(companies_result, desc="Loading existing Parquet", unit="company", leave=False, total=len(companies_result))
-                    loaded_count = 0
-                    for row in load_pbar:
-                        cik = row[0]
-                        if cik:
-                            # Get existing accession numbers for this company
-                            accessions_query = f"""
-                                SELECT DISTINCT accession_number
-                                FROM read_parquet('{paths['filings']}')
-                                WHERE cik = '{cik}'
-                            """
-                            accessions_result = conn.execute(accessions_query).fetchall()
-                            existing_accessions = {row[0] for row in accessions_result if row[0]}
-                            
-                            existing_companies_map[cik] = {
-                                'company': {
-                                    'cik': cik,
-                                    'ticker': row[1] or cik,
-                                    'name': row[2] or 'N/A',
-                                    'sic_code': row[3] if len(row) > 3 else None,
-                                    'entity_type': row[4] if len(row) > 4 else None
-                                },
-                                'accessions': existing_accessions
-                            }
-                            loaded_count += 1
-                            load_pbar.set_postfix({'loaded': loaded_count})
-                    load_pbar.close()
-                    print(f"Loaded existing Parquet with {len(existing_companies_map)} companies")
-                    print(f"  Existing companies will have new filings appended")
-                except Exception as e:
-                    print(f"Warning: Could not load existing Parquet files: {e}")
-                    print(f"  Will create new files")
-            else:
-                print(f"Initializing new Parquet files in: {parquet_dir}")
-                print(f"  All existing companies and filings will be preserved")
-                print(f"  New companies will be added, existing companies will be updated with new filings only")
+        # Initialize PostgreSQL connection
+        conn = get_postgres_connection(dbname=dbname, user=dbuser, host=dbhost, 
+                                      password=password, port=port)
+        init_edgar_postgres_tables(conn)
         
-        def write_parquet_incrementally():
-            """Helper function to write current state to Parquet files - always merges with existing"""
-            if parquet_dir:
-                try:
-                    # Reload existing companies from Parquet
-                    current_existing_companies = {}
-                    if os.path.exists(paths['companies']):
-                        try:
-                            companies_query = f"SELECT cik, ticker, name, sic_code, entity_type FROM read_parquet('{paths['companies']}')"
-                            companies_result = conn.execute(companies_query).fetchall()
-                            for row in companies_result:
-                                current_existing_companies[row[0]] = {
-                                    'cik': row[0],
-                                    'ticker': row[1] or row[0],
-                                    'name': row[2] or 'N/A',
-                                    'sic_code': row[3] if len(row) > 3 else None,
-                                    'entity_type': row[4] if len(row) > 4 else None
-                                }
-                        except:
-                            # Fall back to original existing_companies_map
-                            current_existing_companies = {cik: info['company'] for cik, info in existing_companies_map.items()}
-                    
-                    # Merge: processed companies (updated) + unprocessed existing companies
-                    processed_ciks = {c.get('cik') for c in companies_data}
-                    
-                    # Update companies table
-                    companies_list = []
-                    for company_data in companies_data:
-                        ticker = company_data.get('ticker')
-                        companies_list.append({
-                            'cik': company_data['cik'],
-                            'ticker': ticker if ticker else None,  # None if not available (ticker is nullable)
-                            'name': company_data.get('name', 'N/A'),
-                            'sic_code': company_data.get('sic_code'),
-                            'entity_type': company_data.get('entity_type'),
-                            'updated_at': datetime.now().isoformat()
-                        })
-                    
-                    # Add existing companies that haven't been processed
-                    for cik, company in current_existing_companies.items():
-                        if cik not in processed_ciks:
-                            ticker = company.get('ticker')
-                            companies_list.append({
-                                'cik': company['cik'],
-                                'ticker': ticker if ticker else None,  # None if not available (ticker is nullable)
-                                'name': company.get('name', 'N/A'),
-                                'sic_code': company.get('sic_code'),
-                                'entity_type': company.get('entity_type'),
-                                'updated_at': datetime.now().isoformat()
-                            })
-                    
-                    # Write companies (current snapshot)
-                    companies_df = pd.DataFrame(companies_list)
-                    # Ensure schema includes new fields
-                    schema = pa.schema([
-                        ('cik', pa.string()),
-                        pa.field('ticker', pa.string(), nullable=True),
-                        ('name', pa.string()),
-                        pa.field('sic_code', pa.string(), nullable=True),
-                        pa.field('entity_type', pa.string(), nullable=True),
-                        ('updated_at', pa.string()),
-                    ])
-                    companies_table = pa.Table.from_pandas(companies_df, schema=schema)
-                    pq.write_table(companies_table, paths['companies'])
-
-                    # Append snapshot to company history (one row per company per save)
-                    try:
-                        history_file = paths.get('company_history')
-                        if history_file:
-                            if os.path.exists(history_file):
-                                existing_history = pq.read_table(history_file).to_pandas()
-                                combined_history = pd.concat([existing_history, companies_df], ignore_index=True)
-                            else:
-                                combined_history = companies_df.copy()
-                            history_table = pa.Table.from_pandas(combined_history, schema=schema)
-                            pq.write_table(history_table, history_file)
-                    except Exception as e:
-                        print(f"  Warning: Error updating company_history.parquet: {e}")
-                    
-                    # Count total filings
-                    total_filings_query = f"SELECT COUNT(*) FROM read_parquet('{paths['filings']}')"
-                    total_all_filings = conn.execute(total_filings_query).fetchone()[0]
-                    
-                    # Update metadata
-                    metadata_df = pq.read_table(paths['metadata']).to_pandas()
-                    metadata_df.loc[metadata_df['key'] == 'total_companies', 'value'] = str(len(companies_list))
-                    metadata_df.loc[metadata_df['key'] == 'total_filings', 'value'] = str(total_all_filings)
-                    metadata_df.loc[metadata_df['key'] == 'generated_at', 'value'] = datetime.now().isoformat()
-                    metadata_df.loc[metadata_df['key'] == 'status', 'value'] = 'in_progress'
-                    if start_year is not None:
-                        if 'start_year' not in metadata_df['key'].values:
-                            new_row = pd.DataFrame([{'key': 'start_year', 'value': str(start_year), 'updated_at': datetime.now().isoformat()}])
-                            metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-                        else:
-                            metadata_df.loc[metadata_df['key'] == 'start_year', 'value'] = str(start_year)
-                    if filing_types is not None:
-                        filing_types_str = ','.join(filing_types) if filing_types else ''
-                        if 'filing_types' not in metadata_df['key'].values:
-                            new_row = pd.DataFrame([{'key': 'filing_types', 'value': filing_types_str, 'updated_at': datetime.now().isoformat()}])
-                            metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-                        else:
-                            metadata_df.loc[metadata_df['key'] == 'filing_types', 'value'] = filing_types_str
-                    metadata_df.loc[metadata_df['key'].isin(['total_companies', 'total_filings', 'generated_at', 'status']), 'updated_at'] = datetime.now().isoformat()
-                    pq.write_table(pa.Table.from_pandas(metadata_df), paths['metadata'])
-                    
-                    print(f"  [{len(companies_data)} processed, {len(companies_list)} total companies, {total_all_filings} total filings] Progress saved")
-                except Exception as e:
-                    print(f"  Warning: Error writing Parquet files: {e}")
+        # Get existing statistics
+        stats = get_edgar_statistics(conn)
         
-        # Get all companies
-        print("\nFetching all companies from EDGAR...")
-        companies = self.get_all_companies()
+        print(f"Existing data: {stats['total_companies']} companies, {stats['total_filings']} filings")
+        
+        # Determine years to process using ledger pattern (incomplete years)
+        current_year = datetime.now().year
+        incomplete_years = set(get_incomplete_years(conn))
+        
+        if start_year:
+            # Process from start_year to current year, including incomplete years
+            all_years = set(range(start_year, current_year + 1))
+            years_to_process = sorted(all_years - {y for y in all_years if is_year_complete(conn, y)}, reverse=True)
+        else:
+            # Process all years from 1993 to current, excluding complete years
+            # Process in reverse order: most recent year first, going back to earliest
+            all_years = set(range(1993, current_year + 1))
+            years_to_process = sorted(all_years - {y for y in all_years if is_year_complete(conn, y)}, reverse=True)
+        
+        if incomplete_years:
+            print(f"Incomplete years found: {sorted(incomplete_years, reverse=True)} (reverse chronological order)")
+        print(f"  Years to process: {len(years_to_process)} years")
+        
+        if not years_to_process:
+            start_range = start_year if start_year else 1993
+            print(f"\nAll years from {start_range} to {current_year} are complete.")
+            conn.close()
+              # Breakpoint: total_filings
+            return {
+                'total_companies': stats['total_companies'],
+                'total_filings': stats['total_filings'],
+                'new_filings': 0
+            }
+        
+        print(f"Years to process: {years_to_process[0]} (most recent) down to {years_to_process[-1]} ({len(years_to_process)} years, reverse chronological order)")
+        
+        # Always fetch all companies from EDGAR master.idx files and enrich them
+        # This async call ensures companies are enriched with tickers, SIC codes, and entity types
+        # Pass connection to skip already enriched CIKs (resumable process)
+        print("\nFetching all companies from EDGAR master.idx files...")
+        print("  NOTE: This will parse ALL master.idx files to extract ALL companies (all form types)")
+        print("  Companies already in database will be skipped during enrichment")
+        companies = await self.get_all_companies_async(conn=conn)
+        print(f"  Total companies fetched from EDGAR: {len(companies)}")
         
         # Filter by tickers if specified
         if tickers:
-            ticker_set = set(tickers)
+            ticker_set = {t.upper() for t in tickers}
             companies = [c for c in companies if c.get('ticker', '').upper() in ticker_set]
             if not companies:
                 print(f"Error: No companies found with ticker(s): {', '.join(tickers)}")
+                conn.close()
+                  # Breakpoint: total_filings
                 return {'total_companies': 0, 'total_filings': 0}
             print(f"Filtered to {len(companies)} companies matching ticker(s): {', '.join(tickers)}")
         
-        print(f"Processing {len(companies)} companies...")
-        if existing_companies_map:
-            print(f"  ({len(existing_companies_map)} companies already in Parquet will be updated)")
+        print(f"Processing {len(companies)} companies across {len(years_to_process)} years...")
         
-        total_filings = 0
+        # Batch storage for companies and filings
+        # Companies are committed immediately (to avoid re-processing)
+        # Filings are committed in smaller batches for immediate persistence
+        companies_batch = []
+        filings_batch = []
+        FILINGS_BATCH_SIZE = 100  # Commit filings every 100 items for immediate persistence
+        total_new_filings = 0
+        companies_processed = set()  # Track which companies we've already added
         
-        # Progress bar for companies
-        company_pbar = tqdm(companies, desc="Cataloging companies", unit="company", leave=True, total=len(companies))
-        for company in company_pbar:
+        # Cache for master.idx DataFrames - shared across all companies to avoid re-parsing
+        master_idx_cache: Dict[str, pd.DataFrame] = {}
+        
+        # Thread-safe locks for shared data structures
+        batch_lock = Lock()
+        processed_lock = Lock()
+        
+        # Capture connection parameters for worker function
+        worker_password = password
+        worker_port = port
+        
+        async def process_company_async(company: Dict, year: int) -> Dict:
+            """Process a single company and return results (async)"""
             cik = company['cik']
             ticker = company.get('ticker', 'N/A')
-            name = company.get('title', 'N/A')
+            name = company.get('name') or company.get('title', 'N/A')
             
-            company_pbar.set_description(f"Cataloging: {ticker}")
-            company_pbar.set_postfix({
-                'companies': len(companies_data),
-                'filings': total_filings,
-                'new_filings': total_filings
-            })
+            result = {
+                'cik': cik,
+                'ticker': ticker,
+                'name': name,
+                'company_data': None,
+                'filings': [],
+                'error': None
+            }
             
             try:
-                # Get filings for this company
-                new_filings = self.get_company_filings(cik, start_year=start_year, filing_types=filing_types)
+                # Get existing accessions for this company to skip duplicates
+                # Note: Each thread needs its own DB connection or we need connection pooling
+                # For now, we'll create a temporary connection for this query
+                temp_conn = get_postgres_connection(dbname=dbname, user=dbuser, host=dbhost, 
+                                                   password=worker_password, port=worker_port)
+                existing_accessions = get_existing_accessions(temp_conn, cik)
+                temp_conn.close()
                 
-                # Check if this company already exists in Parquet
-                if cik in existing_companies_map:
-                    # Merge with existing filings - only add new ones
-                    existing_company = existing_companies_map[cik]['company']
-                    existing_accessions = existing_companies_map[cik]['accessions']
-                    
-                    # Filter out filings we already have (by accession_number)
-                    truly_new_filings = [
-                        f for f in new_filings 
-                        if f.get('accession_number') and f.get('accession_number') not in existing_accessions
-                    ]
-                    
-                    new_filings_count = len(truly_new_filings)
-                    if new_filings_count > 0:
-                        total_filings += new_filings_count
-                        
-                        # Add new filings to Parquet
-                        filings_data = []
-                        for filing in truly_new_filings:
-                            filings_data.append({
+                # Get filings for this company starting from this year (start_year filter for efficiency)
+                # Then filter to only this exact year for batch processing
+                # Pass master_idx_cache to reuse parsed DataFrames across companies
+                # Get ALL filing types (no filtering)
+                all_filings = await self.get_company_filings_async(cik, start_year=year, master_idx_cache=master_idx_cache)
+                
+                # DEBUG: Track filtering steps
+                debug_stats = {
+                    'api_filings': len(all_filings),
+                    'existing_accessions_count': len(existing_accessions),
+                    'year_filings': 0,
+                    'truly_new': 0
+                }
+                
+                # Filter filings to only include those from this exact year
+                year_filings = [
+                    f for f in all_filings
+                    if f.get('filing_date') and f.get('filing_date').startswith(str(year))
+                ]
+                debug_stats['year_filings'] = len(year_filings)
+                
+                # Filter out filings we already have (by accession_number)
+                truly_new_filings = [
+                    f for f in year_filings 
+                    if f.get('accession_number') and f.get('accession_number') not in existing_accessions
+                ]
+                debug_stats['truly_new'] = len(truly_new_filings)
+                
+                # Store debug stats in result for aggregation
+                result['debug_stats'] = debug_stats
+                
+                # Prepare company data
+                result['company_data'] = {
                                 'cik': cik,
-                                'accession_number': filing.get('accession_number', ''),
-                                'filing_date': filing.get('filing_date', ''),
-                                'filing_type': filing.get('filing_type', ''),
-                                'description': filing.get('description', ''),
-                                'is_xbrl': filing.get('is_xbrl', False),
-                                'is_inline_xbrl': filing.get('is_inline_xbrl', False),
-                                'amends_accession': filing.get('amends_accession'),
-                                'amends_filing_date': filing.get('amends_filing_date'),
-                                'downloaded_file_path': None,  # Will be set when filing is downloaded
-                            })
-                        
-                        if filings_data:
-                            # Write filings (atomic if safe_write=True, fast batch otherwise)
-                            if safe_write:
-                                add_filings_atomically(paths['filings'], filings_data)
-                            else:
-                                add_filings_fast(paths['filings'], filings_data)
-                    
-                    # Update company data
-                    company_data = {
-                        'cik': cik,
-                        'ticker': existing_company.get('ticker', ticker),
-                        'name': existing_company.get('name', name),
-                        'sic_code': existing_company.get('sic_code') or company.get('sic_code'),
-                        'entity_type': existing_company.get('entity_type') or company.get('entity_type'),
-                        'total_filings': len(existing_accessions) + new_filings_count,
-                        'filings': new_filings  # For compatibility with return value
-                    }
-                else:
-                    # New company - add all filings
-                    new_filings_count = len(new_filings)
-                    total_filings += new_filings_count
-                    
-                    # Add filings to Parquet
-                    if new_filings:
-                        filings_data = []
-                        for filing in new_filings:
-                            filings_data.append({
-                                'cik': cik,
-                                'accession_number': filing.get('accession_number', ''),
-                                'filing_date': filing.get('filing_date', ''),
-                                'filing_type': filing.get('filing_type', ''),
-                                'description': filing.get('description', ''),
-                                'is_xbrl': filing.get('is_xbrl', False),
-                                'is_inline_xbrl': filing.get('is_inline_xbrl', False),
-                                'amends_accession': filing.get('amends_accession'),
-                                'amends_filing_date': filing.get('amends_filing_date'),
-                                'downloaded_file_path': None,  # Will be set when filing is downloaded
-                            })
-                        
-                        # Write filings (atomic if safe_write=True, fast batch otherwise)
-                        if safe_write:
-                            add_filings_atomically(paths['filings'], filings_data)
-                        else:
-                            add_filings_fast(paths['filings'], filings_data)
-                    
-                    company_data = {
-                        'cik': cik,
-                        'ticker': ticker,
-                        'name': name,
-                        'sic_code': company.get('sic_code'),
-                        'entity_type': company.get('entity_type'),
-                        'total_filings': new_filings_count,
-                        'filings': new_filings
-                    }
-                
-                companies_data.append(company_data)
-                companies_processed += 1
-                
-                # Write incrementally
-                if parquet_dir and companies_processed % write_interval == 0:
-                    company_pbar.write(f"  Saving progress... ({len(companies_data)} companies, {total_filings} filings)")
-                    write_parquet_incrementally()
-                
-                time.sleep(0.1)  # Rate limiting
-                
-            except Exception as e:
-                # Add company even if filings fetch fails
-                companies_data.append({
-                    'cik': cik,
-                    'ticker': ticker,
+                    'ticker': company.get('ticker'),
                     'name': name,
                     'sic_code': company.get('sic_code'),
-                    'entity_type': company.get('entity_type'),
-                    'total_filings': 0,
-                    'filings': [],
-                    'error': str(e)
-                })
-                companies_processed += 1
-                company_pbar.write(f"  Error processing {ticker}: {e}")
-                time.sleep(0.1)
+                    'entity_type': company.get('entity_type')
+                }
+                
+                # Prepare filings data
+                for filing in truly_new_filings:
+                    result['filings'].append({
+                                'cik': cik,
+                                'accession_number': filing.get('accession_number', ''),
+                                'filing_date': filing.get('filing_date', ''),
+                                'filing_type': filing.get('filing_type', ''),
+                                'description': filing.get('description', ''),
+                                'is_xbrl': filing.get('is_xbrl', False),
+                                'is_inline_xbrl': filing.get('is_inline_xbrl', False),
+                                'amends_accession': filing.get('amends_accession'),
+                                'amends_filing_date': filing.get('amends_filing_date'),
+                        'downloaded_file_path': None
+                    })
+                
+            except Exception as e:
+                result['error'] = str(e)
+                # Still add company data even if filings fetch fails
+                result['company_data'] = {
+                        'cik': cik,
+                    'ticker': company.get('ticker'),
+                        'name': name,
+                        'sic_code': company.get('sic_code'),
+                    'entity_type': company.get('entity_type')
+                }
+            
+            return result
+        
+        # Process year by year (async)
+        for year in years_to_process:
+            print(f"\n{'='*60}")
+            print(f"Processing year {year}...")
+            print(f"{'='*60}")
+            
+            year_filings_count = 0
+            year_companies_count = 0
+            
+            # Track debug statistics for filtering analysis
+            year_debug_stats = {
+                'total_companies': len(companies),
+                'companies_processed': 0,
+                'total_api_filings': 0,
+                'total_year_filings': 0,
+                'total_existing_accessions': 0,
+                'total_truly_new_filings': 0,
+                'total_added_to_result': 0
+            }
+            
+            # Use async processing with semaphore for rate limiting
+            # SEC allows 10 requests per second, so we limit concurrent requests
+            semaphore = asyncio.Semaphore(10)
+            
+            async def process_with_semaphore(company: Dict):
+                async with semaphore:
+                    return await process_company_async(company, year)
+            
+            # Create tasks for all companies
+            tasks = [process_with_semaphore(company) for company in companies]
+            
+            # Progress bar for companies
+            company_pbar = tqdm(total=len(companies), desc=f"Year {year}", unit="company", leave=True)
+            
+            # Process completed tasks
+            for coro in asyncio.as_completed(tasks):
+                try:
+                    result = await coro
+                    
+                    if isinstance(result, dict):
+                        # Aggregate debug statistics
+                        if 'debug_stats' in result:
+                            debug_stats = result['debug_stats']
+                            year_debug_stats['companies_processed'] += 1
+                            year_debug_stats['total_api_filings'] += debug_stats.get('api_filings', 0)
+                            year_debug_stats['total_year_filings'] += debug_stats.get('year_filings', 0)
+                            year_debug_stats['total_existing_accessions'] += debug_stats.get('existing_accessions_count', 0)
+                            year_debug_stats['total_truly_new_filings'] += debug_stats.get('truly_new', 0)
+                            year_debug_stats['total_added_to_result'] += len(result.get('filings', []))
+                        
+                        # Thread-safe batch updates (still need locks for shared data structures)
+                        new_filings_count = len(result.get('filings', []))
+                        with batch_lock, processed_lock:
+                            # Handle company data: commit immediately (to avoid re-processing)
+                            if result.get('company_data'):
+                                cik = result.get('cik')
+                                if cik and cik not in companies_processed:
+                                    try:
+                                        add_companies_fast(conn, [result['company_data']])
+                                        companies_processed.add(cik)
+                                        year_companies_count += 1
+                                        # Update metadata after companies table update
+                                        stats = get_edgar_statistics(conn)
+                                        update_edgar_metadata(conn, 'total_companies', str(stats['total_companies']))
+                                    except Exception as e:
+                                        company_pbar.write(f"  Error adding company {cik} to DB: {e}")
+                            
+                            # Add filings to batch (commit in smaller batches for immediate persistence)
+                            year_filings_count += new_filings_count
+                            total_new_filings += new_filings_count
+                            
+                            for filing in result.get('filings', []):
+                                filings_batch.append(filing)
+                            
+                            # Commit filings in batches to avoid losing work
+                            if len(filings_batch) >= FILINGS_BATCH_SIZE:
+                                try:
+                                    added = add_filings_fast(conn, filings_batch)
+                                    filings_batch.clear()
+                                    # Update metadata after filings table update
+                                    stats = get_edgar_statistics(conn)
+                                    update_edgar_metadata(conn, 'total_filings', str(stats['total_filings']))
+                                except Exception as e:
+                                    company_pbar.write(f"  Error adding filings batch to DB: {e}")
+                            
+                            # Update progress bar INSIDE the lock to ensure we read the latest values
+                            ticker = result.get('ticker', 'N/A')
+                            company_pbar.set_postfix({
+                                'ticker': ticker,
+                                'year_filings': year_filings_count,
+                                'total_filings': total_new_filings
+                            })
+                        company_pbar.update(1)
+                        
+                        # Log errors if any
+                        if result.get('error'):
+                            company_pbar.write(f"  Error processing {ticker} for year {year}: {result['error']}")
+                
+                except Exception as e:
+                    company_pbar.write(f"  Error processing company for year {year}: {e}")
+                    company_pbar.update(1)
         
         company_pbar.close()
-        print(f"\n  Processed {len(companies_data)} companies, added {total_filings} new filings")
         
-        # Final save to Parquet if requested
-        # Always reload and merge with existing - never overwrite
-        if parquet_dir:
-            # Reload existing companies from Parquet to ensure we have the latest
-            final_existing_companies = {}
-            if os.path.exists(paths['companies']):
-                try:
-                    companies_query = f"SELECT cik, ticker, name, sic_code, entity_type FROM read_parquet('{paths['companies']}')"
-                    companies_result = conn.execute(companies_query).fetchall()
-                    for row in companies_result:
-                        final_existing_companies[row[0]] = {
-                            'cik': row[0],
-                            'ticker': row[1] or row[0],
-                            'name': row[2] or 'N/A',
-                            'sic_code': row[3] if len(row) > 3 else None,
-                            'entity_type': row[4] if len(row) > 4 else None
-                        }
-                except Exception as e:
-                    print(f"  Warning: Could not reload Parquet for final merge: {e}")
-                    # Fall back to existing_companies_map we loaded at start
-                    final_existing_companies = {cik: info['company'] for cik, info in existing_companies_map.items()}
-            
-            # Merge: newly processed companies + existing companies that weren't processed
-            processed_ciks = {c.get('cik') for c in companies_data}
-            
-            # Update companies table
-            companies_list = []
-            for company_data in companies_data:
-                ticker = company_data.get('ticker')
-                companies_list.append({
-                    'cik': company_data['cik'],
-                    'ticker': ticker if ticker else None,  # None if not available (ticker is nullable)
-                    'name': company_data.get('name', 'N/A'),
-                    'sic_code': company_data.get('sic_code'),
-                    'entity_type': company_data.get('entity_type'),
-                    'updated_at': datetime.now().isoformat()
-                })
-            
-            # Add existing companies that weren't processed
-            for cik, company in final_existing_companies.items():
-                if cik not in processed_ciks:
-                    ticker = company.get('ticker')
-                    companies_list.append({
-                        'cik': company['cik'],
-                        'ticker': ticker if ticker else None,  # None if not available (ticker is nullable)
-                        'name': company.get('name', 'N/A'),
-                        'sic_code': company.get('sic_code'),
-                        'entity_type': company.get('entity_type'),
-                        'updated_at': datetime.now().isoformat()
-                    })
-            
-            # Write companies (final snapshot)
-            companies_df = pd.DataFrame(companies_list)
-            # Ensure schema includes new fields
-            schema = pa.schema([
-                ('cik', pa.string()),
-                pa.field('ticker', pa.string(), nullable=True),
-                ('name', pa.string()),
-                pa.field('sic_code', pa.string(), nullable=True),
-                pa.field('entity_type', pa.string(), nullable=True),
-                ('updated_at', pa.string()),
-            ])
-            companies_table = pa.Table.from_pandas(companies_df, schema=schema)
-            pq.write_table(companies_table, paths['companies'])
-
-            # Append snapshot to company history (one row per company at end of run)
-            try:
-                history_file = paths.get('company_history')
-                if history_file:
-                    if os.path.exists(history_file):
-                        existing_history = pq.read_table(history_file).to_pandas()
-                        combined_history = pd.concat([existing_history, companies_df], ignore_index=True)
-                    else:
-                        combined_history = companies_df.copy()
-                    history_table = pa.Table.from_pandas(combined_history, schema=schema)
-                    pq.write_table(history_table, history_file)
-            except Exception as e:
-                print(f"  Warning: Error updating company_history.parquet: {e}")
-            
-            # Count total filings
-            total_filings_query = f"SELECT COUNT(*) FROM read_parquet('{paths['filings']}')"
-            total_all_filings = conn.execute(total_filings_query).fetchone()[0]
-            
-            # Update metadata
-            metadata_df = pq.read_table(paths['metadata']).to_pandas()
-            metadata_df.loc[metadata_df['key'] == 'total_companies', 'value'] = str(len(companies_list))
-            metadata_df.loc[metadata_df['key'] == 'total_filings', 'value'] = str(total_all_filings)
-            metadata_df.loc[metadata_df['key'] == 'generated_at', 'value'] = datetime.now().isoformat()
-            metadata_df.loc[metadata_df['key'] == 'status', 'value'] = 'complete'
-            if start_year is not None:
-                if 'start_year' not in metadata_df['key'].values:
-                    new_row = pd.DataFrame([{'key': 'start_year', 'value': str(start_year), 'updated_at': datetime.now().isoformat()}])
-                    metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-                else:
-                    metadata_df.loc[metadata_df['key'] == 'start_year', 'value'] = str(start_year)
-            if filing_types is not None:
-                filing_types_str = ','.join(filing_types) if filing_types else ''
-                if 'filing_types' not in metadata_df['key'].values:
-                    new_row = pd.DataFrame([{'key': 'filing_types', 'value': filing_types_str, 'updated_at': datetime.now().isoformat()}])
-                    metadata_df = pd.concat([metadata_df, new_row], ignore_index=True)
-                else:
-                    metadata_df.loc[metadata_df['key'] == 'filing_types', 'value'] = filing_types_str
-            metadata_df.loc[metadata_df['key'].isin(['total_companies', 'total_filings', 'generated_at', 'status']), 'updated_at'] = datetime.now().isoformat()
-            pq.write_table(pa.Table.from_pandas(metadata_df), paths['metadata'])
-            
-            conn.close()
-            
-            print(f"\n✓ Parquet files finalized: {parquet_dir}")
-            print(f"  Total companies: {len(companies_list)}")
-            print(f"  Total filings: {total_all_filings}")
-            print(f"  New filings added in this run: {total_filings}")
-            print(f"  ✓ All existing companies and filings preserved")
+        # Print debug statistics showing where filings are filtered
+        print(f"\n  📊 Year {year} filtering statistics:")
+        print(f"     Companies processed: {year_debug_stats['companies_processed']}/{year_debug_stats['total_companies']}")
+        print(f"     Filings from SEC API: {year_debug_stats['total_api_filings']}")
+        print(f"     After year filter ({year}): {year_debug_stats['total_year_filings']}")
+        print(f"     Already in DB (accessions): {year_debug_stats['total_existing_accessions']}")
+        print(f"     Truly new (after duplicate filter): {year_debug_stats['total_truly_new_filings']}")
+        print(f"     Added to result: {year_debug_stats['total_added_to_result']}")
+        print(f"     Final count (year_filings_count): {year_filings_count}")
         
+        # Write remaining batches to database
+        # Companies are already committed immediately
+        print(f"\n  Saving remaining data for year {year} to database...")
+        try:
+            # Companies are already committed immediately, so companies_batch should be empty
+            # But check just in case
+            if companies_batch:
+                add_companies_fast(conn, companies_batch)
+                companies_batch.clear()
+                # Update metadata after companies table update
+                stats = get_edgar_statistics(conn)
+                update_edgar_metadata(conn, 'total_companies', str(stats['total_companies']))
+            
+            # Commit remaining filings batch
+            if filings_batch:
+                added = add_filings_fast(conn, filings_batch)
+                filings_batch.clear()
+                print(f"  Added {added} filings for year {year}")
+                # Update metadata after filings table update
+                stats = get_edgar_statistics(conn)
+                update_edgar_metadata(conn, 'total_filings', str(stats['total_filings']))
+            
+            # Update ledger: Count SEC index filings and DB filings, then compare
+            print(f"  Updating completion ledger for year {year}...")
+            
+            # Get DB counts by filing type (all filing types, no filtering)
+            db_counts = get_db_filing_counts_by_year(conn, year, None)
+        
+            # Get SEC index counts by filing type (all filing types, no filtering)
+            sec_counts = await self.count_sec_index_filings_by_year(year, None)
+            
+            # Update ledger for each filing type
+            for filing_type in set(list(db_counts.keys()) + list(sec_counts.keys())):
+                if filing_type is None:
+                    continue  # Skip total, we'll handle it separately
+                sec_count = sec_counts.get(filing_type, 0)
+                db_count = db_counts.get(filing_type, 0)
+                update_year_completion_ledger(conn, year, filing_type, sec_count, db_count)
+            
+            # Update ledger for total
+            # For SEC counts, sum all filing type values
+            total_sec = sum(sec_counts.values())
+            # For DB counts, exclude None key (which is already the pre-calculated total) and sum filing types
+            total_db = sum(v for k, v in db_counts.items() if k is not None)
+            update_year_completion_ledger(conn, year, 'TOTAL', total_sec, total_db)
+            
+            # Check if year is now complete
+            is_complete = is_year_complete(conn, year)
+            status = "✓ COMPLETE" if is_complete else "⚠ INCOMPLETE"
+            
+            # Note: Companies and filings already committed immediately above
+            # Ledger updates also commit internally, so no need for another commit here
+            print(f"  {status} Year {year}: {year_filings_count} new filings, {year_companies_count} companies processed")
+            print(f"     SEC index: {total_sec} filings | DB: {total_db} filings")
+        except Exception as e:
+            # Note: Since we commit immediately, rollback won't help here, but log the error
+            print(f"  ✗ Error processing year {year}: {e}")
+        
+        # Add company history snapshot
+        try:
+            add_company_history_snapshot(conn)
+            conn.commit()
+        except Exception as e:
+            conn.rollback()
+            print(f"  Warning: Error adding company history snapshot: {e}")
+        
+        # Update metadata
+        final_stats = get_edgar_statistics(conn)
+        incomplete_years = get_incomplete_years(conn)
+        current_year = datetime.now().year
+        start_range = start_year if start_year else 1993
+        complete_years = [y for y in range(start_range, current_year + 1) if is_year_complete(conn, y)]
+        
+        update_edgar_metadata(conn, 'total_companies', str(final_stats['total_companies']))
+          # Breakpoint: total_filings
+        update_edgar_metadata(conn, 'total_filings', str(final_stats['total_filings']))
+        update_edgar_metadata(conn, 'generated_at', datetime.now().isoformat())
+        update_edgar_metadata(conn, 'status', 'complete')
+        update_edgar_metadata(conn, 'start_year', str(start_year) if start_year else 'None')
+        update_edgar_metadata(conn, 'filing_types', 'ALL')  # Catalog all filing types
+        
+        # Final commit for metadata updates
+        conn.commit()
+        conn.close()
+            
+        print(f"\n{'='*60}")
+        print(f"✓ Database finalized: {dbname}@{dbhost}")
+        print(f"{'='*60}")
+        print(f"  Total companies: {final_stats['total_companies']}")
+          # Breakpoint: total_filings
+        print(f"  Total filings: {final_stats['total_filings']}")
+        print(f"  New filings added in this run: {total_new_filings}")
+        print(f"  Complete years: {len(complete_years)}")
+        print(f"  Incomplete years: {len(incomplete_years)}")
+        if incomplete_years:
+            print(f"    {sorted(incomplete_years)}")
+        
+          # Breakpoint: total_filings
         return {
-            'companies': companies_data,
-            'total_companies': len(companies_data),
-            'total_filings': total_filings
+            'total_companies': final_stats['total_companies'],
+            'total_filings': final_stats['total_filings'],
+            'new_filings': total_new_filings,
+            'complete_years': sorted(complete_years),
+            'incomplete_years': sorted(incomplete_years)
         }
+    
+    def get_all_companies_and_filings(self, start_year: Optional[int] = None,
+                                      dbname: str = "edgar",
+                                      dbuser: str = "postgres",
+                                      dbhost: str = "localhost",
+                                      dbpassword: Optional[str] = None,
+                                      dbport: Optional[int] = None,
+                                      tickers: Optional[List[str]] = None) -> Dict:
+        """
+        Synchronous wrapper for get_all_companies_and_filings_async()
+        
+        Args:
+            start_year: Start year for filings (None = all available from earliest date, default: None)
+            dbname: PostgreSQL database name (default: 'edgar')
+            dbuser: PostgreSQL user (default: 'postgres')
+            dbhost: PostgreSQL host (default: 'localhost')
+            dbpassword: PostgreSQL password (optional, can use POSTGRES_PASSWORD env var)
+            dbport: PostgreSQL port (default: 5432, can use POSTGRES_PORT env var)
+            tickers: Optional list of ticker symbols to filter companies (None for all companies)
+        
+        Returns:
+            Dictionary with companies and filings
+        """
+        return asyncio.run(self.get_all_companies_and_filings_async(
+            start_year=start_year,
+            dbname=dbname,
+            dbuser=dbuser,
+            dbhost=dbhost,
+            dbpassword=dbpassword,
+            dbport=dbport,
+            tickers=tickers
+        ))
 
 
 def main():
@@ -2244,48 +2514,85 @@ def main():
     import argparse
     import traceback as tb
     
-    parser = argparse.ArgumentParser(description='Download SEC EDGAR filings')
-    parser.add_argument('--start-year', type=int, default=None, help='Start year (default: None = all available filings from earliest date)')
-    parser.add_argument('--output-dir', type=str, default='edgar_filings', help='Output directory')
-    parser.add_argument('--filing-types', type=str, nargs='+', 
-                       help='Filing types to download (e.g., --filing-types 8-K 10-K 10-Q)')
-    parser.add_argument('--ticker', type=str, help='Download filings for a specific ticker symbol (e.g., NVDA)')
-    parser.add_argument('--user-agent', type=str, 
+    parser = argparse.ArgumentParser(
+        description='Download SEC EDGAR filings',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Generate catalog with companies and filings:
+  python -m trading_agent.fundamentals.edgar --generate-catalog --download-companies
+  
+  # Generate catalog using existing companies (no company download):
+  python -m trading_agent.fundamentals.edgar --generate-catalog
+  
+  # Generate catalog for specific tickers:
+  python -m trading_agent.fundamentals.edgar --generate-catalog --download-companies --ticker AAPL,MSFT
+  
+  # Download filings from database:
+  python -m trading_agent.fundamentals.edgar --from-db --ticker NVDA
+        """
+    )
+    parser.add_argument('--start-year', type=int, default=None,
+                       help='Start year for filings (default: None = all available from earliest date, typically 1993)')
+    parser.add_argument('--output-dir', type=str, default='edgar_filings',
+                       help='Output directory for downloaded filing files (default: edgar_filings)')
+    parser.add_argument('--ticker', type=str,
+                       help='Filter by specific ticker symbol(s). Can be comma-separated (e.g., AAPL,MSFT,NVDA) '
+                            'or space-separated (e.g., AAPL MSFT NVDA). Case-insensitive.')
+    parser.add_argument('--user-agent', type=str,
                        default='VittorioApicella apicellavittorio@hotmail.it',
-                       help='User-Agent string for SEC requests')
-    parser.add_argument('--generate-parquet', type=str, 
-                       help='Generate Parquet files with all companies and filings. Specify output directory path.')
-    parser.add_argument('--from-parquet', type=str,
-                       help='Download filings from Parquet files (path to parquet directory)')
-    parser.add_argument('--parquet-dir', type=str, default='edgar_companies',
-                       help='Path to Parquet directory for company/filing catalog (default: edgar_companies)')
+                       help='User-Agent string for SEC EDGAR requests (required by SEC). '
+                            'Default: VittorioApicella apicellavittorio@hotmail.it')
+    
+    # Catalog generation arguments
+    catalog_group = parser.add_argument_group('Catalog Generation',
+                                             'Options for --generate-catalog mode')
+    catalog_group.add_argument('--generate-catalog', action='store_true',
+                              help='Generate catalog of companies and filings, save to PostgreSQL database. '
+                                   'This mode processes filings from SEC EDGAR and stores metadata in the database.')
+    catalog_group.add_argument('--download-companies', action='store_true',
+                              help='[REQUIRED for first run] Fetch and enrich companies from EDGAR when generating catalog. '
+                                   'If not specified, only existing companies from the database are used. '
+                                   'Company details (ticker, SIC code, entity type) are fetched and updated. '
+                                   'New companies are added, and existing companies are updated if details change.')
+    
+    # Database connection arguments
+    db_group = parser.add_argument_group('Database Connection',
+                                        'PostgreSQL database connection options')
+    db_group.add_argument('--dbname', type=str, default='edgar',
+                         help='PostgreSQL database name (default: edgar)')
+    db_group.add_argument('--dbuser', type=str, default='postgres',
+                         help='PostgreSQL database user (default: postgres)')
+    db_group.add_argument('--dbhost', type=str, default='localhost',
+                         help='PostgreSQL database host (default: localhost)')
+    db_group.add_argument('--dbpassword', type=str, default=None,
+                         help='PostgreSQL database password. If not provided, uses POSTGRES_PASSWORD environment variable.')
+    db_group.add_argument('--dbport', type=int, default=None,
+                         help='PostgreSQL database port. If not provided, uses POSTGRES_PORT environment variable or defaults to 5432.')
+    
+    # Other modes
+    parser.add_argument('--from-db', action='store_true',
+                       help='Download actual filing files from companies already in PostgreSQL database. '
+                            'Use this after generating the catalog to download the filing documents themselves.')
     parser.add_argument('--process-zips', type=str,
-                       help='Process existing ZIP files in a directory. Specify directory path. Processes recursively by default.')
+                       help='Process existing ZIP files in a directory. Specify directory path. '
+                            'Processes recursively by default. Extracts and processes filing documents from ZIP archives.')
     parser.add_argument('--no-recursive', action='store_true',
-                       help='When used with --process-zips, only process ZIPs in the specified directory (not subdirectories)')
-    parser.add_argument('--safe-write', action='store_true',
-                       help='Use atomic writes (one accession_number at a time). Slower but safer. Default: fast batch writes.')
-    parser.add_argument('--backfill-metadata', type=str, default=None,
-                       help='Backfill missing company metadata (ticker, SIC, entityType) for an existing Parquet directory')
+                       help='When used with --process-zips, only process ZIPs in the specified directory (not subdirectories). '
+                            'By default, processing is recursive.')
     args = parser.parse_args()
     
     try:
         downloader = EDGARDownloader(user_agent=args.user_agent)
-        
-        # If backfill-metadata is requested, backfill missing metadata
-        if args.backfill_metadata:
-            stats = downloader.backfill_company_metadata(args.backfill_metadata)
-            print(f"\nBackfill complete: {stats['updated']} updated, {stats['failed']} failed")
-            return 0
         
         # If process-zips is requested, process existing ZIP files
         if args.process_zips:
             stats = downloader.process_zip_files(args.process_zips, recursive=not args.no_recursive)
             return 0
         
-        # If generate-parquet is requested, generate the Parquet files
-        if args.generate_parquet:
-            # Support ticker filtering for parquet generation
+        # If generate-catalog is requested, generate the catalog in PostgreSQL
+        if args.generate_catalog:
+            # Support ticker filtering for catalog generation
             tickers = None
             if args.ticker:
                 # Support comma-separated or space-separated tickers
@@ -2293,482 +2600,38 @@ def main():
                     tickers = [t.strip().upper() for t in args.ticker.split(',')]
                 else:
                     tickers = [args.ticker.upper()]
-                print(f"Generating Parquet files for ticker(s): {', '.join(tickers)}")
+                print(f"Generating catalog for ticker(s): {', '.join(tickers)}")
             else:
-                print("Generating Parquet files with all companies and filings...")
+                print("Generating catalog with all companies and filings...")
             
             result = downloader.get_all_companies_and_filings(
                 start_year=args.start_year,
-                filing_types=args.filing_types,
-                parquet_dir=args.generate_parquet,
-                write_interval=10,
-                tickers=tickers,  # Pass tickers for filtering
-                safe_write=args.safe_write
+                dbname=args.dbname,
+                dbuser=args.dbuser,
+                dbhost=args.dbhost,
+                dbpassword=args.dbpassword,
+                dbport=args.dbport,
+                tickers=tickers
             )
             
-            print(f"\nParquet files generated successfully!")
+            print(f"\nCatalog generated successfully in PostgreSQL!")
             print(f"  Companies: {result['total_companies']}")
+              # Breakpoint: total_filings
             print(f"  Total filings: {result['total_filings']}")
-            print(f"\nNote: All companies now include SIC code and entityType.")
-            print(f"      To backfill existing datasets, use: python src/trading_agent/fundamentals/backfill_company_metadata.py <parquet_dir>")
-            return 0
-        
-        # If from-parquet is specified, download from Parquet files
-        if args.from_parquet:
-            print("=" * 60)
-            print("Downloading filings from Parquet files")
-            print("=" * 60)
-            print(f"Parquet directory: {args.from_parquet}")
-            print(f"Output directory: {args.output_dir}")
-            
-            # Initialize download logger
-            log_dir = os.path.dirname(args.output_dir) if os.path.dirname(args.output_dir) else args.output_dir
-            log_file = os.path.join(log_dir, 'edgar_download_errors.log')
-            get_download_logger('edgar_downloader', log_file=log_file)
-            print(f"Download errors will be logged to: {log_file}")
-            
-            # Load Parquet files
-            paths = get_parquet_paths(args.from_parquet)
-            if not os.path.exists(paths['companies']):
-                print(f"Parquet files not found in: {args.from_parquet}")
-                print("Initializing empty parquet files...")
-                # Initialize empty parquet files with proper schema
-                init_duckdb_tables(paths['base_dir'])
-                print("✓ Empty parquet files created successfully")
-            
-            print(f"\nLoading Parquet files...")
-            conn = duckdb.connect()
-            
-            # Load companies
-            companies_query = f"SELECT cik, ticker, name, sic_code, entity_type FROM read_parquet('{paths['companies']}') ORDER BY ticker"
-            companies_result = conn.execute(companies_query).fetchall()
-            companies = [{
-                'cik': row[0], 
-                'ticker': row[1] or row[0], 
-                'name': row[2] or 'N/A',
-                'sic_code': row[3] if len(row) > 3 else None,
-                'entity_type': row[4] if len(row) > 4 else None
-            } for row in companies_result]
-            
-            if not companies:
-                print("Warning: No companies found in Parquet files (files are empty)")
-                print("You can populate them by running: --generate-parquet <directory>")
-                print("Or download filings for a specific ticker without using --from-parquet")
-                return 0
-            
-            print(f"Found {len(companies)} companies in Parquet files")
-            
-            # Determine filing types to download
-            filing_types_to_download = args.filing_types
-            if not filing_types_to_download:
-                filing_types_to_download = ['8-K', '8-K/A', '10-K', '10-K/A', '10-Q', '10-Q/A']
-            
-            print(f"Filing types to download: {filing_types_to_download}")
-            
-            # Get start_year from Parquet metadata if available
-            start_year = args.start_year
-            if not start_year:
-                metadata_query = f"SELECT value FROM read_parquet('{paths['metadata']}') WHERE key = 'start_year'"
-                start_year_result = conn.execute(metadata_query).fetchone()
-                if start_year_result and start_year_result[0]:
-                    try:
-                        start_year = int(start_year_result[0])
-                    except:
-                        pass
-            
-            # Create a set of base forms for matching (e.g., "10-K", "10-Q", "8-K")
-            allowed_base_types = set(ft.split('/')[0] for ft in filing_types_to_download)
-            
-            # Initialize stats
-            stats = {
-                'total_companies': len(companies),
-                'companies_processed': 0,
-                'total_filings_found': 0,
-                'total_filings_downloaded': 0,
-                'total_filings_skipped': 0,
-                'errors': 0
-            }
-            
-            os.makedirs(args.output_dir, exist_ok=True)
-            
-            # Download filings from Parquet (no updates - just download what's already there)
-            print("\n" + "=" * 60)
-            print("Downloading filings")
-            print("=" * 60)
-            
-            # Process each company
-            company_pbar = tqdm(companies, desc="Downloading", unit="company", leave=True, total=len(companies))
-            for company in company_pbar:
-                cik = company.get('cik')
-                ticker = company.get('ticker', 'N/A')
-                name = company.get('name', 'N/A')
-                
-                company_pbar.set_description(f"Downloading: {ticker}")
-                company_pbar.set_postfix({
-                    'downloaded': stats['total_filings_downloaded'],
-                    'skipped': stats['total_filings_skipped'],
-                    'errors': stats['errors']
-                })
-                
-                if not cik:
-                    logger = get_download_logger('edgar_downloader')
-                    logger.error(
-                        f"Missing CIK for company:\n"
-                        f"  Ticker: {ticker}\n"
-                        f"  Name: {name}\n"
-                        f"  Company data: {company}"
-                    )
-                    stats['errors'] += 1
-                    continue
-                
-                # Get filings for this company from Parquet
-                filings_query = f"""
-                    SELECT accession_number, filing_date, filing_type, description, 
-                           is_xbrl, is_inline_xbrl, amends_accession, amends_filing_date
-                    FROM read_parquet('{paths['filings']}')
-                    WHERE cik = '{cik}'
-                """
-                filings_result = conn.execute(filings_query).fetchall()
-                filings = [{
-                    'accession_number': row[0],
-                    'filing_date': row[1] or '',
-                    'filing_type': row[2] or '',
-                    'description': row[3] or '',
-                    'is_xbrl': row[4] if row[4] is not None else False,
-                    'is_inline_xbrl': row[5] if row[5] is not None else False,
-                    'amends_accession': row[6],
-                    'amends_filing_date': row[7],
-                } for row in filings_result]
-                
-                # Filter filings by type
-                filtered_filings = [
-                    f for f in filings
-                    if isinstance(f, dict) and 
-                    f.get('filing_type', '').split('/')[0] in allowed_base_types
-                ]
-                
-                # Show date range for this company's filings (for verification)
-                if filtered_filings:
-                    filing_dates = [f.get('filing_date', '') for f in filtered_filings if f.get('filing_date')]
-                    if filing_dates:
-                        sorted_dates = sorted([d for d in filing_dates if d])
-                        if sorted_dates:
-                            oldest = sorted_dates[0]
-                            newest = sorted_dates[-1]
-                            if oldest != newest:
-                                company_pbar.write(f"  {ticker}: {len(filtered_filings)} filings, date range: {oldest} to {newest}")
-                            else:
-                                company_pbar.write(f"  {ticker}: {len(filtered_filings)} filings, all from {oldest}")
-                
-                stats['total_filings_found'] += len(filtered_filings)
-                
-                if len(filtered_filings) > 0:
-                    # Download each filing
-                    filing_pbar = tqdm(filtered_filings, desc=f"{ticker} filings", unit="filing", leave=False, total=len(filtered_filings))
-                    for filing in filing_pbar:
-                        accession = filing.get('accession_number')
-                        filing_type = filing.get('filing_type', 'N/A')
-                        
-                        if not accession:
-                            continue
-                        
-                        filing_pbar.set_description(f"{ticker}: {filing_type}")
-                        
-                        # Check if filing already exists
-                        form_type = filing_type.split('/')[0] if filing_type else 'OTHER'
-                        form_type_dir = os.path.join(args.output_dir, ticker, form_type)
-                        
-                        # Check if filing exists
-                        already_downloaded = False
-                        if filing_type and filing_type.upper() in ['144', '144/A']:
-                            accession_clean = accession.replace('-', '')
-                            folder_path = os.path.join(form_type_dir, accession_clean)
-                            if os.path.exists(folder_path) and os.listdir(folder_path):
-                                already_downloaded = True
-                        else:
-                            zip_path = os.path.join(form_type_dir, f"{accession}.zip")
-                            xml_path = os.path.join(form_type_dir, f"{accession}.xml")
-                            txt_path = os.path.join(form_type_dir, f"{accession}.txt")
-                            
-                            if os.path.exists(zip_path) or os.path.exists(xml_path) or os.path.exists(txt_path):
-                                already_downloaded = True
-                        
-                        if already_downloaded:
-                            stats['total_filings_skipped'] += 1
-                            filing_pbar.set_postfix({
-                                'downloaded': stats['total_filings_downloaded'],
-                                'skipped': stats['total_filings_skipped']
-                            })
-                            continue
-                        
-                        # Download the filing
-                        try:
-                            is_xbrl = filing.get('is_xbrl', True)
-                            is_inline_xbrl = filing.get('is_inline_xbrl', True)
-                            amends_accession = filing.get('amends_accession')
-                            amends_filing_date = filing.get('amends_filing_date')
-                            filing_date = filing.get('filing_date')
-                            
-                            if downloader.download_filing(
-                                cik, accession, args.output_dir, 
-                                ticker=ticker, 
-                                filing_type=filing_type, 
-                                is_xbrl=is_xbrl, 
-                                is_inline_xbrl=is_inline_xbrl,
-                                amends_accession=amends_accession,
-                                amends_filing_date=amends_filing_date,
-                                filing_date=filing_date,
-                                parquet_file=parquet_dir
-                            ):
-                                stats['total_filings_downloaded'] += 1
-                            else:
-                                # download_filing returned False - error should already be logged in download_filing method
-                                # Log here as well to ensure it's recorded when stats are updated
-                                logger = get_download_logger('edgar_downloader')
-                                logger.error(
-                                    f"Filing download failed (tracked in statistics):\n"
-                                    f"  CIK: {cik}\n"
-                                    f"  Ticker: {ticker}\n"
-                                    f"  Accession: {accession}\n"
-                                    f"  Filing Type: {filing_type}"
-                                )
-                                stats['errors'] += 1
-                        except Exception as e:
-                            logger = get_download_logger('edgar_downloader')
-                            logger.error(
-                                f"Error downloading filing:\n"
-                                f"  CIK: {cik}\n"
-                                f"  Ticker: {ticker}\n"
-                                f"  Accession: {accession}\n"
-                                f"  Filing Type: {filing_type}\n"
-                                f"  Exception: {str(e)}\n"
-                                f"  Traceback:\n{tb.format_exc()}",
-                                exc_info=False
-                            )
-                            stats['errors'] += 1
-                        
-                        filing_pbar.set_postfix({
-                            'downloaded': stats['total_filings_downloaded'],
-                            'skipped': stats['total_filings_skipped'],
-                            'errors': stats['errors']
-                        })
-                        
-                        time.sleep(0.05)  # Rate limiting
-                    filing_pbar.close()
-                
-                stats['companies_processed'] += 1
-            
-            company_pbar.close()
-            conn.close()
-            
-            # Mark Parquet metadata as complete
-            try:
-                paths = get_parquet_paths(args.from_parquet)
-                conn = duckdb.connect()
-                metadata_df = pq.read_table(paths['metadata']).to_pandas()
-                metadata_df.loc[metadata_df['key'] == 'status', 'value'] = 'complete'
-                metadata_df.loc[metadata_df['key'] == 'generated_at', 'value'] = datetime.now().isoformat()
-                metadata_df.loc[metadata_df['key'].isin(['status', 'generated_at']), 'updated_at'] = datetime.now().isoformat()
-                pq.write_table(pa.Table.from_pandas(metadata_df), paths['metadata'])
-                conn.close()
-            except Exception as e:
-                print(f"  Warning: Could not update Parquet status: {e}")
-            
-            print("\n" + "=" * 60)
-            print("Complete Summary:")
-            print(f"  Companies processed: {stats['companies_processed']}/{stats['total_companies']}")
-            print(f"  Filings found: {stats['total_filings_found']}")
-            print(f"  Filings downloaded: {stats['total_filings_downloaded']}")
-            print(f"  Filings skipped (already exist): {stats['total_filings_skipped']}")
-            print(f"  Errors: {stats['errors']}")
-            print("=" * 60)
-            
-            return 0
-        
-        # If ticker is specified, do full update: Parquet -> Download
-        if args.ticker:
-            # Support comma-separated tickers
-            if ',' in args.ticker:
-                tickers = [t.strip().upper() for t in args.ticker.split(',')]
-            else:
-                tickers = [args.ticker.upper()]
-            
-            # Initialize download logger (log file in same directory as output)
-            log_dir = os.path.dirname(args.output_dir) if os.path.dirname(args.output_dir) else args.output_dir
-            log_file = os.path.join(log_dir, 'edgar_download_errors.log')
-            get_download_logger('edgar_downloader', log_file=log_file)  # Initialize logger with log file path
-            print(f"Download errors will be logged to: {log_file}")
-            
-            # Process each ticker
-            for ticker in tickers:
-                # Get parquet directory
-                parquet_dir = args.parquet_dir if hasattr(args, 'parquet_dir') and args.parquet_dir else 'edgar_companies'
-                if not os.path.isabs(parquet_dir):
-                    # Place Parquet directory in the same directory as output_dir
-                    output_dir_base = os.path.dirname(args.output_dir) if os.path.dirname(args.output_dir) else args.output_dir
-                    parquet_dir = os.path.join(output_dir_base, parquet_dir)
-                
-                # Get company CIK from parquet
-                paths = get_parquet_paths(parquet_dir)
-                conn = duckdb.connect()
-                company_query = f"""
-                    SELECT DISTINCT cik
-                    FROM read_parquet('{paths['companies']}')
-                    WHERE UPPER(ticker) = '{ticker.upper()}'
-                """
-                company_result = conn.execute(company_query).fetchone()
-                
-                if not company_result or not company_result[0]:
-                    print(f"\nNo company found for ticker {ticker} in parquet. Skipping.")
-                    conn.close()
-                    continue
-                
-                cik = company_result[0]
-                
-                # Step 2: Download new filings
-                # Load filings from Parquet for this company
-                paths = get_parquet_paths(parquet_dir)
-                conn = duckdb.connect()
-                filings_query = f"""
-                    SELECT accession_number, filing_date, filing_type, description,
-                           is_xbrl, is_inline_xbrl, amends_accession, amends_filing_date
-                    FROM read_parquet('{paths['filings']}')
-                    WHERE cik = '{cik}'
-                """
-                filings_result = conn.execute(filings_query).fetchall()
-                filings_to_process = [{
-                    'accession_number': row[0],
-                    'filing_date': row[1] or '',
-                    'filing_type': row[2] or '',
-                    'description': row[3] or '',
-                    'is_xbrl': row[4] if row[4] is not None else False,
-                    'is_inline_xbrl': row[5] if row[5] is not None else False,
-                    'amends_accession': row[6],
-                    'amends_filing_date': row[7],
-                } for row in filings_result]
-                conn.close()
-                
-                # Filter filings by filing_types if specified
-                if args.filing_types:
-                    # Create a set of base forms for matching (e.g., "10-K", "10-Q", "8-K")
-                    allowed_base_types = set(args.filing_types)
-                    
-                    filings_to_process = [
-                        f for f in filings_to_process
-                        if f.get('filing_type', '').split('/')[0] in allowed_base_types
-                    ]
-                    print(f"Filtered to {len(filings_to_process)} filings matching types: {args.filing_types}")
-                
-                filings_to_download = []
-                for f in filings_to_process:
-                    if not f.get('accession_number'):
-                        continue
-                    accession = f.get('accession_number')
-                    filing_type = f.get('filing_type', '')
-                    form_type = filing_type.split('/')[0] if filing_type else 'OTHER'
-                    
-                    form_type_dir = os.path.join(args.output_dir, ticker, form_type)
-                    
-                    # Check if filing exists locally
-                    # For Form 144, check if folder exists
-                    if filing_type and filing_type.upper() in ['144', '144/A']:
-                        accession_clean = accession.replace('-', '')
-                        folder_path = os.path.join(form_type_dir, accession_clean)
-                        if os.path.exists(folder_path) and os.listdir(folder_path):
-                            continue  # Already downloaded
-                    else:
-                        # Check for individual files (.zip, .xml, .txt)
-                        zip_path = os.path.join(form_type_dir, f"{accession}.zip")
-                        xml_path = os.path.join(form_type_dir, f"{accession}.xml")
-                        txt_path = os.path.join(form_type_dir, f"{accession}.txt")
-                        
-                        if os.path.exists(zip_path) or os.path.exists(xml_path) or os.path.exists(txt_path):
-                            continue  # Already downloaded
-                    
-                    # If we get here, filing doesn't exist locally - add to download list
-                    filings_to_download.append(f)
-                
-                if len(filings_to_download) == 0:
-                    continue
-                
-                # Download missing filings
-                download_stats = {
-                    'total_filings_downloaded': 0,
-                    'errors': 0
-                }
-                
-                if filings_to_download:
-                    download_pbar = tqdm(filings_to_download, desc=f"Downloading {ticker}", unit="filing", leave=True, total=len(filings_to_download))
-                    for filing in download_pbar:
-                        accession = filing.get('accession_number')
-                        filing_type = filing.get('filing_type', 'N/A')
-                        if accession:
-                            download_pbar.set_description(f"Downloading {ticker}: {filing_type}")
-                            try:
-                                is_xbrl = filing.get('is_xbrl', True)
-                                is_inline_xbrl = filing.get('is_inline_xbrl', True)
-                                amends_accession = filing.get('amends_accession')
-                                amends_filing_date = filing.get('amends_filing_date')
-                                filing_date = filing.get('filing_date')
-                                if downloader.download_filing(
-                                    cik, accession, args.output_dir, 
-                                    ticker=ticker, 
-                                    filing_type=filing_type, 
-                                    is_xbrl=is_xbrl, 
-                                    is_inline_xbrl=is_inline_xbrl,
-                                    amends_accession=amends_accession,
-                                    amends_filing_date=amends_filing_date,
-                                    filing_date=filing_date,
-                                    parquet_file=parquet_dir
-                                ):
-                                    download_stats['total_filings_downloaded'] += 1
-                                else:
-                                    # download_filing returned False - error should already be logged in download_filing method
-                                    # Log here as well to ensure it's recorded when stats are updated
-                                    logger = get_download_logger('edgar_downloader')
-                                    logger.error(
-                                        f"Filing download failed (tracked in statistics):\n"
-                                        f"  CIK: {cik}\n"
-                                        f"  Ticker: {ticker}\n"
-                                        f"  Accession: {accession}\n"
-                                        f"  Filing Type: {filing_type}"
-                                    )
-                                    download_stats['errors'] += 1
-                            except Exception as e:
-                                # Log error with full traceback
-                                logger = get_download_logger('edgar_downloader')
-                                logger.error(
-                                    f"Exception during download (outer exception handler):\n"
-                                    f"  CIK: {cik}\n"
-                                    f"  Ticker: {ticker}\n"
-                                    f"  Accession: {accession}\n"
-                                    f"  Filing Type: {filing_type}\n"
-                                    f"  Exception: {str(e)}\n"
-                                    f"  Traceback:\n{tb.format_exc()}",
-                                    exc_info=False
-                                )
-                                download_pbar.write(f"  Error downloading {accession}: {e}")
-                                download_stats['errors'] += 1
-                            
-                            # Update progress bar with stats
-                            download_pbar.set_postfix({
-                                'downloaded': download_stats['total_filings_downloaded'],
-                                'errors': download_stats['errors']
-                            })
-                            
-                            # Reduced rate limiting for faster downloads (SEC allows 10 requests/second)
-                            time.sleep(0.05)  # 20 requests/second max (well below SEC limit)
-                    download_pbar.close()
-                
-                # Download complete for this ticker
-            
+            print(f"  New filings in this run: {result['new_filings']}")
+            if result.get('complete_years'):
+                print(f"  Complete years: {len(result['complete_years'])}")
+            if result.get('incomplete_years'):
+                print(f"  Incomplete years: {len(result['incomplete_years'])}")
+                print(f"    {result['incomplete_years']}")
+            print(f"\nNote: All companies include ticker, SIC code, and entityType from the start.")
+            print(f"      Batches are organized by year to prevent data loss on long runs.")
             return 0
         
         # Otherwise, download all filings directly
         stats = downloader.download_all_filings(
             start_year=args.start_year,
             output_dir=args.output_dir,
-            filing_types=args.filing_types,
             ticker=getattr(args, 'ticker', None)
         )
         print("\nDownload complete!")

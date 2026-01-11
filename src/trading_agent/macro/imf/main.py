@@ -39,10 +39,10 @@ def main():
                        help='List all available indicators for the specified database and exit')
     parser.add_argument('--list-countries', action='store_true',
                        help='List all available countries for the specified database and exit')
-    parser.add_argument('--generate-parquet', type=str,
-                       help='Generate Parquet database with all downloadable indicators. Specify parquet directory path.')
-    parser.add_argument('--from-parquet', type=str,
-                       help='Download indicators from a Parquet database (path to parquet directory)')
+    parser.add_argument('--generate-db', action='store_true',
+                       help='Generate PostgreSQL database with all downloadable indicators')
+    parser.add_argument('--from-db', action='store_true',
+                       help='Download indicators from the database')
     parser.add_argument('--search', type=str,
                        help='Search for series by search term')
     
@@ -86,32 +86,31 @@ def main():
                 print(f"  ... and {len(countries) - 50} more")
             return 0
         
-        # If generate-parquet is requested, generate the Parquet database
-        if args.generate_parquet:
-            print(f"Generating Parquet database with all downloadable IMF indicators from {args.database}...")
+        # If generate-db is requested, generate the database
+        if args.generate_db:
+            print(f"Generating PostgreSQL database with all downloadable IMF indicators from {args.database}...")
             series_list = downloader.get_all_downloadable_series(
-                database_id=args.database,
-                parquet_file=args.generate_parquet
+                database_id=args.database
             )
-            print(f"\nParquet database generated successfully with {len(series_list)} indicators!")
-            print(f"Parquet database location: {args.generate_parquet}")
+            print(f"\nDatabase generated successfully with {len(series_list)} indicators!")
+            print(f"Database: imf")
             return 0
         
-        # If from-parquet is specified, download from Parquet database
-        if args.from_parquet:
+        # If from-db is specified, download from database
+        if args.from_db:
             os.makedirs(args.output_dir, exist_ok=True)
-            result = downloader.download_series_from_parquet(
-                parquet_file=args.from_parquet,
+            result = downloader.download_series_from_db(
+                database_id=args.database,
                 start_date=args.start_date,
                 end_date=args.end_date,
                 output_dir=args.output_dir
             )
-            print(f"\nDownload complete: {result['downloaded']} series, {result['errors']} errors")
+            print(f"\nDownload complete: {result.get('downloaded', 0)} series, {result.get('errors', 0)} errors")
             return 0
         
         # Series download requires --series argument (unless searching)
         if not args.series and not args.search:
-            parser.error("--series is required unless --generate-parquet, --list-databases, --list-indicators, --list-countries, or --search is used")
+            parser.error("--series is required unless --generate-db, --list-databases, --list-indicators, --list-countries, or --search is used")
         
         # Ensure output directory exists
         os.makedirs(args.output_dir, exist_ok=True)

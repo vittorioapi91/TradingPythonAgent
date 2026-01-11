@@ -64,7 +64,9 @@ echo "=== Enabling skip-login for Dashboard ==="
 # Wait a moment for the deployment to be created
 sleep 2
 
-# Patch the deployment to enable skip-login
+# Patch the deployment to enable skip-login and disable token timeout
+# --token-ttl=0 disables token expiration (no timeout)
+# Or use a large value like 86400 for 24 hours
 kubectl patch deployment kubernetes-dashboard -n kubernetes-dashboard --type='json' -p='[
   {
     "op": "add",
@@ -75,6 +77,11 @@ kubectl patch deployment kubernetes-dashboard -n kubernetes-dashboard --type='js
     "op": "add",
     "path": "/spec/template/spec/containers/0/args/-",
     "value": "--enable-insecure-login"
+  },
+  {
+    "op": "add",
+    "path": "/spec/template/spec/containers/0/args/-",
+    "value": "--token-ttl=0"
   }
 ]' 2>/dev/null || {
   # If patch fails (deployment might not exist yet), create a patch file for later

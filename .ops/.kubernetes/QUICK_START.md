@@ -46,7 +46,12 @@ This script:
 - Prints the exact commands to:
   - Generate a dashboard token:
     ```bash
-    kubectl -n kubernetes-dashboard create token admin-user
+    (on MacOS)
+    kubectl -n kubernetes-dashboard create token admin-user | pbcopy
+    (on Linux)
+    kubectl -n kubernetes-dashboard create token admin-user | xclip -selection clipboard
+    (on Windows-PowerShell)
+    kubectl -n kubernetes-dashboard create token admin-user | Set-Clipboard
     ```
   - Start the API proxy:
     ```bash
