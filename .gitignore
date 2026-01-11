@@ -43,3 +43,8 @@ ENV/
 # OS
 .DS_Store
 Thumbs.db
+
+# Large data files
+*.parquet
+**/backup_parquet/
+**/edgar_companies/
