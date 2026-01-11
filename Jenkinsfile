@@ -88,6 +88,10 @@ pipeline {
                 script {
                     echo "Updating Kubernetes Job with new image"
                     sh """
+                        # Create a temporary YAML file with namespace updated
+                        sed "s/namespace: trading-monitoring/namespace: ${env.NAMESPACE}/g; s/trading-monitoring\\.svc\\.cluster\\.local/${env.NAMESPACE}.svc.cluster.local/g" \
+                            .ops/.kubernetes/hmm-model-training-job.yaml > /tmp/hmm-model-training-job-${env.NAMESPACE}.yaml
+                        
                         # Set the image in the job (if it exists)
                         kubectl set image job/${env.JOB_NAME} \
                             model-training=${env.IMAGE_NAME}:${env.IMAGE_TAG} \
@@ -96,7 +100,10 @@ pipeline {
                             2>/dev/null || echo "Job doesn't exist yet, will be created on apply"
                         
                         # Apply the job manifest (will create or update)
-                        kubectl apply -f .ops/.kubernetes/hmm-model-training-job.yaml -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER}
+                        kubectl apply -f /tmp/hmm-model-training-job-${env.NAMESPACE}.yaml --context kind-${env.KIND_CLUSTER}
+                        
+                        # Clean up temporary file
+                        rm -f /tmp/hmm-model-training-job-${env.NAMESPACE}.yaml
                     """
                 }
             }
