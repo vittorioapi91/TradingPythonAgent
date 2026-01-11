@@ -38,7 +38,7 @@ cp requirements.txt .ops/.docker/requirements.txt
 This builds a custom Jenkins image named `jenkins-custom:lts` based on `jenkins/jenkins:lts` with:
 - Docker CLI v27.4.1
 - kubectl v1.28.0
-- kind v0.20.0
+- kind v0.30.0
 - Python 3 (system Python)
 - All Python dependencies from `requirements.txt` (pandas, numpy, torch, mlflow, psycopg2, etc.)
 
