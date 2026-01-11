@@ -163,8 +163,9 @@ services:
           # Backup original config
           cp /root/.kube/config /root/.kube/config.bak
           # Replace 127.0.0.1 and localhost with host.docker.internal
-          sed -i 's|https://127.0.0.1:\([0-9]*\)|https://host.docker.internal:\1|g' /root/.kube/config || true
-          sed -i 's|https://localhost:\([0-9]*\)|https://host.docker.internal:\1|g' /root/.kube/config || true
+          # Use perl for better regex support (escape backslashes properly)
+          perl -pi -e 's|https://127\.0\.0\.1:(\d+)|https://host.docker.internal:$1|g' /root/.kube/config || true
+          perl -pi -e 's|https://localhost:(\d+)|https://host.docker.internal:$1|g' /root/.kube/config || true
           # Add insecure-skip-tls-verify for kind-trading-cluster (cert doesn't include host.docker.internal)
           # This is safe for local development only
           kubectl config set-cluster kind-trading-cluster --insecure-skip-tls-verify=true 2>/dev/null || true
