@@ -1,121 +1,415 @@
 # TradingPythonAgent
 
-A Python trading agent project for algorithmic trading and market analysis.
+A comprehensive Python platform for financial data collection, storage, and machine learning modeling. This project provides end-to-end infrastructure for downloading, storing, and analyzing financial and economic data from multiple sources, with built-in ML workflows for macro cycle modeling.
 
-## Project Structure
+## 🎯 Overview
+
+TradingPythonAgent is a production-ready system that:
+
+- **Downloads** financial and economic data from multiple authoritative sources
+- **Stores** data in PostgreSQL databases with environment-aware configuration
+- **Models** macro economic cycles using Hidden Markov Models (HMM)
+- **Tracks** ML experiments with MLflow
+- **Serves** models via KServe
+- **Monitors** with Prometheus and Grafana
+- **Orchestrates** workflows with Kubeflow Pipelines
+- **Deploys** via Jenkins CI/CD with branch-aware environments
+
+## 🏗️ Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Data Collection Layer                      │
+├─────────────────────────────────────────────────────────────┤
+│  EDGAR (SEC) │ FRED │ BLS │ BIS │ Eurostat │ IMF │ Yahoo   │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  PostgreSQL Storage Layer                    │
+│  (Environment-aware: dev/test/prod databases)                │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                    ML Pipeline Layer                         │
+│  HMM Models │ MLflow │ Feast │ KServe │ Kubeflow             │
+└─────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────┐
+│                  Monitoring & Deployment                     │
+│  Prometheus │ Grafana │ Jenkins CI/CD                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+## 📦 Project Structure
 
 ```
 TradingPythonAgent/
-├── src/
-│   └── trading_agent/
-│       ├── __init__.py
-│       └── agent.py
-├── tests/
-│   └── __init__.py
-├── requirements.txt
-├── .gitignore
-└── main.py
+├── src/trading_agent/
+│   ├── config.py                    # Environment configuration
+│   ├── fundamentals/                 # Company fundamentals data
+│   │   ├── edgar/                   # SEC EDGAR filings downloader
+│   │   └── download_logger.py       # Download error logging
+│   ├── macro/                       # Macroeconomic data sources
+│   │   ├── fred/                    # Federal Reserve Economic Data
+│   │   ├── bls/                     # Bureau of Labor Statistics
+│   │   ├── bis/                     # Bank for International Settlements
+│   │   ├── eurostat/                # Eurostat (EU statistics)
+│   │   └── imf/                     # International Monetary Fund
+│   ├── markets/                     # Market data
+│   │   ├── equities/                # Stock market data (Yahoo Finance)
+│   │   └── etf/                     # ETF data (iShares)
+│   ├── model/                       # ML modeling
+│   │   ├── hmm_model.py             # Hidden Markov Model for macro cycles
+│   │   ├── data_loader.py           # Data loading from PostgreSQL
+│   │   ├── training_script.py       # Training pipeline
+│   │   └── config.yaml              # Model configuration
+│   ├── mlflow.py                    # MLflow integration
+│   ├── feast.py                     # Feast feature store
+│   ├── kserve.py                    # KServe model serving
+│   ├── kubeflow.py                  # Kubeflow pipelines
+│   └── prometheus.py                # Prometheus metrics
+├── .ops/                            # Operations and infrastructure
+│   ├── .docker/                     # Docker Compose configurations
+│   ├── .jenkins/                    # Jenkins configuration
+│   ├── .kubernetes/                 # Kubernetes manifests
+│   └── .mlflow/                     # MLflow configuration
+├── .env.dev                         # Development environment config
+├── .env.staging                     # Staging environment config
+├── .env.prod                        # Production environment config
+├── Jenkinsfile                      # CI/CD pipeline
+├── requirements.txt                 # Python dependencies
+└── README.md                        # This file
 ```
 
-## Setup
+## 🔌 Data Sources
 
-1. Create a virtual environment:
+### Fundamentals
+
+- **SEC EDGAR**: Company filings (10-K, 10-Q, 8-K, etc.) with XBRL support
+  - Downloads all company filings from SEC EDGAR database
+- **Company Data**: Ticker symbols, SIC codes, entity types
+
+### Macroeconomic Data
+
+- **FRED** (Federal Reserve Economic Data): US economic time series
+- **BLS** (Bureau of Labor Statistics): US labor market statistics
+- **BIS** (Bank for International Settlements): International banking statistics
+- **Eurostat**: European Union statistics
+- **IMF**: International Monetary Fund economic data
+
+### Market Data
+
+- **Yahoo Finance**: Stock prices, historical data, extended market data
+- **iShares ETFs**: ETF holdings, details, and performance data
+
+## 🗄️ Database Architecture
+
+The project uses PostgreSQL databases with environment-aware configuration:
+
+- **Development** (`dev/*` branches): `dev.tradingAgent@localhost:5432`
+- **Staging** (`staging` branch): `test.tradingAgent@localhost:5432`
+- **Production** (`main` branch): `prod.tradingAgent@localhost:5432`
+
+Each environment has separate databases:
+- `edgar` - SEC EDGAR filings
+- `fred` - FRED economic data
+- `bls` - BLS labor statistics
+- `bis` - BIS banking data
+- `eurostat` - Eurostat data
+- `imf` - IMF data
+
+## 🤖 Machine Learning
+
+### Hidden Markov Model (HMM) for Macro Cycles
+
+The project includes a complete ML workflow for modeling macro economic cycles:
+
+- **Model**: Multi-regime HMM using Pyro (2, 3, or 4 regimes)
+- **Features**: Time series transformations (percentage changes, differences)
+- **Training**: Expectation-Maximization algorithm
+- **Evaluation**: Log-likelihood, AIC, BIC metrics
+- **Serving**: KServe deployment for real-time inference
+- **Tracking**: MLflow experiment tracking
+- **Feature Store**: Feast for online feature serving
+
+See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for detailed ML documentation.
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- Python 3.11+ (Python <3.12 for KServe support)
+- PostgreSQL 15+
+- Docker and Docker Compose (for monitoring services)
+- Git
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/vittorioapi91/TradingPythonAgent.git
+   cd TradingPythonAgent
+   ```
+
+2. **Create virtual environment**:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment**:
+   - The system automatically detects your git branch and loads the appropriate `.env` file
+   - For manual configuration, copy `.env.dev` and update with your credentials:
+     ```bash
+     cp .env.dev .env.local
+     # Edit .env.local with your database credentials
+     ```
+
+5. **Start PostgreSQL** (if using Docker):
+   ```bash
+   cd .ops/.docker
+   docker-compose up -d postgres
+   ```
+
+6. **Start monitoring services** (optional):
+   ```bash
+   cd .ops/.docker
+   docker-compose up -d grafana prometheus mlflow
+   ```
+
+### Environment Configuration
+
+The project uses environment-aware configuration that automatically detects your git branch:
+
+- **`dev/*` branches** → Loads `.env.dev` → Uses `dev.tradingAgent@localhost`
+- **`staging` branch** → Loads `.env.staging` → Uses `test.tradingAgent@localhost`
+- **`main` branch** → Loads `.env.prod` → Uses `prod.tradingAgent@localhost`
+
+Environment variables are loaded automatically when the package is imported. See [`src/trading_agent/config.py`](src/trading_agent/config.py) for details.
+
+## 📖 Usage Examples
+
+### Download SEC EDGAR Filings
+
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Generate catalog of companies and filings
+python -m trading_agent.fundamentals.edgar \
+    --generate-catalog \
+    --download-companies \
+    --start-year 2020
+
+# Download filings from database
+python -m trading_agent.fundamentals.edgar \
+    --from-db \
+    --ticker AAPL,MSFT,NVDA
 ```
 
-2. Install dependencies:
+### Download FRED Economic Data
+
 ```bash
-pip install -r requirements.txt
+# Generate database with all downloadable series
+python -m trading_agent.macro.fred.main \
+    --generate-db \
+    --api-key YOUR_FRED_API_KEY
+
+# Download specific series
+python -m trading_agent.macro.fred.main \
+    --series GDP UNRATE CPIAUCSL \
+    --start-date 2000-01-01
 ```
 
-## Usage
+### Download BLS Labor Statistics
 
-Run the main script:
 ```bash
-python main.py
+python -m trading_agent.macro.bls.main \
+    --api-key YOUR_BLS_API_KEY \
+    --series CUUR0000SA0 \
+    --start-year 2020
 ```
 
-## Development
+### Train HMM Model
 
-Add your trading logic and strategies in the `src/trading_agent/` directory.
-
-## Downloading FRED Economic Data
-
-This project includes functionality to download time series data from FRED (Federal Reserve Economic Data).
-
-### Setup
-
-1. Get a free FRED API key from: https://fred.stlouisfed.org/docs/api/api_key.html
-
-2. Set your API key as an environment variable:
 ```bash
-export FRED_API_KEY="your_api_key_here"
-```
-
-Or pass it directly when using the downloader.
-
-### Usage
-
-#### Command Line
-
-Download all available FRED economic variables:
-```bash
-python src/trading_agent/macro/main.py --api-key YOUR_API_KEY
-```
-
-With options:
-```bash
-python src/trading_agent/macro/main.py \
-    --api-key YOUR_API_KEY \
+cd src/trading_agent/model
+python training_script.py \
+    --series-ids GDP UNRATE CPIAUCSL \
     --start-date 2000-01-01 \
-    --end-date 2024-01-01 \
-    --limit 1000 \
-    --output-dir fred_data \
-    --format both
+    --n-regimes 4 \
+    --mlflow-tracking-uri http://localhost:55000
 ```
 
-#### Python Script
+### Download Stock Market Data
 
-```python
-from src.trading_agent.macro import FREDDataDownloader
-
-# Initialize downloader (uses FRED_API_KEY env var if available)
-downloader = FREDDataDownloader(api_key="your_api_key")
-
-# Download all available series
-data = downloader.download_all_available_series(
-    start_date="2000-01-01",
-    end_date="2024-01-01",
-    limit=1000,  # Optional: limit number of series
-    output_dir="fred_data",
-    save_format="both"  # 'csv', 'parquet', or 'both'
-)
-
-# Or download specific series
-series_data = downloader.download_series("GDP", start_date="2020-01-01")
-
-# Download multiple specific series
-df = downloader.download_multiple_series(
-    ["GDP", "UNRATE", "CPIAUCSL"],
-    start_date="2020-01-01"
-)
+```bash
+python -m trading_agent.markets.equities.main \
+    --tickers AAPL,MSFT,GOOGL \
+    --start-date 2020-01-01 \
+    --end-date 2024-01-01
 ```
 
-### Features
+## 🔧 Configuration
 
-- Discovers all available FRED economic variables
-- Downloads time series data with date range filtering
-- Handles API rate limiting automatically
-- Saves data in CSV and/or Parquet formats
-- Includes series metadata (title, units, frequency, etc.)
-- Efficient batch downloading with error handling
+### Environment Variables
 
-### Output
+Create `.env.dev`, `.env.staging`, or `.env.prod` files with:
 
-The downloader creates:
-- `fred_all_series.csv` / `fred_all_series.parquet`: Combined DataFrame with all series
-- `series_metadata.csv`: Metadata for each series (title, units, frequency, etc.)
+```bash
+# PostgreSQL Configuration
+POSTGRES_USER=dev.tradingAgent
+POSTGRES_HOST=localhost
+POSTGRES_PASSWORD=your_password
+POSTGRES_PORT=5432
 
-All files are saved in the specified output directory (default: `fred_data/`).
+# API Keys
+FRED_API_KEY=your_fred_api_key
+BLS_API_KEY=your_bls_api_key
+
+# MLflow
+MLFLOW_TRACKING_URI=http://localhost:55000
+```
+
+### Database Setup
+
+The system automatically creates database schemas when first connecting. Ensure PostgreSQL is running and accessible.
+
+## 🏭 CI/CD Pipeline
+
+The project includes a Jenkins CI/CD pipeline with branch-aware deployments:
+
+- **Feature branches** (`dev/{jira_issue}/{project}-{subproject}`): Deploy to dev environment
+- **Staging branch**: Deploy to staging environment
+- **Main branch**: Deploy to production
+
+See [`JENKINS.md`](JENKINS.md) for detailed Jenkins configuration.
+
+### Branch Naming Convention
+
+Feature branches must follow the pattern:
+```
+dev/{JIRA_ISSUE}/{project}-{subproject}
+```
+
+Examples:
+- `dev/DEV-4/trading_agent-fundamentals`
+- `dev/PROJ-123/trading_agent-macro`
+- `dev/BUG-789/trading_agent-model`
+
+## 📊 Monitoring
+
+### Prometheus Metrics
+
+Metrics are exported at `http://localhost:8000/metrics`:
+- Model predictions and latency
+- Regime distributions
+- Model performance (AIC, BIC, log-likelihood)
+
+### Grafana Dashboards
+
+Access Grafana at `http://localhost:3000` (admin/admin):
+- Model monitoring dashboard
+- Regime analysis dashboard
+- Data pipeline metrics
+
+### MLflow Tracking
+
+Access MLflow UI at `http://localhost:55000`:
+- Experiment tracking
+- Model versioning
+- Parameter and metric logging
+
+## 🧪 Testing
+
+```bash
+# Run tests
+pytest tests/
+
+# Run with coverage
+pytest --cov=src/trading_agent tests/
+```
+
+## 📚 Documentation
+
+- **ML Modeling**: [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md)
+- **Jenkins CI/CD**: [`JENKINS.md`](JENKINS.md)
+- **Docker Setup**: `.ops/.docker/DOCKER_SETUP.md` (if exists)
+
+## 🛠️ Development
+
+### Adding a New Data Source
+
+1. Create a new module in `src/trading_agent/macro/` or `src/trading_agent/markets/`
+2. Implement downloader class with PostgreSQL integration
+3. Add database schema initialization
+4. Create main entry point script
+5. Update this README
+
+### Code Style
+
+- Follow PEP 8
+- Use type hints
+- Document all public functions and classes
+- Add docstrings to modules
+
+## 🔐 Security
+
+- **Never commit** `.env` files (they're in `.gitignore`)
+- Use environment-specific database users
+- Store API keys in environment variables or secure credential stores
+- Use different credentials for dev/staging/prod environments
+
+## 📝 License
+
+[Add your license here]
+
+## 🤝 Contributing
+
+1. Create a feature branch following the naming convention: `dev/{JIRA_ISSUE}/{project}-{subproject}`
+2. Ensure the JIRA issue exists before pushing
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## 🐛 Troubleshooting
+
+### Database Connection Issues
+
+- Verify PostgreSQL is running: `docker ps | grep postgres`
+- Check environment variables are loaded: `python -c "import os; print(os.getenv('POSTGRES_USER'))"`
+- Verify database user exists: `docker exec postgres psql -U tradingAgent -c "\du"`
+
+### Import Errors
+
+- Ensure you're in the project root directory
+- Activate virtual environment
+- Install all dependencies: `pip install -r requirements.txt`
+
+### Jenkins Pipeline Issues
+
+- Check branch naming follows convention
+- Verify JIRA issue exists
+- Check Jenkins logs for detailed error messages
+
+## 📞 Support
+
+For issues or questions:
+1. Check the relevant module's documentation
+2. Review Jenkins build logs
+3. Check database and service logs
+4. Review GitHub issues
+
+## 🎯 Roadmap
+
+- [ ] Additional data sources
+- [ ] Real-time data streaming
+- [ ] Advanced ML models
+- [ ] Web UI for data exploration
+- [ ] API endpoints for data access
+
+---
+
+**Built with**: Python, PostgreSQL, PyTorch, MLflow, Feast, KServe, Kubeflow, Prometheus, Grafana, Jenkins
