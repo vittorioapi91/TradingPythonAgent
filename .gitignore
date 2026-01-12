@@ -37,6 +37,9 @@ ENV/
 # Environment variables
 .env
 .env.local
+.env.dev
+.env.staging
+.env.prod
 
 # Logs
 *.log

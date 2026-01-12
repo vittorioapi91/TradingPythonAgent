@@ -5,6 +5,11 @@ This module downloads all company filings from SEC EDGAR database.
 Focuses on XBRL filings from 2009 onwards.
 """
 
+# Load environment configuration early
+from ...config import load_environment_config
+load_environment_config()
+
+
 import os
 import time
 import shutil

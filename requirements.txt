@@ -17,6 +17,7 @@ duckdb>=0.9.0  # For managing parquet files
 
 # Configuration file support
 pyyaml>=6.0.0
+python-dotenv>=1.0.0
 
 # Progress bars
 tqdm>=4.65.0

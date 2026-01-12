@@ -176,7 +176,7 @@ def init_edgar_postgres_tables(conn: psycopg2.extensions.connection) -> None:
     
     # Create year_completion_ledger table (ledger pattern for tracking year completion)
     year_completion_ledger_existed = table_exists('year_completion_ledger')
-        cur.execute("""
+    cur.execute("""
             CREATE TABLE IF NOT EXISTS year_completion_ledger (
                 year INTEGER NOT NULL,
                 filing_type VARCHAR(50) NOT NULL,  -- 'TOTAL' for total, or specific type like '10-K', '10-Q', etc.
