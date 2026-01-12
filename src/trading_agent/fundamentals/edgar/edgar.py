@@ -6,8 +6,30 @@ Focuses on XBRL filings from 2009 onwards.
 """
 
 # Load environment configuration early
-from ...config import load_environment_config
-load_environment_config()
+try:
+    from ...config import load_environment_config
+    load_environment_config()
+except (ImportError, ValueError):
+    # Handle both relative import errors and when run as a script
+    import sys
+    from pathlib import Path
+    # Add project root to path for absolute import
+    # File is at: src/trading_agent/fundamentals/edgar/edgar.py
+    # Need to go up 5 levels to get to project root
+    file_path = Path(__file__).resolve()
+    project_root = file_path.parent.parent.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    try:
+        from src.trading_agent.config import load_environment_config
+        load_environment_config()
+    except ImportError as e:
+        # Config module is required - fail if not found
+        raise ImportError(
+            f"Failed to import config module. This is required for environment configuration. "
+            f"Original error: {e}. "
+            f"Please ensure the config module exists at src/trading_agent/config.py"
+        ) from e
 
 
 import os
@@ -50,8 +72,16 @@ try:
         get_db_filing_counts_by_year, is_year_complete, get_incomplete_years
     )
 except ImportError:
-    from download_logger import get_download_logger
-    from edgar_postgres import (
+    # Handle direct script execution - use absolute imports
+    import sys
+    from pathlib import Path
+    # Add project root to path if not already there
+    file_path = Path(__file__).resolve()
+    project_root = file_path.parent.parent.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    from src.trading_agent.fundamentals.download_logger import get_download_logger
+    from src.trading_agent.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection, init_edgar_postgres_tables,
         add_companies_fast, add_filings_fast, get_existing_accessions,
         load_companies_from_postgres, load_filings_from_postgres,
