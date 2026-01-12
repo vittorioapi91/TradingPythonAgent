@@ -5,7 +5,7 @@ Accept: application/vnd.github+json
 Accept-Encoding: gzip
 HTTP/1.1 200 
 26
-date: Sun, 11 Jan 2026 16:17:42 GMT
+date: Sun, 11 Jan 2026 18:10:19 GMT
 content-type: application/json; charset=utf-8
 cache-control: no-cache
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
@@ -13,9 +13,9 @@ x-accepted-oauth-scopes:
 x-github-media-type: github.v3; format=json
 x-github-api-version-selected: 2022-11-28
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4994
-x-ratelimit-reset: 1768149463
-x-ratelimit-used: 6
+x-ratelimit-remaining: 4968
+x-ratelimit-reset: 1768156329
+x-ratelimit-used: 32
 x-ratelimit-resource: core
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
 access-control-allow-origin: *
@@ -28,9 +28,9 @@ content-security-policy: default-src 'none'
 vary: Accept-Encoding, Accept, X-Requested-With
 content-encoding: gzip
 server: github.com
-x-github-request-id: CB9C:2A8FF:99B8896:878C7B0:6963CD26
-OkHttp-Sent-Millis: 1768148262112
-OkHttp-Received-Millis: 1768148262321
+x-github-request-id: EA5C:36C14D:A297391:8F14EEA:6963E78B
+OkHttp-Sent-Millis: 1768155019317
+OkHttp-Received-Millis: 1768155019505
 
 TLS_AES_128_GCM_SHA256
 3

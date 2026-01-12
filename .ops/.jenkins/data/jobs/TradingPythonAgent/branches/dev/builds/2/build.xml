@@ -1,0 +1,708 @@
+<?xml version='1.1' encoding='UTF-8'?>
+<flow-build plugin="workflow-job@1559.va_a_533730b_ea_d">
+  <actions>
+    <hudson.model.CauseAction>
+      <causeBag class="linked-hash-map">
+        <entry>
+          <hudson.model.Cause_-UserIdCause>
+            <userId>vittorioapi</userId>
+          </hudson.model.Cause_-UserIdCause>
+          <int>1</int>
+        </entry>
+      </causeBag>
+    </hudson.model.CauseAction>
+    <jenkins.scm.api.SCMRevisionAction plugin="scm-api@724.v7d839074eb_5c">
+      <sourceId>1</sourceId>
+      <revision class="jenkins.plugins.git.AbstractGitSCMSource$SCMRevisionImpl" plugin="git@5.8.1">
+        <head class="org.jenkinsci.plugins.github_branch_source.BranchSCMHead" plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
+          <name>dev</name>
+        </head>
+        <hash>7ceb2787ed7db425b374cb3134739a01cb4c46dd</hash>
+      </revision>
+    </jenkins.scm.api.SCMRevisionAction>
+    <org.jenkinsci.plugins.workflow.libs.LibrariesAction plugin="pipeline-groovy-lib@787.ve2fef0efdca_6">
+      <libraries/>
+    </org.jenkinsci.plugins.workflow.libs.LibrariesAction>
+    <org.jenkinsci.plugins.pipeline.modeldefinition.actions.ExecutionModelAction plugin="pipeline-model-definition@2.2277.v00573e73ddf1">
+      <stagesUUID>d17f9c31-7bd0-48fe-a39c-8be615ddec74</stagesUUID>
+      <pipelineDefs>
+        <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTPipelineDef plugin="pipeline-model-api@2.2277.v00573e73ddf1">
+          <stages>
+            <stages>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Checkout</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                        <name>checkout</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scm</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-GStringValue>
+                                <value class="string">${scm}</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-GStringValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">env.GIT_COMMIT_SHORT = sh(
+                        script: &apos;git rev-parse --short HEAD&apos;,
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_BRANCH = sh(
+                        script: &apos;git rev-parse --abbrev-ref HEAD&apos;,
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Determine environment based on branch
+                    if (env.GIT_BRANCH == &apos;dev&apos; || env.GIT_BRANCH.startsWith(&apos;dev/&apos;)) {
+                        env.ENV_SUFFIX = &apos;dev&apos;
+                        env.IMAGE_NAME = &apos;hmm-model-training-dev&apos;
+                        env.NAMESPACE = &apos;trading-monitoring-dev&apos;
+                        env.JOB_NAME = &apos;hmm-model-calibration-dev&apos;
+                        env.IMAGE_TAG = &quot;dev-${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}&quot;
+                    } else {
+                        // Default to production/main
+                        env.ENV_SUFFIX = &apos;&apos;
+                        env.IMAGE_NAME = &apos;hmm-model-training&apos;
+                        env.NAMESPACE = &apos;trading-monitoring&apos;
+                        env.JOB_NAME = &apos;hmm-model-calibration&apos;
+                    env.IMAGE_TAG = &quot;${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}&quot;
+                    }
+                    
+                    echo &quot;Building for branch: ${env.GIT_BRANCH}&quot;
+                    echo &quot;Environment: ${env.ENV_SUFFIX ?: &apos;production&apos;}&quot;
+                    echo &quot;Image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}&quot;
+                    echo &quot;Namespace: ${env.NAMESPACE}&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Build Docker Image</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">def latestTag = env.ENV_SUFFIX ? &quot;${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest&quot; : &quot;${env.IMAGE_NAME}:latest&quot;
+                    echo &quot;Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}&quot;
+                    sh &quot;&quot;&quot;
+                        docker build \
+                            -f .ops/.kubernetes/Dockerfile.model-training \
+                            -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                            -t ${latestTag} \
+                            .
+                    &quot;&quot;&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Load Image into Kind Cluster</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">def latestTag = env.ENV_SUFFIX ? &quot;${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest&quot; : &quot;${env.IMAGE_NAME}:latest&quot;
+                    echo &quot;Loading image into kind cluster: ${env.KIND_CLUSTER}&quot;
+                    sh &quot;&quot;&quot;
+                        kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER}
+                        kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER}
+                    &quot;&quot;&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Create Namespace (if needed)</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">echo &quot;Ensuring namespace ${env.NAMESPACE} exists&quot;
+                    sh &quot;&quot;&quot;
+                        kubectl create namespace ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} 2&gt;/dev/null || echo &quot;Namespace ${env.NAMESPACE} already exists&quot;
+                    &quot;&quot;&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Update Kubernetes Job</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">echo &quot;Updating Kubernetes Job with new image&quot;
+                    sh &quot;&quot;&quot;
+                        # Set the image in the job (if it exists)
+                        kubectl set image job/${env.JOB_NAME} \
+                            model-training=${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                            -n ${env.NAMESPACE} \
+                            --context kind-${env.KIND_CLUSTER} \
+                            2&gt;/dev/null || echo &quot;Job doesn&apos;t exist yet, will be created on apply&quot;
+                        
+                        # Apply the job manifest (will create or update)
+                        kubectl apply -f .ops/.kubernetes/hmm-model-training-job.yaml -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER}
+                    &quot;&quot;&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+                <name>Verify Deployment</name>
+                <branches>
+                  <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                    <name>default</name>
+                    <steps>
+                      <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                        <name>script</name>
+                        <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                          <arguments class="linked-hash-map">
+                            <entry>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                                <key>scriptBlock</key>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                                <value class="string">echo &quot;Verifying job deployment&quot;
+                    sh &quot;&quot;&quot;
+                        kubectl get job ${env.JOB_NAME} -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} || true
+                        kubectl get pods -l app=hmm-model,component=training -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} || true
+                    &quot;&quot;&quot;</value>
+                              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                            </entry>
+                          </arguments>
+                        </args>
+                      </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                    </steps>
+                  </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBranch>
+                </branches>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStage>
+            </stages>
+            <uuid>d17f9c31-7bd0-48fe-a39c-8be615ddec74</uuid>
+          </stages>
+          <postBuild>
+            <conditions>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+                <condition>success</condition>
+                <branch>
+                  <name>default</name>
+                  <steps>
+                    <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                      <name>echo</name>
+                      <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                        <arguments class="linked-hash-map">
+                          <entry>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <key>message</key>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-GStringValue>
+                              <value class="string">&quot;✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})&quot;</value>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-GStringValue>
+                          </entry>
+                        </arguments>
+                      </args>
+                    </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                  </steps>
+                </branch>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+                <condition>failure</condition>
+                <branch>
+                  <name>default</name>
+                  <steps>
+                    <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                      <name>echo</name>
+                      <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                        <arguments class="linked-hash-map">
+                          <entry>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <key>message</key>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                              <value class="string">✗ Pipeline failed. Check logs for details.</value>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                          </entry>
+                        </arguments>
+                      </args>
+                    </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTStep>
+                  </steps>
+                </branch>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+              <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+                <condition>always</condition>
+                <branch>
+                  <name>default</name>
+                  <steps>
+                    <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                      <name>script</name>
+                      <args class="org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTNamedArgumentList">
+                        <arguments class="linked-hash-map">
+                          <entry>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                              <key>scriptBlock</key>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                            <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                              <value class="string">def pattern = env.ENV_SUFFIX ? &quot;^${env.ENV_SUFFIX}-[0-9]+-&quot; : &quot;^[0-9]+-&quot;
+            sh &quot;&quot;&quot;
+                    docker images ${env.IMAGE_NAME} --format &apos;{{.Tag}}&apos; | \\
+                        grep -E &apos;${pattern}&apos; | \\
+                        sort -t- -k${env.ENV_SUFFIX ? &apos;2&apos; : &apos;1&apos;} -nr | \\
+                    tail -n +11 | \\
+                        xargs -r -I {} docker rmi ${env.IMAGE_NAME}:{} || true
+            &quot;&quot;&quot;</value>
+                            </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                          </entry>
+                        </arguments>
+                      </args>
+                    </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTScriptBlock>
+                  </steps>
+                </branch>
+              </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTBuildCondition>
+            </conditions>
+          </postBuild>
+          <environment>
+            <variables class="linked-hash-map">
+              <entry>
+                <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                  <key>KIND_CLUSTER</key>
+                </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTKey>
+                <org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+                  <value class="string">trading-cluster</value>
+                </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTValue_-ConstantValue>
+              </entry>
+            </variables>
+          </environment>
+          <agent>
+            <agentType>
+              <key>any</key>
+            </agentType>
+          </agent>
+        </org.jenkinsci.plugins.pipeline.modeldefinition.ast.ModelASTPipelineDef>
+      </pipelineDefs>
+    </org.jenkinsci.plugins.pipeline.modeldefinition.actions.ExecutionModelAction>
+    <com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder plugin="credentials@1465.ve8c9516d78b_f">
+      <boundCredentials class="concurrent-hash-map"/>
+    </com.cloudbees.plugins.credentials.builds.CredentialsParameterBinder>
+    <hudson.plugins.git.util.BuildData plugin="git@5.8.1">
+      <buildsByBranchName>
+        <entry>
+          <string>dev</string>
+          <hudson.plugins.git.util.Build>
+            <marked plugin="git-client@6.5.0">
+              <sha1>7ceb2787ed7db425b374cb3134739a01cb4c46dd</sha1>
+              <branches class="singleton-set">
+                <hudson.plugins.git.Branch>
+                  <sha1 reference="../../../sha1"/>
+                  <name>dev</name>
+                </hudson.plugins.git.Branch>
+              </branches>
+            </marked>
+            <revision reference="../marked"/>
+            <hudsonBuildNumber>2</hudsonBuildNumber>
+          </hudson.plugins.git.util.Build>
+        </entry>
+      </buildsByBranchName>
+      <lastBuild reference="../buildsByBranchName/entry/hudson.plugins.git.util.Build"/>
+      <remoteUrls>
+        <string>https://github.com/vittorioapi91/TradingPythonAgent.git</string>
+      </remoteUrls>
+    </hudson.plugins.git.util.BuildData>
+    <org.jenkinsci.plugins.workflow.steps.scm.MultiSCMRevisionState plugin="workflow-scm-step@466.va_d69e602552b_">
+      <revisionStates>
+        <entry>
+          <string>git https://github.com/vittorioapi91/TradingPythonAgent.git</string>
+          <hudson.scm.SCMRevisionState_-None/>
+        </entry>
+      </revisionStates>
+    </org.jenkinsci.plugins.workflow.steps.scm.MultiSCMRevisionState>
+    <org.jenkinsci.plugins.workflow.cps.EnvActionImpl plugin="workflow-cps@4238.va_6fb_65c1f699">
+      <env class="tree-map">
+        <entry>
+          <string>ENV_SUFFIX</string>
+          <string>dev</string>
+        </entry>
+        <entry>
+          <string>GIT_BRANCH</string>
+          <string>HEAD</string>
+        </entry>
+        <entry>
+          <string>GIT_COMMIT_SHORT</string>
+          <string>7ceb278</string>
+        </entry>
+        <entry>
+          <string>IMAGE_NAME</string>
+          <string>hmm-model-training-dev</string>
+        </entry>
+        <entry>
+          <string>IMAGE_TAG</string>
+          <string>dev-2-7ceb278</string>
+        </entry>
+        <entry>
+          <string>JOB_NAME</string>
+          <string>hmm-model-calibration-dev</string>
+        </entry>
+        <entry>
+          <string>NAMESPACE</string>
+          <string>trading-monitoring-dev</string>
+        </entry>
+      </env>
+    </org.jenkinsci.plugins.workflow.cps.EnvActionImpl>
+    <jenkins.model.InterruptedBuildAction>
+      <causes>
+        <jenkins.model.CauseOfInterruption_-UserInterruption>
+          <user>vittorioapi</user>
+        </jenkins.model.CauseOfInterruption_-UserInterruption>
+      </causes>
+    </jenkins.model.InterruptedBuildAction>
+  </actions>
+  <queueId>16</queueId>
+  <timestamp>1768148524389</timestamp>
+  <startTime>1768148524392</startTime>
+  <result>ABORTED</result>
+  <duration>64217</duration>
+  <charset>UTF-8</charset>
+  <keepLog>false</keepLog>
+  <execution class="org.jenkinsci.plugins.workflow.cps.CpsFlowExecution">
+    <result>ABORTED</result>
+    <script>pipeline {
+    agent any
+    
+    environment {
+        KIND_CLUSTER = &apos;trading-cluster&apos;
+    }
+    
+    stages {
+        stage(&apos;Checkout&apos;) {
+            steps {
+                checkout scm
+                script {
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: &apos;git rev-parse --short HEAD&apos;,
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_BRANCH = sh(
+                        script: &apos;git rev-parse --abbrev-ref HEAD&apos;,
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Determine environment based on branch
+                    if (env.GIT_BRANCH == &apos;dev&apos; || env.GIT_BRANCH.startsWith(&apos;dev/&apos;)) {
+                        env.ENV_SUFFIX = &apos;dev&apos;
+                        env.IMAGE_NAME = &apos;hmm-model-training-dev&apos;
+                        env.NAMESPACE = &apos;trading-monitoring-dev&apos;
+                        env.JOB_NAME = &apos;hmm-model-calibration-dev&apos;
+                        env.IMAGE_TAG = &quot;dev-${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}&quot;
+                    } else {
+                        // Default to production/main
+                        env.ENV_SUFFIX = &apos;&apos;
+                        env.IMAGE_NAME = &apos;hmm-model-training&apos;
+                        env.NAMESPACE = &apos;trading-monitoring&apos;
+                        env.JOB_NAME = &apos;hmm-model-calibration&apos;
+                    env.IMAGE_TAG = &quot;${env.BUILD_NUMBER}-${env.GIT_COMMIT_SHORT}&quot;
+                    }
+                    
+                    echo &quot;Building for branch: ${env.GIT_BRANCH}&quot;
+                    echo &quot;Environment: ${env.ENV_SUFFIX ?: &apos;production&apos;}&quot;
+                    echo &quot;Image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}&quot;
+                    echo &quot;Namespace: ${env.NAMESPACE}&quot;
+                }
+            }
+        }
+        
+        stage(&apos;Build Docker Image&apos;) {
+            steps {
+                script {
+                    def latestTag = env.ENV_SUFFIX ? &quot;${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest&quot; : &quot;${env.IMAGE_NAME}:latest&quot;
+                    echo &quot;Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}&quot;
+                    sh &quot;&quot;&quot;
+                        docker build \
+                            -f .ops/.kubernetes/Dockerfile.model-training \
+                            -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                            -t ${latestTag} \
+                            .
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+        
+        stage(&apos;Load Image into Kind Cluster&apos;) {
+            steps {
+                script {
+                    def latestTag = env.ENV_SUFFIX ? &quot;${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest&quot; : &quot;${env.IMAGE_NAME}:latest&quot;
+                    echo &quot;Loading image into kind cluster: ${env.KIND_CLUSTER}&quot;
+                    sh &quot;&quot;&quot;
+                        kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER}
+                        kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER}
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+        
+        stage(&apos;Create Namespace (if needed)&apos;) {
+            steps {
+                script {
+                    echo &quot;Ensuring namespace ${env.NAMESPACE} exists&quot;
+                    sh &quot;&quot;&quot;
+                        kubectl create namespace ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} 2&gt;/dev/null || echo &quot;Namespace ${env.NAMESPACE} already exists&quot;
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+        
+        stage(&apos;Update Kubernetes Job&apos;) {
+            steps {
+                script {
+                    echo &quot;Updating Kubernetes Job with new image&quot;
+                    sh &quot;&quot;&quot;
+                        # Set the image in the job (if it exists)
+                        kubectl set image job/${env.JOB_NAME} \
+                            model-training=${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                            -n ${env.NAMESPACE} \
+                            --context kind-${env.KIND_CLUSTER} \
+                            2&gt;/dev/null || echo &quot;Job doesn&apos;t exist yet, will be created on apply&quot;
+                        
+                        # Apply the job manifest (will create or update)
+                        kubectl apply -f .ops/.kubernetes/hmm-model-training-job.yaml -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER}
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+        
+        stage(&apos;Verify Deployment&apos;) {
+            steps {
+                script {
+                    echo &quot;Verifying job deployment&quot;
+                    sh &quot;&quot;&quot;
+                        kubectl get job ${env.JOB_NAME} -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} || true
+                        kubectl get pods -l app=hmm-model,component=training -n ${env.NAMESPACE} --context kind-${env.KIND_CLUSTER} || true
+                    &quot;&quot;&quot;
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo &quot;✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})&quot;
+        }
+        failure {
+            echo &quot;✗ Pipeline failed. Check logs for details.&quot;
+        }
+        always {
+            // Clean up old images (optional - keep last 10 builds)
+            script {
+                def pattern = env.ENV_SUFFIX ? &quot;^${env.ENV_SUFFIX}-[0-9]+-&quot; : &quot;^[0-9]+-&quot;
+            sh &quot;&quot;&quot;
+                    docker images ${env.IMAGE_NAME} --format &apos;{{.Tag}}&apos; | \\
+                        grep -E &apos;${pattern}&apos; | \\
+                        sort -t- -k${env.ENV_SUFFIX ? &apos;2&apos; : &apos;1&apos;} -nr | \\
+                    tail -n +11 | \\
+                        xargs -r -I {} docker rmi ${env.IMAGE_NAME}:{} || true
+            &quot;&quot;&quot;
+            }
+        }
+    }
+}
+
+</script>
+    <loadedScripts class="linked-hash-map"/>
+    <durabilityHint>MAX_SURVIVABILITY</durabilityHint>
+    <timings class="map">
+      <entry>
+        <string>flowNode</string>
+        <long>283584621</long>
+      </entry>
+      <entry>
+        <string>classLoad</string>
+        <long>114532878</long>
+      </entry>
+      <entry>
+        <string>runQueue</string>
+        <long>6973616797</long>
+      </entry>
+      <entry>
+        <string>run</string>
+        <long>5962305126</long>
+      </entry>
+      <entry>
+        <string>parse</string>
+        <long>104048125</long>
+      </entry>
+      <entry>
+        <string>saveProgram</string>
+        <long>4993692960</long>
+      </entry>
+    </timings>
+    <internalCalls class="sorted-set">
+      <string>hudson.model.Result.fromString</string>
+      <string>org.jenkinsci.plugins.pipeline.StageStatus.TAG_NAME</string>
+      <string>org.jenkinsci.plugins.workflow.job.WorkflowRun.result</string>
+    </internalCalls>
+    <sandbox>true</sandbox>
+    <iota>74</iota>
+    <head>1:74</head>
+    <done>true</done>
+    <resumeBlocked>false</resumeBlocked>
+    <storageDir>workflow-completed</storageDir>
+  </execution>
+  <completed>true</completed>
+  <checkouts class="hudson.util.PersistedList">
+    <org.jenkinsci.plugins.workflow.job.WorkflowRun_-SCMCheckout>
+      <scm class="hudson.plugins.git.GitSCM" plugin="git@5.8.1">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <name>origin</name>
+            <refspec>+refs/heads/dev:refs/remotes/origin/dev</refspec>
+            <url>https://github.com/vittorioapi91/TradingPythonAgent.git</url>
+            <credentialsId>39a94d87-8a43-468b-9138-14b4f86d7b93</credentialsId>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches class="singleton-list">
+          <hudson.plugins.git.BranchSpec>
+            <name>dev</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <browser class="hudson.plugins.git.browser.GithubWeb">
+          <url>https://github.com/vittorioapi91/TradingPythonAgent</url>
+        </browser>
+        <submoduleCfg class="empty-list"/>
+        <extensions>
+          <jenkins.plugins.git.GitSCMSourceDefaults>
+            <includeTags>false</includeTags>
+          </jenkins.plugins.git.GitSCMSourceDefaults>
+          <hudson.plugins.git.extensions.impl.BuildChooserSetting>
+            <buildChooser class="jenkins.plugins.git.AbstractGitSCMSource$SpecificRevisionBuildChooser">
+              <revision reference="../../../../../../../actions/hudson.plugins.git.util.BuildData/buildsByBranchName/entry/hudson.plugins.git.util.Build/marked"/>
+            </buildChooser>
+          </hudson.plugins.git.extensions.impl.BuildChooserSetting>
+        </extensions>
+      </scm>
+      <node></node>
+      <workspace>/var/jenkins_home/workspace/TradingPythonAgent_dev</workspace>
+      <changelogFile>/var/jenkins_home/jobs/TradingPythonAgent/branches/dev/builds/2/changelog6683473218244494207.xml</changelogFile>
+      <pollingBaseline class="hudson.scm.SCMRevisionState$None" reference="../../../actions/org.jenkinsci.plugins.workflow.steps.scm.MultiSCMRevisionState/revisionStates/entry/hudson.scm.SCMRevisionState_-None"/>
+    </org.jenkinsci.plugins.workflow.job.WorkflowRun_-SCMCheckout>
+    <org.jenkinsci.plugins.workflow.job.WorkflowRun_-SCMCheckout>
+      <scm class="hudson.plugins.git.GitSCM" plugin="git@5.8.1">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <name>origin</name>
+            <refspec>+refs/heads/dev:refs/remotes/origin/dev</refspec>
+            <url>https://github.com/vittorioapi91/TradingPythonAgent.git</url>
+            <credentialsId>39a94d87-8a43-468b-9138-14b4f86d7b93</credentialsId>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches class="singleton-list">
+          <hudson.plugins.git.BranchSpec>
+            <name>dev</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <browser class="hudson.plugins.git.browser.GithubWeb">
+          <url>https://github.com/vittorioapi91/TradingPythonAgent</url>
+        </browser>
+        <submoduleCfg class="empty-list"/>
+        <extensions>
+          <jenkins.plugins.git.GitSCMSourceDefaults>
+            <includeTags>false</includeTags>
+          </jenkins.plugins.git.GitSCMSourceDefaults>
+          <hudson.plugins.git.extensions.impl.BuildChooserSetting>
+            <buildChooser class="jenkins.plugins.git.AbstractGitSCMSource$SpecificRevisionBuildChooser">
+              <revision plugin="git-client@6.5.0">
+                <sha1>7ceb2787ed7db425b374cb3134739a01cb4c46dd</sha1>
+                <branches class="singleton-set">
+                  <hudson.plugins.git.Branch>
+                    <sha1 reference="../../../sha1"/>
+                    <name>dev</name>
+                  </hudson.plugins.git.Branch>
+                </branches>
+              </revision>
+            </buildChooser>
+          </hudson.plugins.git.extensions.impl.BuildChooserSetting>
+        </extensions>
+      </scm>
+      <node></node>
+      <workspace>/var/jenkins_home/workspace/TradingPythonAgent_dev</workspace>
+      <pollingBaseline class="hudson.scm.SCMRevisionState$None" reference="../../../actions/org.jenkinsci.plugins.workflow.steps.scm.MultiSCMRevisionState/revisionStates/entry/hudson.scm.SCMRevisionState_-None"/>
+    </org.jenkinsci.plugins.workflow.job.WorkflowRun_-SCMCheckout>
+  </checkouts>
+</flow-build>

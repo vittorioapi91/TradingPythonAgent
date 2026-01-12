@@ -19,23 +19,28 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
-                    // Parse branch pattern: dev/feature-{project}-{module}
-                    // Examples: dev/feature-trading_agent-fundamentals, dev/feature-trading_agent-macro
+                    // Parse branch pattern: dev/{jira_issue}/{project}-{subproject}
+                    // Examples: dev/PROJ-123/trading_agent-fundamentals, dev/ISS-456/trading_agent-macro
+                    env.JIRA_ISSUE = ''
                     env.PROJECT_NAME = ''
-                    env.MODULE_NAME = ''
+                    env.SUBPROJECT_NAME = ''
                     env.IS_FEATURE_BRANCH = 'false'
                     
-                    def featureBranchPattern = ~/^dev\/feature-([^-]+)-(.+)$/
+                    // Pattern: dev/{JIRA_KEY-NUMBER}/{project}-{subproject}
+                    // JIRA issue format: PROJECT_KEY-NUMBER (e.g., PROJ-123, ISS-456)
+                    def featureBranchPattern = ~/^dev\/([A-Z]+-\d+)\/([^-]+)-(.+)$/
                     def matcher = env.GIT_BRANCH =~ featureBranchPattern
                     
                     if (matcher) {
                         env.IS_FEATURE_BRANCH = 'true'
-                        env.PROJECT_NAME = matcher[0][1]  // e.g., 'trading_agent'
-                        env.MODULE_NAME = matcher[0][2]   // e.g., 'fundamentals', 'macro'
+                        env.JIRA_ISSUE = matcher[0][1]      // e.g., 'PROJ-123'
+                        env.PROJECT_NAME = matcher[0][2]    // e.g., 'trading_agent'
+                        env.SUBPROJECT_NAME = matcher[0][3] // e.g., 'fundamentals', 'macro'
                     }
                     
                     // Determine environment based on branch
-                    if (env.GIT_BRANCH == 'dev' || env.GIT_BRANCH.startsWith('dev/')) {
+                    // Feature branches (dev/{jira_issue}/...) and staging branch use dev environment
+                    if (env.GIT_BRANCH == 'staging' || env.GIT_BRANCH.startsWith('dev/')) {
                         env.ENV_SUFFIX = 'dev'
                         env.IMAGE_NAME = 'hmm-model-training-dev'
                         env.NAMESPACE = 'trading-monitoring-dev'
@@ -52,7 +57,7 @@ pipeline {
                     
                     // Set module-specific paths (using relative paths from workspace root)
                     if (env.IS_FEATURE_BRANCH == 'true') {
-                        env.MODULE_PATH = "src/${env.PROJECT_NAME}/${env.MODULE_NAME}"
+                        env.MODULE_PATH = "src/${env.PROJECT_NAME}/${env.SUBPROJECT_NAME}"
                     } else {
                         env.MODULE_PATH = ''
                     }
@@ -60,11 +65,59 @@ pipeline {
                     echo "Building for branch: ${env.GIT_BRANCH}"
                     echo "Environment: ${env.ENV_SUFFIX ?: 'production'}"
                     if (env.IS_FEATURE_BRANCH == 'true') {
-                        echo "Feature branch detected: project=${env.PROJECT_NAME}, module=${env.MODULE_NAME}"
+                        echo "Feature branch detected: JIRA issue=${env.JIRA_ISSUE}, project=${env.PROJECT_NAME}, subproject=${env.SUBPROJECT_NAME}"
                         echo "Module path: ${env.MODULE_PATH}"
                     }
                     echo "Image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                     echo "Namespace: ${env.NAMESPACE}"
+                }
+            }
+        }
+        
+        // JIRA issue validation stage (only for feature branches)
+        stage('Validate JIRA Issue') {
+            when {
+                expression { env.IS_FEATURE_BRANCH == 'true' }
+            }
+            steps {
+                script {
+                    echo "Validating JIRA issue: ${env.JIRA_ISSUE}"
+                    
+                    // Get JIRA configuration from environment variables
+                    def jiraUrl = env.JIRA_URL ?: error("JIRA_URL environment variable is required")
+                    def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
+                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    
+                    // Construct JIRA API endpoint
+                    def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${env.JIRA_ISSUE}"
+                    
+                    // Validate JIRA issue exists using curl
+                    def responseCode = sh(
+                        script: """
+                            curl -s -o /tmp/jira_response.json -w '%{http_code}' \\
+                                -u '${jiraUser}:${jiraToken}' \\
+                                -X GET \\
+                                -H 'Accept: application/json' \\
+                                '${jiraApiUrl}'
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (responseCode == '200') {
+                        echo "✓ JIRA issue ${env.JIRA_ISSUE} exists and is accessible"
+                        // Optionally parse and display issue details
+                        sh """
+                            echo "Issue details:"
+                            cat /tmp/jira_response.json | python3 -m json.tool 2>/dev/null | head -30 || cat /tmp/jira_response.json | head -20
+                            rm -f /tmp/jira_response.json
+                        """
+                    } else if (responseCode == '404') {
+                        error("JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please create the issue in JIRA before building this branch.")
+                    } else if (responseCode == '401' || responseCode == '403') {
+                        error("Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN.")
+                    } else {
+                        error("Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode}). Please check JIRA_URL and network connectivity.")
+                    }
                 }
             }
         }

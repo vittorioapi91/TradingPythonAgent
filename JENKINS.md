@@ -8,16 +8,58 @@ The project uses a **branch-aware Jenkinsfile** that automatically detects the G
 
 ## Files
 
-- **`Jenkinsfile`** - Branch-aware pipeline (automatically handles both `main` and `dev` branches)
+- **`Jenkinsfile`** - Branch-aware pipeline (automatically handles `main`, `staging`, and feature branches)
 - **`.ops/.jenkins/jenkins-deployment.yaml`** - Kubernetes deployment manifest for Jenkins itself
 
 ## Branch-Aware Configuration
 
 The main `Jenkinsfile` automatically detects the branch and applies the appropriate configuration:
 
-### Development Branch (`dev` or `dev/*`)
+### Feature Branches (`dev/{jira_issue}/{project}-{subproject}`)
 
-When the pipeline runs on the `dev` branch:
+Feature branches must follow the pattern: `dev/{jira_issue}/{project}-{subproject}`
+
+**Pattern Format:**
+- `dev/` - Prefix indicating development branch
+- `{jira_issue}` - JIRA issue key (e.g., `PROJ-123`, `ISS-456`, `BUG-789`)
+- `{project}` - Project name (e.g., `trading_agent`)
+- `{subproject}` - Subproject/module name (e.g., `fundamentals`, `macro`, `model`)
+
+**Examples:**
+- `dev/PROJ-123/trading_agent-fundamentals`
+- `dev/ISS-456/trading_agent-macro`
+- `dev/BUG-789/trading_agent-model`
+
+**Requirements:**
+- The JIRA issue **must exist** in your JIRA instance before the build can proceed
+- The pipeline will fail if the JIRA issue does not exist (HTTP 404)
+- The JIRA issue must be accessible with the provided credentials
+
+**Environment Variables Required:**
+- `JIRA_URL` - JIRA instance URL (e.g., `https://yourcompany.atlassian.net`) - **without trailing slash**
+- `JIRA_USER` - JIRA username or email
+- `JIRA_API_TOKEN` - JIRA API token (recommended) or password
+
+**Configuration Methods:**
+
+You can configure these variables in one of the following ways:
+
+1. **Jenkins UI (Recommended for Development):**
+   - Go to Jenkins → Manage Jenkins → Configure System
+   - Under "Global properties", check "Environment variables"
+   - Add: `JIRA_URL`, `JIRA_USER`, `JIRA_API_TOKEN`
+   - Or configure per-job in the job's configuration
+
+2. **Jenkins Credentials Store (Recommended for Production):**
+   - Store credentials in Jenkins Credentials store
+   - Use `withCredentials` in Jenkinsfile to inject them as environment variables
+   - More secure but requires Jenkinsfile modification
+
+3. **Docker Compose (Quick Setup):**
+   - Add environment variables to the Jenkins service in `.ops/.docker/docker-compose.yml`
+   - Restart Jenkins: `docker-compose restart jenkins`
+
+When the pipeline runs on a feature branch:
 
 - **Image Name**: `hmm-model-training-dev`
 - **Namespace**: `trading-monitoring-dev`
@@ -26,10 +68,11 @@ When the pipeline runs on the `dev` branch:
   - Build tag: `dev-<BUILD_NUMBER>-<GIT_COMMIT_SHORT>`
   - Latest tag: `dev-latest`
 - **Kubernetes Context**: `kind-trading-cluster`
+- **Module Path**: `src/{project}/{subproject}` (e.g., `src/trading_agent/fundamentals`)
 
-### Production/Main Branch (`main` or any other branch)
+### Staging Branch (`staging`)
 
-When the pipeline runs on the `main` branch (or any non-dev branch):
+When the pipeline runs on the `staging` branch:
 
 - **Image Name**: `hmm-model-training`
 - **Namespace**: `trading-monitoring`
@@ -46,31 +89,46 @@ The pipeline consists of the following stages:
 ### 1. Checkout
 - Checks out the source code from Git
 - Detects the current branch
+- Parses branch pattern: `dev/{jira_issue}/{project}-{subproject}` for feature branches
 - Sets environment variables based on branch detection
 - Logs the detected environment and configuration
 
-### 2. Build Docker Image
+### 2. Validate JIRA Issue (Feature Branches Only)
+- Validates that the JIRA issue exists in your JIRA instance
+- Makes an API call to JIRA to check issue existence
+- **Build fails if:**
+  - JIRA issue does not exist (HTTP 404)
+  - Authentication fails (HTTP 401/403)
+  - JIRA URL is invalid or unreachable
+- Requires environment variables: `JIRA_URL`, `JIRA_USER`, `JIRA_API_TOKEN`
+
+### 3. Validate Module (Feature Branches Only)
+- Validates that the module path exists in the codebase
+- Checks that `src/{project}/{subproject}` directory exists
+- Fails the build if the module path is invalid
+
+### 4. Build Docker Image
 - Builds the Docker image using `.ops/.kubernetes/Dockerfile.model-training`
 - Tags the image with:
   - Build-specific tag (includes branch, build number, and commit SHA)
   - Latest tag (branch-specific: `latest` for main, `dev-latest` for dev)
 
-### 3. Load Image into Kind Cluster
+### 5. Load Image into Kind Cluster
 - Loads both the build-specific and latest tags into the local kind cluster
 - Makes the images available for Kubernetes deployments
 
-### 4. Create Namespace (if needed)
+### 6. Create Namespace (if needed)
 - Automatically creates the target namespace if it doesn't exist
 - Uses the appropriate namespace based on branch:
-  - `trading-monitoring-dev` for dev branch
+  - `trading-monitoring-dev` for staging branch and feature branches (`dev/*`)
   - `trading-monitoring` for main branch
 
-### 5. Update Kubernetes Job
+### 7. Update Kubernetes Job
 - Updates or creates the Kubernetes Job with the new image
 - Applies the job manifest from `.ops/.kubernetes/hmm-model-training-job.yaml`
 - Uses the appropriate namespace and job name based on branch
 
-### 6. Verify Deployment
+### 8. Verify Deployment
 - Verifies the job was created/updated successfully
 - Lists pods to confirm deployment status
 
@@ -146,17 +204,27 @@ For automatic branch detection and separate builds per branch:
 
 ### Triggering via Git Push
 
-1. Push changes to `dev` branch:
+1. Push changes to `staging` branch:
    ```bash
-   git push origin dev
+   git push origin staging
    ```
 
 2. If webhook is configured, Jenkins automatically:
-   - Detects the push to `dev` branch
+   - Detects the push to `staging` branch
    - Triggers the pipeline
    - Deploys to `trading-monitoring-dev` namespace
 
-3. Push changes to `main` branch:
+3. Push changes to a feature branch:
+   ```bash
+   git push origin dev/DEV-4/trading_agent-fundamentals
+   ```
+
+4. Jenkins automatically:
+   - Validates the JIRA issue exists
+   - Triggers the pipeline
+   - Deploys to `trading-monitoring-dev` namespace
+
+5. Push changes to `main` branch:
    ```bash
    git push origin main
    ```

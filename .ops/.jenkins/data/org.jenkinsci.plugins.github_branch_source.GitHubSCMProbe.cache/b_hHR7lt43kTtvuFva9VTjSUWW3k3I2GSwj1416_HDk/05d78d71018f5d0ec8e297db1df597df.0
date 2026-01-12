@@ -6,16 +6,17 @@ Accept-Encoding: gzip
 Authorization: Basic dml0dG9yaW9hcGk6Z2hwX3h4S0J2VzI4eGtrUm5kMEdFZ0NmaEppZERyV2R4cTB4QTM3Qg==
 HTTP/1.1 200 
 29
-date: Sun, 11 Jan 2026 11:12:08 GMT
 content-type: application/json; charset=utf-8
-cache-control: private, max-age=60, s-maxage=60
-vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-etag: W/"6f22b18feb11184592cfa0bdf1cf3f8bd48871bfad46507adebef73fcbdddf56"
-last-modified: Sun, 11 Jan 2026 10:18:57 GMT
 x-poll-interval: 300
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 x-accepted-oauth-scopes: repo
 x-github-media-type: github.v3; format=json
+content-encoding: gzip
+date: Sun, 11 Jan 2026 18:10:20 GMT
+cache-control: private, max-age=60, s-maxage=60
+vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+etag: "76cae13cd6a86130cf6d27921bed774930411ba40eefc12d88c5c067dbbbef68"
+last-modified: Sun, 11 Jan 2026 17:50:57 GMT
 x-github-api-version-selected: 2022-11-28
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
 access-control-allow-origin: *
@@ -25,16 +26,15 @@ x-content-type-options: nosniff
 x-xss-protection: 0
 referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 content-security-policy: default-src 'none'
-content-encoding: gzip
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4992
-x-ratelimit-reset: 1768133287
-x-ratelimit-used: 8
+x-ratelimit-remaining: 4968
+x-ratelimit-reset: 1768156329
+x-ratelimit-used: 32
 x-ratelimit-resource: core
-x-github-request-id: F738:3B9D0A:84128C1:74C3DE6:69638588
-OkHttp-Sent-Millis: 1768129928442
-OkHttp-Received-Millis: 1768129928687
+x-github-request-id: EA5C:36C14D:A29765A:8F15132:6963E78B
+OkHttp-Sent-Millis: 1768155019785
+OkHttp-Received-Millis: 1768155020023
 
 TLS_AES_128_GCM_SHA256
 3

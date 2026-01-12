@@ -147,6 +147,10 @@ services:
       - "50000:50000"
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      # JIRA configuration for feature branch validation
+      - JIRA_URL=https://vittorioapi91.atlassian.net
+      - JIRA_USER=vittorioapi91@gmail.com
+      - JIRA_API_TOKEN=ATATT3xFfGF0jAwlCw9BuFVV0RlFMdsDNVPv6d9jwuJqXfHNOmW_eH6Rh8zaLc8aRh03C8NcrUBCGoC9AlgLDz8vDrvKI3ca2egQVsoaeE8cNfDHvQWiIO5olCMoetLFEGtvR7Qo2oa2kjWwoa_Z1hZzYtTietw1-2Pt9ayesKz7Q1YA49ZCCV4=66C37C2A
     volumes:
       - ../.jenkins/data:/var/jenkins_home  # Mount extracted Jenkins data
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for docker build

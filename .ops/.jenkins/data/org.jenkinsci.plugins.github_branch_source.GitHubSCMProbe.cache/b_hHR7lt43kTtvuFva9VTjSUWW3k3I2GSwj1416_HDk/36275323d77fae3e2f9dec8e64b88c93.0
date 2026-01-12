@@ -6,11 +6,11 @@ Accept-Encoding: gzip
 Authorization: Basic dml0dG9yaW9hcGk6Z2hwX3h4S0J2VzI4eGtrUm5kMEdFZ0NmaEppZERyV2R4cTB4QTM3Qg==
 HTTP/1.1 200 
 27
-date: Sun, 11 Jan 2026 11:11:57 GMT
+date: Sun, 11 Jan 2026 18:10:11 GMT
 content-type: application/json; charset=utf-8
 cache-control: private, max-age=60, s-maxage=60
 vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-etag: W/"a6d8d557d016193aef6e9836c3c71269dd73cf1020355a14cedb25feefd92505"
+etag: W/"c7339c9bce3d54a9e386c399d3516d6f10937a4920a5f47152e8131534b1f86a"
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 x-accepted-oauth-scopes: 
 x-github-media-type: github.v3; format=json
@@ -26,13 +26,13 @@ content-security-policy: default-src 'none'
 content-encoding: gzip
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4996
-x-ratelimit-reset: 1768133287
-x-ratelimit-used: 4
+x-ratelimit-remaining: 4971
+x-ratelimit-reset: 1768156329
+x-ratelimit-used: 29
 x-ratelimit-resource: core
-x-github-request-id: F738:3B9D0A:840ED64:74C09EB:6963857D
-OkHttp-Sent-Millis: 1768129917506
-OkHttp-Received-Millis: 1768129917737
+x-github-request-id: EA5C:36C14D:A2944A8:8F1269B:6963E783
+OkHttp-Sent-Millis: 1768155011343
+OkHttp-Received-Millis: 1768155011828
 
 TLS_AES_128_GCM_SHA256
 3

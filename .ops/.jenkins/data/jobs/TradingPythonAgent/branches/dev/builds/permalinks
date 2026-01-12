@@ -1,4 +1,6 @@
-lastCompletedBuild 1
-lastFailedBuild 1
-lastSuccessfulBuild -1
-lastUnsuccessfulBuild 1
+lastCompletedBuild 9
+lastFailedBuild 7
+lastStableBuild 9
+lastSuccessfulBuild 9
+lastUnstableBuild -1
+lastUnsuccessfulBuild 7

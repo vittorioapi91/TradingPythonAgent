@@ -6,15 +6,15 @@ Accept-Encoding: gzip
 Authorization: Basic dml0dG9yaW9hcGk6Z2hwX3h4S0J2VzI4eGtrUm5kMEdFZ0NmaEppZERyV2R4cTB4QTM3Qg==
 HTTP/1.1 200 
 27
-date: Sun, 11 Jan 2026 11:11:57 GMT
 content-type: application/json; charset=utf-8
 content-length: 2
-cache-control: private, max-age=60, s-maxage=60
-vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-etag: "a59b23640948ed462b8e44a20738952f72f4df67a83e887f224b81648cfe159c"
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 x-accepted-oauth-scopes: 
 x-github-media-type: github.v3; format=json
+date: Sun, 11 Jan 2026 18:10:11 GMT
+cache-control: private, max-age=60, s-maxage=60
+vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+etag: "a59b23640948ed462b8e44a20738952f72f4df67a83e887f224b81648cfe159c"
 x-github-api-version-selected: 2022-11-28
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
 access-control-allow-origin: *
@@ -26,13 +26,13 @@ referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 content-security-policy: default-src 'none'
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4997
-x-ratelimit-reset: 1768133287
-x-ratelimit-used: 3
+x-ratelimit-remaining: 4972
+x-ratelimit-reset: 1768156329
+x-ratelimit-used: 28
 x-ratelimit-resource: core
-x-github-request-id: F738:3B9D0A:840EC20:74C08C4:6963857D
-OkHttp-Sent-Millis: 1768129917241
-OkHttp-Received-Millis: 1768129917468
+x-github-request-id: EA5C:36C14D:A2942CE:8F124F3:6963E783
+OkHttp-Sent-Millis: 1768155011028
+OkHttp-Received-Millis: 1768155011284
 
 TLS_AES_128_GCM_SHA256
 3

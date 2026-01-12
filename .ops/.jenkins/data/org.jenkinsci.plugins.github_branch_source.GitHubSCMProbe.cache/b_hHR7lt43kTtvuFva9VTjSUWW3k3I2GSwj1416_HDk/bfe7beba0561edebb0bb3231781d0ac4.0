@@ -12,8 +12,8 @@ cache-control: private, max-age=60, s-maxage=60
 content-length: 9924
 content-security-policy: default-src 'none'
 content-type: application/json; charset=utf-8
-etag: "4948610c1b425a138e6d0c7179283b7dd01f6b34"
-last-modified: Sun, 11 Jan 2026 10:18:57 GMT
+etag: "94831e7eb763060917799c32b71ca59a382c140f"
+last-modified: Sun, 11 Jan 2026 17:50:57 GMT
 referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
 x-accepted-oauth-scopes: repo
@@ -21,19 +21,19 @@ x-content-type-options: nosniff
 x-frame-options: deny
 x-github-api-version-selected: 2022-11-28
 x-github-media-type: github.v3; format=json
-x-internal-experiment-version-metadata: ZW1wdHlfcmVwb3NpdG9yeTpmYWxzZSxoZWFkX29pZDo0NTdjOTYxMzNkNWIzOTBiZGM3NTcwZDRmZTFiZmFiMDBlZWU1NDM5LHJlZl9uYW1lOnJlZnMvaGVhZHMvbWFpbixyZWZfY29tbWl0X29pZDo0NTdjOTYxMzNkNWIzOTBiZGM3NTcwZDRmZTFiZmFiMDBlZWU1NDM5LHJvb3RfdHJlZV9lbnRyeV9vaWQ6NDk0ODYxMGMxYjQyNWExMzhlNmQwYzcxNzkyODNiN2RkMDFmNmIzNCxwYXRoX29iamVjdF90eXBlOnRyZWUscGF0aF9vYmplY3Rfb2lkOjQ5NDg2MTBjMWI0MjVhMTM4ZTZkMGM3MTc5MjgzYjdkZDAxZjZiMzQscGF0aF9vYmplY3RfbW9kZToscGF0aF9vYmplY3Rfc2l6ZTo=
+x-internal-experiment-version-metadata: ZW1wdHlfcmVwb3NpdG9yeTpmYWxzZSxoZWFkX29pZDpiYzcwMWNmNzFmNDIzOGQyNjc0NTM4NTg5ODIyMzBiZTM1YWQ3MjAwLHJlZl9uYW1lOnJlZnMvaGVhZHMvbWFpbixyZWZfY29tbWl0X29pZDpiYzcwMWNmNzFmNDIzOGQyNjc0NTM4NTg5ODIyMzBiZTM1YWQ3MjAwLHJvb3RfdHJlZV9lbnRyeV9vaWQ6OTQ4MzFlN2ViNzYzMDYwOTE3Nzk5YzMyYjcxY2E1OWEzODJjMTQwZixwYXRoX29iamVjdF90eXBlOnRyZWUscGF0aF9vYmplY3Rfb2lkOjk0ODMxZTdlYjc2MzA2MDkxNzc5OWMzMmI3MWNhNTlhMzgyYzE0MGYscGF0aF9vYmplY3RfbW9kZToscGF0aF9vYmplY3Rfc2l6ZTo=
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 x-xss-protection: 0
-date: Sun, 11 Jan 2026 11:11:57 GMT
+date: Sun, 11 Jan 2026 18:10:12 GMT
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4995
-x-ratelimit-reset: 1768133287
-x-ratelimit-used: 5
+x-ratelimit-remaining: 4970
+x-ratelimit-reset: 1768156329
+x-ratelimit-used: 30
 x-ratelimit-resource: core
-x-github-request-id: F738:3B9D0A:840EE9C:74C0B10:6963857D
-OkHttp-Sent-Millis: 1768129917745
-OkHttp-Received-Millis: 1768129917928
+x-github-request-id: EA5C:36C14D:A2947C0:8F1295C:6963E783
+OkHttp-Sent-Millis: 1768155011857
+OkHttp-Received-Millis: 1768155012067
 
 TLS_AES_128_GCM_SHA256
 3

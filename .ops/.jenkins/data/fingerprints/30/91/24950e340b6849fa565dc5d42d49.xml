@@ -6,11 +6,11 @@
   <usages>
     <entry>
       <string>TradingPythonAgent/dev</string>
-      <ranges>1</ranges>
+      <ranges>1-9</ranges>
     </entry>
     <entry>
       <string>TradingPythonAgent/main</string>
-      <ranges>1-4</ranges>
+      <ranges>1-6</ranges>
     </entry>
   </usages>
   <facets/>
