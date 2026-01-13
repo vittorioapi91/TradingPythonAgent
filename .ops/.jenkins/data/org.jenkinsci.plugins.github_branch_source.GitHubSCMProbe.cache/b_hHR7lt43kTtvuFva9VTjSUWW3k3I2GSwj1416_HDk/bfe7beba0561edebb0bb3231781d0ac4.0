@@ -6,34 +6,34 @@ Accept-Encoding: gzip
 Authorization: Basic dml0dG9yaW9hcGk6Z2hwX3h4S0J2VzI4eGtrUm5kMEdFZ0NmaEppZERyV2R4cTB4QTM3Qg==
 HTTP/1.1 200 
 28
+content-length: 9621
+content-type: application/json; charset=utf-8
+x-accepted-oauth-scopes: repo
+x-github-media-type: github.v3; format=json
+x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 access-control-allow-origin: *
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
 cache-control: private, max-age=60, s-maxage=60
-content-length: 9924
 content-security-policy: default-src 'none'
-content-type: application/json; charset=utf-8
-etag: "94831e7eb763060917799c32b71ca59a382c140f"
-last-modified: Sun, 11 Jan 2026 17:50:57 GMT
+etag: "5e46366064a101e245018c2b7e1745a0861ec44b"
+last-modified: Mon, 12 Jan 2026 18:33:58 GMT
 referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-x-accepted-oauth-scopes: repo
 x-content-type-options: nosniff
 x-frame-options: deny
 x-github-api-version-selected: 2022-11-28
-x-github-media-type: github.v3; format=json
-x-internal-experiment-version-metadata: ZW1wdHlfcmVwb3NpdG9yeTpmYWxzZSxoZWFkX29pZDpiYzcwMWNmNzFmNDIzOGQyNjc0NTM4NTg5ODIyMzBiZTM1YWQ3MjAwLHJlZl9uYW1lOnJlZnMvaGVhZHMvbWFpbixyZWZfY29tbWl0X29pZDpiYzcwMWNmNzFmNDIzOGQyNjc0NTM4NTg5ODIyMzBiZTM1YWQ3MjAwLHJvb3RfdHJlZV9lbnRyeV9vaWQ6OTQ4MzFlN2ViNzYzMDYwOTE3Nzk5YzMyYjcxY2E1OWEzODJjMTQwZixwYXRoX29iamVjdF90eXBlOnRyZWUscGF0aF9vYmplY3Rfb2lkOjk0ODMxZTdlYjc2MzA2MDkxNzc5OWMzMmI3MWNhNTlhMzgyYzE0MGYscGF0aF9vYmplY3RfbW9kZToscGF0aF9vYmplY3Rfc2l6ZTo=
-x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
+x-internal-experiment-version-metadata: ZW1wdHlfcmVwb3NpdG9yeTpmYWxzZSxoZWFkX29pZDo0YzQ4YjBjOGYyMDcxZjc2N2E5NjNlMjNlMGE0YjhkODdkMTk0YzYwLHJlZl9uYW1lOnJlZnMvaGVhZHMvbWFpbixyZWZfY29tbWl0X29pZDo0YzQ4YjBjOGYyMDcxZjc2N2E5NjNlMjNlMGE0YjhkODdkMTk0YzYwLHJvb3RfdHJlZV9lbnRyeV9vaWQ6NWU0NjM2NjA2NGExMDFlMjQ1MDE4YzJiN2UxNzQ1YTA4NjFlYzQ0YixwYXRoX29iamVjdF90eXBlOnRyZWUscGF0aF9vYmplY3Rfb2lkOjVlNDYzNjYwNjRhMTAxZTI0NTAxOGMyYjdlMTc0NWEwODYxZWM0NGIscGF0aF9vYmplY3RfbW9kZToscGF0aF9vYmplY3Rfc2l6ZTo=
 x-xss-protection: 0
-date: Sun, 11 Jan 2026 18:10:12 GMT
+date: Tue, 13 Jan 2026 10:55:10 GMT
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4970
-x-ratelimit-reset: 1768156329
-x-ratelimit-used: 30
+x-ratelimit-remaining: 5000
+x-ratelimit-reset: 1768305009
+x-ratelimit-used: 0
 x-ratelimit-resource: core
-x-github-request-id: EA5C:36C14D:A2947C0:8F1295C:6963E783
-OkHttp-Sent-Millis: 1768155011857
-OkHttp-Received-Millis: 1768155012067
+x-github-request-id: F3C4:13C209:4CF2DA3:44FD563:6966248E
+OkHttp-Sent-Millis: 1768301710319
+OkHttp-Received-Millis: 1768301710514
 
 TLS_AES_128_GCM_SHA256
 3

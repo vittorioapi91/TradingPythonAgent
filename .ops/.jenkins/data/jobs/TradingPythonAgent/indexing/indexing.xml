@@ -4,9 +4,7 @@
     <hudson.model.CauseAction>
       <causeBag class="linked-hash-map">
         <entry>
-          <hudson.model.Cause_-UserIdCause>
-            <userId>vittorioapi</userId>
-          </hudson.model.Cause_-UserIdCause>
+          <hudson.triggers.TimerTrigger_-TimerTriggerCause/>
           <int>1</int>
         </entry>
       </causeBag>
@@ -19,8 +17,8 @@
     <completeBuild>true</completeBuild>
   </result>
   <durations>
-    <long>2426</long>
+    <long>2184</long>
   </durations>
-  <timestamp>1768155009898</timestamp>
-  <duration>2426</duration>
+  <timestamp>1768301708907</timestamp>
+  <duration>2184</duration>
 </jenkins.branch.MultiBranchProject_-BranchIndexing>

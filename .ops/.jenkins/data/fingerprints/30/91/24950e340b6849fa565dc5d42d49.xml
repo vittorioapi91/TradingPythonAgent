@@ -5,12 +5,16 @@
   <fileName>Credential id=39a94d87-8a43-468b-9138-14b4f86d7b93 name=vittorioapi/******</fileName>
   <usages>
     <entry>
-      <string>TradingPythonAgent/dev</string>
-      <ranges>1-9</ranges>
+      <string>TradingPythonAgent/main</string>
+      <ranges>1-8</ranges>
     </entry>
     <entry>
-      <string>TradingPythonAgent/main</string>
-      <ranges>1-6</ranges>
+      <string>TradingPythonAgent/staging</string>
+      <ranges>1-2</ranges>
+    </entry>
+    <entry>
+      <string>TradingPythonAgent/dev%2FDEV-4%2Ftrading_agent-fundamentals</string>
+      <ranges>1-9</ranges>
     </entry>
   </usages>
   <facets/>

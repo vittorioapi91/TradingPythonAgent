@@ -11,10 +11,10 @@ x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admi
 x-accepted-oauth-scopes: 
 x-github-media-type: github.v3; format=json
 content-encoding: gzip
-date: Sun, 11 Jan 2026 17:37:21 GMT
+date: Tue, 13 Jan 2026 10:02:17 GMT
 cache-control: private, max-age=60, s-maxage=60
 vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-etag: "84a54c973385b2022ffc5181913fa312e1eef39f2fe017c98ed8bb59d461cee5"
+etag: "54af60a64954fa5dd28457553f8e69344bb430448a5cfccc0fcd1404d0009947"
 last-modified: Sun, 11 Jan 2026 09:32:10 GMT
 x-github-api-version-selected: 2022-11-28
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
@@ -27,13 +27,13 @@ referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 content-security-policy: default-src 'none'
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4991
-x-ratelimit-reset: 1768156329
-x-ratelimit-used: 9
+x-ratelimit-remaining: 4977
+x-ratelimit-reset: 1768301181
+x-ratelimit-used: 23
 x-ratelimit-resource: core
-x-github-request-id: E10A:2FD1B8:A1C4577:8E4765B:6963DFD1
-OkHttp-Sent-Millis: 1768153041764
-OkHttp-Received-Millis: 1768153041978
+x-github-request-id: E5C4:DEEED:4625E45:3EB3A70:69661829
+OkHttp-Sent-Millis: 1768298537564
+OkHttp-Received-Millis: 1768298537789
 
 TLS_AES_128_GCM_SHA256
 3

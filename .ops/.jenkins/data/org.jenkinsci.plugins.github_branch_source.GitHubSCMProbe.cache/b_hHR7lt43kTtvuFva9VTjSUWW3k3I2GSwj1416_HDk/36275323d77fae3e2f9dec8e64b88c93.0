@@ -6,14 +6,15 @@ Accept-Encoding: gzip
 Authorization: Basic dml0dG9yaW9hcGk6Z2hwX3h4S0J2VzI4eGtrUm5kMEdFZ0NmaEppZERyV2R4cTB4QTM3Qg==
 HTTP/1.1 200 
 27
-date: Sun, 11 Jan 2026 18:10:11 GMT
 content-type: application/json; charset=utf-8
-cache-control: private, max-age=60, s-maxage=60
-vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
-etag: W/"c7339c9bce3d54a9e386c399d3516d6f10937a4920a5f47152e8131534b1f86a"
 x-oauth-scopes: admin:enterprise, admin:gpg_key, admin:org, admin:org_hook, admin:public_key, admin:repo_hook, admin:ssh_signing_key, audit_log, codespace, copilot, delete:packages, delete_repo, gist, notifications, project, repo, user, workflow, write:discussion, write:network_configurations, write:packages
 x-accepted-oauth-scopes: 
 x-github-media-type: github.v3; format=json
+content-encoding: gzip
+date: Tue, 13 Jan 2026 10:55:10 GMT
+cache-control: private, max-age=60, s-maxage=60
+vary: Accept, Authorization, Cookie, X-GitHub-OTP,Accept-Encoding, Accept, X-Requested-With
+etag: "7dd844e29e9310c77931fb0ebde3c5b7f8b39973c3d2535ea12425d1998641ab"
 x-github-api-version-selected: 2022-11-28
 access-control-expose-headers: ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset
 access-control-allow-origin: *
@@ -23,16 +24,15 @@ x-content-type-options: nosniff
 x-xss-protection: 0
 referrer-policy: origin-when-cross-origin, strict-origin-when-cross-origin
 content-security-policy: default-src 'none'
-content-encoding: gzip
 server: github.com
 x-ratelimit-limit: 5000
-x-ratelimit-remaining: 4971
-x-ratelimit-reset: 1768156329
-x-ratelimit-used: 29
+x-ratelimit-remaining: 5000
+x-ratelimit-reset: 1768305009
+x-ratelimit-used: 0
 x-ratelimit-resource: core
-x-github-request-id: EA5C:36C14D:A2944A8:8F1269B:6963E783
-OkHttp-Sent-Millis: 1768155011343
-OkHttp-Received-Millis: 1768155011828
+x-github-request-id: F3C4:13C209:4CF2BCB:44FD3BA:6966248E
+OkHttp-Sent-Millis: 1768301710074
+OkHttp-Received-Millis: 1768301710314
 
 TLS_AES_128_GCM_SHA256
 3

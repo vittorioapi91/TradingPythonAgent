@@ -1,4 +1,6 @@
-TradingPythonAgent/dev
-TradingPythonAgent_dev
+TradingPythonAgent/dev%2FDEV-4%2Ftrading_agent-fundamentals
+DEV-4_trading_agent-fundamentals
 TradingPythonAgent/main
 TradingPythonAgent_main
+TradingPythonAgent/staging
+TradingPythonAgent_staging
