@@ -28,11 +28,11 @@ ENV/
 .venv-kserve
 
 # IDE
+# Allow all .vscode configuration files
 .vscode/*
-!.vscode/launch.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/extensions.json
+!.vscode/**/*.json
+!.vscode/**/*.md
+!.vscode/**/*.py
 .idea/
 *.swp
 *.swo

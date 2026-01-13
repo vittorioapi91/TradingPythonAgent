@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "HMM Model Calibration (Local Debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/model/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "POSTGRES_PASSWORD": "${env:POSTGRES_PASSWORD}",
+                "POSTGRES_PORT": "55432",
+                "MLFLOW_TRACKING_URI": "http://localhost:55000"
+            },
+            "args": [
+                "--series-ids", "GDP", "UNRATE", "CPIAUCSL",
+                "--start-date", "2000-01-01",
+                "--n-regimes", "4",
+                "--covariance-type", "full",
+                "--random-state", "42",
+                "--feature-method", "pct_change",
+                "--dbname", "fred",
+                "--dbuser", "tradingAgent",
+                "--dbhost", "localhost",
+                "--mlflow-tracking-uri", "http://localhost:55000",
+                "--experiment-name", "macro-cycle-hmm",
+                "--prometheus-port", "8000"
+            ],
+            "justMyCode": false,
+            "stopOnEntry": false
+        }
+    ]
+}
