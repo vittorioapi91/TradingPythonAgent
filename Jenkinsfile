@@ -93,17 +93,20 @@ pipeline {
                     
                     echo "JIRA URL: ${jiraUrl}"
                     echo "JIRA User: ${jiraUser}"
+                    echo "JIRA Token length: ${jiraToken.length()} characters"
+                    echo "JIRA Token starts with: ${jiraToken.take(10)}..."
                     
                     // Test connection by getting current user info (doesn't require specific issue)
                     def testApiUrl = "${jiraUrl}/rest/api/3/myself"
                     
+                    // Try with email as username first (most common)
                     def responseCode = sh(
                         script: """
-                            curl -s -o /tmp/jira_test_response.json -w '%{http_code}' \\
+                            curl -v -s -o /tmp/jira_test_response.json -w '%{http_code}' \\
                                 -u '${jiraUser}:${jiraToken}' \\
                                 -X GET \\
                                 -H 'Accept: application/json' \\
-                                '${testApiUrl}' 2>&1
+                                '${testApiUrl}' 2>&1 | tee /tmp/jira_test_curl_debug.log || true
                         """,
                         returnStdout: true
                     ).trim()
@@ -111,15 +114,55 @@ pipeline {
                     // Extract HTTP status code
                     responseCode = responseCode.split('\n')[-1].trim()
                     
+                    // Show debug info for troubleshooting
+                    if (responseCode != '200') {
+                        echo "Debug information:"
+                        sh """
+                            echo "Response code: ${responseCode}"
+                            echo "Curl debug log (showing auth header info):"
+                            grep -i 'authorization\\|www-authenticate\\|401\\|403' /tmp/jira_test_curl_debug.log | head -10 || cat /tmp/jira_test_curl_debug.log | tail -30
+                            echo ""
+                            echo "Response body:"
+                            cat /tmp/jira_test_response.json | head -20 || echo "No response body"
+                        """
+                        
+                        // If 401, try alternative: account ID instead of email
+                        if (responseCode == '401') {
+                            echo "Attempting alternative authentication method..."
+                            // Try with account ID (extract from email if possible, or use email as-is)
+                            def accountId = jiraUser
+                            responseCode = sh(
+                                script: """
+                                    curl -s -o /tmp/jira_test_response2.json -w '%{http_code}' \\
+                                        -u '${accountId}:${jiraToken}' \\
+                                        -X GET \\
+                                        -H 'Accept: application/json' \\
+                                        '${testApiUrl}' 2>&1
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            responseCode = responseCode.split('\n')[-1].trim()
+                            
+                            if (responseCode == '200') {
+                                echo "✓ JIRA connection successful (using account ID)"
+                                sh """
+                                    echo "User info:"
+                                    cat /tmp/jira_test_response2.json | python3 -m json.tool 2>/dev/null | head -20 || cat /tmp/jira_test_response2.json | head -10
+                                    rm -f /tmp/jira_test_response2.json
+                                """
+                            }
+                        }
+                    }
+                    
                     if (responseCode == '200') {
                         echo "✓ JIRA connection successful"
                         sh """
                             echo "User info:"
                             cat /tmp/jira_test_response.json | python3 -m json.tool 2>/dev/null | head -20 || cat /tmp/jira_test_response.json | head -10
-                            rm -f /tmp/jira_test_response.json
+                            rm -f /tmp/jira_test_response.json /tmp/jira_test_curl_debug.log
                         """
                     } else if (responseCode == '401' || responseCode == '403') {
-                        error("JIRA authentication failed (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN credentials.")
+                        error("JIRA authentication failed (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN credentials. Note: New tokens may take up to a minute to activate.")
                     } else {
                         error("JIRA connection failed (HTTP ${responseCode}). Please check JIRA_URL (${jiraUrl}) and network connectivity.")
                     }
