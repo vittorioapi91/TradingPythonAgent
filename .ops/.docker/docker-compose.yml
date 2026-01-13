@@ -150,7 +150,7 @@ services:
       # JIRA configuration for feature branch validation
       - JIRA_URL=https://vittorioapi91.atlassian.net
       - JIRA_USER=vittorioapi91@gmail.com
-      - JIRA_API_TOKEN=ATATT3xFfGF0jAwlCw9BuFVV0RlFMdsDNVPv6d9jwuJqXfHNOmW_eH6Rh8zaLc8aRh03C8NcrUBCGoC9AlgLDz8vDrvKI3ca2egQVsoaeE8cNfDHvQWiIO5olCMoetLFEGtvR7Qo2oa2kjWwoa_Z1hZzYtTietw1-2Pt9ayesKz7Q1YA49ZCCV4=66C37C2A
+      - JIRA_API_TOKEN=ATATT3xFfGF0X2ORyNBVPCGC44Z2a0VdyOa2IpPHQ-Hoe3ER0z7J19uGZisnrDMgJNjnWVfgUD1TBnJQpLxhe3mmPU4RXoQrZYPzJklEsesER06GUaSHq0SJcVXcIzXzRkwbA8j31_8paZCn0H_PB06naDKgdiPP6Wcl1FJppzvtRDRfZKU-Bew=2190D79E
     volumes:
       - ../.jenkins/data:/var/jenkins_home  # Mount extracted Jenkins data
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for docker build
