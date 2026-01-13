@@ -28,7 +28,8 @@ ENV/
 .venv-kserve
 
 # IDE
-.vscode/
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo

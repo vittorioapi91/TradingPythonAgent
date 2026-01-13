@@ -1,0 +1,407 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "EDGAR - Download All Companies",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-db",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Download Single Ticker",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--ticker",
+                "WMT",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Download Multiple Tickers",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--ticker",
+                "NVDA, AAPL, MSFT",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Process ZIP Files",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--process-zips",
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Generate Catalog (All Companies)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-catalog"
+            ],
+            "env": {
+                "POSTGRES_PASSWORD": "2014",
+                "POSTGRES_PORT": "5432"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Generate Catalog (Single Ticker: NVDA)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-catalog",
+                "--ticker",
+                "NVDA"
+            ],
+            "env": {
+                "POSTGRES_PASSWORD": "2014",
+                "POSTGRES_PORT": "5432"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Generate Catalog (Multiple Tickers)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-catalog",
+                "--ticker",
+                "NVDA, AAPL, MSFT"
+            ],
+            "env": {
+                "POSTGRES_PASSWORD": "2014",
+                "POSTGRES_PORT": "5432"
+            },
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "FRED - Generate Catalog",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro/fred/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-db"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "FRED - Download Specific Series (GDP, UNRATE)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro/fred/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--series",
+                "GDP",
+                "UNRATE",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro/fred/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BLS - Generate Parquet Database",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bls/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/bls/bls_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BLS - Download Specific Series",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bls/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--series",
+                "CUUR0000SA0",
+                "SUUR0000SA0",
+                "--start-year",
+                "2020",
+                "--end-year",
+                "2024",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/bls/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BLS - List Surveys",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bls/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--list-surveys"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Eurostat - Generate Parquet Database",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/eurostat_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Eurostat - Download from Parquet",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/eurostat_parquet",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/data",
+                "--format",
+                "both"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Eurostat - Download Specific Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--dataset",
+                "nama_10_gdp",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "IMF - Generate Parquet Database (IFS)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/imf/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--database",
+                "IFS",
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/imf/imf_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "IMF - Download from Parquet",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/imf/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/imf/imf_parquet",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/imf/data",
+                "--format",
+                "both"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "IMF - Download Specific Indicators",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/imf/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--database",
+                "IFS",
+                "--series",
+                "NGDP_RPCH",
+                "NGDPD",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/imf/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "IMF - List Databases",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/imf/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--list-databases"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "IMF - List Indicators (IFS)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/imf/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--database",
+                "IFS",
+                "--list-indicators"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BIS - List Dataflows",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--list-dataflows"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BIS - Generate Parquet Database",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/bis_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BIS - Download Dataset (Example)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/bis_parquet",
+                "--dataflow",
+                "WS_CBPOL_D",
+                "--key",
+                "ALL",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "HMM Model Calibration (Local Debug)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/model/main.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}",
+                "POSTGRES_PASSWORD": "${env:POSTGRES_PASSWORD}",
+                "POSTGRES_PORT": "55432",
+                "MLFLOW_TRACKING_URI": "http://localhost:55000"
+            },
+            "args": [
+                "--series-ids",
+                "GDP",
+                "UNRATE",
+                "CPIAUCSL",
+                "--start-date",
+                "2000-01-01",
+                "--select-by-aic",
+                "--min-regimes",
+                "2",
+                "--max-regimes",
+                "8",
+                "--covariance-type",
+                "full",
+                "--random-state",
+                "42",
+                "--feature-method",
+                "pct_change",
+                "--dbname",
+                "fred",
+                "--dbuser",
+                "tradingAgent",
+                "--dbhost",
+                "localhost",
+                "--mlflow-tracking-uri",
+                "http://localhost:55000",
+                "--experiment-name",
+                "macro-cycle-hmm",
+                "--prometheus-port",
+                "8000"
+            ],
+            "justMyCode": false,
+            "stopOnEntry": false
+        }
+    ]
+}
