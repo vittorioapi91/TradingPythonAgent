@@ -74,6 +74,59 @@ pipeline {
             }
         }
         
+        // JIRA connectivity test (only for feature branches)
+        stage('Test JIRA Connection') {
+            when {
+                expression { env.IS_FEATURE_BRANCH == 'true' }
+            }
+            steps {
+                script {
+                    echo "Testing JIRA connection..."
+                    
+                    // Get JIRA configuration from environment variables
+                    def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
+                    def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
+                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    
+                    // Ensure JIRA URL doesn't have trailing slash
+                    jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
+                    
+                    echo "JIRA URL: ${jiraUrl}"
+                    echo "JIRA User: ${jiraUser}"
+                    
+                    // Test connection by getting current user info (doesn't require specific issue)
+                    def testApiUrl = "${jiraUrl}/rest/api/3/myself"
+                    
+                    def responseCode = sh(
+                        script: """
+                            curl -s -o /tmp/jira_test_response.json -w '%{http_code}' \\
+                                -u '${jiraUser}:${jiraToken}' \\
+                                -X GET \\
+                                -H 'Accept: application/json' \\
+                                '${testApiUrl}' 2>&1
+                        """,
+                        returnStdout: true
+                    ).trim()
+                    
+                    // Extract HTTP status code
+                    responseCode = responseCode.split('\n')[-1].trim()
+                    
+                    if (responseCode == '200') {
+                        echo "✓ JIRA connection successful"
+                        sh """
+                            echo "User info:"
+                            cat /tmp/jira_test_response.json | python3 -m json.tool 2>/dev/null | head -20 || cat /tmp/jira_test_response.json | head -10
+                            rm -f /tmp/jira_test_response.json
+                        """
+                    } else if (responseCode == '401' || responseCode == '403') {
+                        error("JIRA authentication failed (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN credentials.")
+                    } else {
+                        error("JIRA connection failed (HTTP ${responseCode}). Please check JIRA_URL (${jiraUrl}) and network connectivity.")
+                    }
+                }
+            }
+        }
+        
         // JIRA issue validation stage (only for feature branches)
         stage('Validate JIRA Issue') {
             when {
@@ -94,10 +147,8 @@ pipeline {
                     // Construct JIRA API endpoint
                     def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${env.JIRA_ISSUE}"
                     
-                    echo "JIRA URL: ${jiraUrl}"
                     echo "JIRA Issue: ${env.JIRA_ISSUE}"
                     echo "API Endpoint: ${jiraApiUrl}"
-                    echo "User: ${jiraUser}"
                     
                     // Validate JIRA issue exists using curl
                     def responseCode = sh(
