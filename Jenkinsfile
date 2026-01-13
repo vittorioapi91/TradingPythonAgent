@@ -84,84 +84,59 @@ pipeline {
                     echo "Validating JIRA issue: ${env.JIRA_ISSUE}"
                     
                     // Get JIRA configuration from environment variables
-                    def jiraUrl = env.JIRA_URL ?: error("JIRA_URL environment variable is required")
+                    def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
                     def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
                     def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
                     
-                    // Try to determine JIRA project key if not already in the issue key
-                    // If issue key is like "DEV-4", try to find the actual project key
-                    def jiraIssueKey = env.JIRA_ISSUE
-                    def jiraProjectKey = env.JIRA_PROJECT_KEY ?: ''
-                    
-                    // If JIRA_PROJECT_KEY is set and issue doesn't contain it, prepend it
-                    if (jiraProjectKey && !jiraIssueKey.startsWith(jiraProjectKey)) {
-                        // Extract number from issue key (e.g., "4" from "DEV-4")
-                        def issueNumber = jiraIssueKey.split('-')[-1]
-                        jiraIssueKey = "${jiraProjectKey}-${issueNumber}"
-                        echo "Using JIRA project key '${jiraProjectKey}': ${jiraIssueKey}"
-                    }
+                    // Ensure JIRA URL doesn't have trailing slash
+                    jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
                     
                     // Construct JIRA API endpoint
-                    def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${jiraIssueKey}"
+                    def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${env.JIRA_ISSUE}"
                     
-                    echo "Checking JIRA issue: ${jiraIssueKey}"
-                    echo "API URL: ${jiraApiUrl}"
+                    echo "JIRA URL: ${jiraUrl}"
+                    echo "JIRA Issue: ${env.JIRA_ISSUE}"
+                    echo "API Endpoint: ${jiraApiUrl}"
+                    echo "User: ${jiraUser}"
                     
                     // Validate JIRA issue exists using curl
                     def responseCode = sh(
                         script: """
-                            curl -s -o /tmp/jira_response.json -w '%{http_code}' \\
+                            curl -v -s -o /tmp/jira_response.json -w '%{http_code}' \\
                                 -u '${jiraUser}:${jiraToken}' \\
                                 -X GET \\
                                 -H 'Accept: application/json' \\
-                                '${jiraApiUrl}'
+                                '${jiraApiUrl}' 2>&1 | tee /tmp/jira_curl_debug.log || true
                         """,
                         returnStdout: true
                     ).trim()
                     
-                    // If 404 and we haven't tried with project key, try alternative formats
-                    if (responseCode == '404' && !jiraProjectKey && env.JIRA_ISSUE.contains('-')) {
-                        echo "Issue ${env.JIRA_ISSUE} not found. Trying alternative formats..."
-                        
-                        // Try common project key formats
-                        def alternativeKeys = [
-                            "TRADINGPYTHONAGENT-${env.JIRA_ISSUE.split('-')[-1]}",
-                            "TPA-${env.JIRA_ISSUE.split('-')[-1]}",
-                            "TRADING-${env.JIRA_ISSUE.split('-')[-1]}"
-                        ]
-                        
-                        for (def altKey : alternativeKeys) {
-                            def altUrl = "${jiraUrl}/rest/api/3/issue/${altKey}"
-                            def altResponseCode = sh(
-                                script: """
-                                    curl -s -o /tmp/jira_response.json -w '%{http_code}' \\
-                                        -u '${jiraUser}:${jiraToken}' \\
-                                        -X GET \\
-                                        -H 'Accept: application/json' \\
-                                        '${altUrl}'
-                                """,
-                                returnStdout: true
-                            ).trim()
-                            
-                            if (altResponseCode == '200') {
-                                echo "✓ Found JIRA issue with alternative key: ${altKey}"
-                                jiraIssueKey = altKey
-                                responseCode = '200'
-                                break
-                            }
-                        }
+                    // Extract HTTP status code (last line should be the code)
+                    responseCode = responseCode.split('\n')[-1].trim()
+                    
+                    // Show debug info for troubleshooting
+                    if (responseCode != '200') {
+                        echo "Debug information:"
+                        sh """
+                            echo "Response code: ${responseCode}"
+                            echo "Curl debug log:"
+                            cat /tmp/jira_curl_debug.log | tail -20 || true
+                            echo ""
+                            echo "Response body:"
+                            cat /tmp/jira_response.json | head -50 || true
+                        """
                     }
                     
                     if (responseCode == '200') {
-                        echo "✓ JIRA issue ${jiraIssueKey} exists and is accessible"
+                        echo "✓ JIRA issue ${env.JIRA_ISSUE} exists and is accessible"
                         // Optionally parse and display issue details
                         sh """
                             echo "Issue details:"
                             cat /tmp/jira_response.json | python3 -m json.tool 2>/dev/null | head -30 || cat /tmp/jira_response.json | head -20
-                            rm -f /tmp/jira_response.json
+                            rm -f /tmp/jira_response.json /tmp/jira_curl_debug.log
                         """
                     } else if (responseCode == '404') {
-                        error("JIRA issue ${env.JIRA_ISSUE} (tried as ${jiraIssueKey}) does not exist (HTTP 404). Please create the issue in JIRA before building this branch. If using a different project key, set JIRA_PROJECT_KEY environment variable.")
+                        error("JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please verify the issue exists at ${jiraUrl}/browse/${env.JIRA_ISSUE}")
                     } else if (responseCode == '401' || responseCode == '403') {
                         error("Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN.")
                     } else {
