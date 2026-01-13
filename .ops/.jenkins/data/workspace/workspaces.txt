@@ -1,4 +1,0 @@
-TradingPythonAgent/dev
-TradingPythonAgent_dev
-TradingPythonAgent/main
-TradingPythonAgent_main

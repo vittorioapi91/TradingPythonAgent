@@ -53,11 +53,6 @@ Thumbs.db
 **/backup_parquet/
 **/edgar_companies/
 
-# Jenkins build artifacts and logs (may contain sensitive data)
-.ops/.jenkins/data/jobs/**/builds/**/log*
-.ops/.jenkins/data/jobs/**/builds/**/workflow-completed/**
-.ops/.jenkins/data/jobs/**/builds/**/build.xml
-.ops/.jenkins/data/jobs/**/builds/**/changelog*.xml
-.ops/.jenkins/data/logs/**
-.ops/.jenkins/**/*.log
-.ops/.jenkins/**/*.log.*
+# Jenkins data (runtime/operational data - should not be versioned)
+# Exclude entire data directory - all runtime Jenkins data
+.ops/.jenkins/data/
