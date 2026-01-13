@@ -75,13 +75,9 @@ pipeline {
         }
         
         // JIRA issue validation stage (only for feature branches)
-        // Can be skipped by setting SKIP_JIRA_VALIDATION=true
         stage('Validate JIRA Issue') {
             when {
-                expression { 
-                    env.IS_FEATURE_BRANCH == 'true' && 
-                    env.SKIP_JIRA_VALIDATION != 'true'
-                }
+                expression { env.IS_FEATURE_BRANCH == 'true' }
             }
             steps {
                 script {
@@ -92,8 +88,24 @@ pipeline {
                     def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
                     def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
                     
+                    // Try to determine JIRA project key if not already in the issue key
+                    // If issue key is like "DEV-4", try to find the actual project key
+                    def jiraIssueKey = env.JIRA_ISSUE
+                    def jiraProjectKey = env.JIRA_PROJECT_KEY ?: ''
+                    
+                    // If JIRA_PROJECT_KEY is set and issue doesn't contain it, prepend it
+                    if (jiraProjectKey && !jiraIssueKey.startsWith(jiraProjectKey)) {
+                        // Extract number from issue key (e.g., "4" from "DEV-4")
+                        def issueNumber = jiraIssueKey.split('-')[-1]
+                        jiraIssueKey = "${jiraProjectKey}-${issueNumber}"
+                        echo "Using JIRA project key '${jiraProjectKey}': ${jiraIssueKey}"
+                    }
+                    
                     // Construct JIRA API endpoint
-                    def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${env.JIRA_ISSUE}"
+                    def jiraApiUrl = "${jiraUrl}/rest/api/3/issue/${jiraIssueKey}"
+                    
+                    echo "Checking JIRA issue: ${jiraIssueKey}"
+                    echo "API URL: ${jiraApiUrl}"
                     
                     // Validate JIRA issue exists using curl
                     def responseCode = sh(
@@ -107,8 +119,41 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
+                    // If 404 and we haven't tried with project key, try alternative formats
+                    if (responseCode == '404' && !jiraProjectKey && env.JIRA_ISSUE.contains('-')) {
+                        echo "Issue ${env.JIRA_ISSUE} not found. Trying alternative formats..."
+                        
+                        // Try common project key formats
+                        def alternativeKeys = [
+                            "TRADINGPYTHONAGENT-${env.JIRA_ISSUE.split('-')[-1]}",
+                            "TPA-${env.JIRA_ISSUE.split('-')[-1]}",
+                            "TRADING-${env.JIRA_ISSUE.split('-')[-1]}"
+                        ]
+                        
+                        for (def altKey : alternativeKeys) {
+                            def altUrl = "${jiraUrl}/rest/api/3/issue/${altKey}"
+                            def altResponseCode = sh(
+                                script: """
+                                    curl -s -o /tmp/jira_response.json -w '%{http_code}' \\
+                                        -u '${jiraUser}:${jiraToken}' \\
+                                        -X GET \\
+                                        -H 'Accept: application/json' \\
+                                        '${altUrl}'
+                                """,
+                                returnStdout: true
+                            ).trim()
+                            
+                            if (altResponseCode == '200') {
+                                echo "✓ Found JIRA issue with alternative key: ${altKey}"
+                                jiraIssueKey = altKey
+                                responseCode = '200'
+                                break
+                            }
+                        }
+                    }
+                    
                     if (responseCode == '200') {
-                        echo "✓ JIRA issue ${env.JIRA_ISSUE} exists and is accessible"
+                        echo "✓ JIRA issue ${jiraIssueKey} exists and is accessible"
                         // Optionally parse and display issue details
                         sh """
                             echo "Issue details:"
@@ -116,17 +161,11 @@ pipeline {
                             rm -f /tmp/jira_response.json
                         """
                     } else if (responseCode == '404') {
-                        echo "⚠ WARNING: JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404)."
-                        echo "⚠ The issue may use a different project key format (e.g., TRADINGPYTHONAGENT-4 instead of DEV-4)."
-                        echo "⚠ Continuing build anyway. To skip JIRA validation, set SKIP_JIRA_VALIDATION=true"
-                        // Don't fail the build - just warn
-                        // error("JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please create the issue in JIRA before building this branch.")
+                        error("JIRA issue ${env.JIRA_ISSUE} (tried as ${jiraIssueKey}) does not exist (HTTP 404). Please create the issue in JIRA before building this branch. If using a different project key, set JIRA_PROJECT_KEY environment variable.")
                     } else if (responseCode == '401' || responseCode == '403') {
                         error("Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN.")
                     } else {
-                        echo "⚠ WARNING: Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode})."
-                        echo "⚠ Continuing build anyway. Check JIRA_URL and network connectivity if needed."
-                        // Don't fail the build for network issues
+                        error("Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode}). Please check JIRA_URL and network connectivity.")
                     }
                 }
             }
