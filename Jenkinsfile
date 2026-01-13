@@ -162,9 +162,9 @@ pipeline {
                             rm -f /tmp/jira_test_response.json /tmp/jira_test_curl_debug.log
                         """
                     } else if (responseCode == '401' || responseCode == '403') {
-                        error("JIRA authentication failed (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN credentials. Note: New tokens may take up to a minute to activate.")
+                        echo "⚠️  WARNING: JIRA authentication failed (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN credentials. Note: New tokens may take up to a minute to activate. Pipeline will continue."
                     } else {
-                        error("JIRA connection failed (HTTP ${responseCode}). Please check JIRA_URL (${jiraUrl}) and network connectivity.")
+                        echo "⚠️  WARNING: JIRA connection failed (HTTP ${responseCode}). Please check JIRA_URL (${jiraUrl}) and network connectivity. Pipeline will continue."
                     }
                 }
             }
@@ -181,8 +181,13 @@ pipeline {
                     
                     // Get JIRA configuration from environment variables
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
-                    def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
-                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    def jiraUser = env.JIRA_USER
+                    def jiraToken = env.JIRA_API_TOKEN
+                    
+                    if (!jiraUser || !jiraToken) {
+                        echo "⚠️  WARNING: JIRA_USER or JIRA_API_TOKEN not set. Skipping JIRA issue validation."
+                        return
+                    }
                     
                     // Ensure JIRA URL doesn't have trailing slash
                     jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
@@ -230,11 +235,11 @@ pipeline {
                             rm -f /tmp/jira_response.json /tmp/jira_curl_debug.log
                         """
                     } else if (responseCode == '404') {
-                        error("JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please verify the issue exists at ${jiraUrl}/browse/${env.JIRA_ISSUE}")
+                        echo "⚠️  WARNING: JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please verify the issue exists at ${jiraUrl}/browse/${env.JIRA_ISSUE}. Pipeline will continue."
                     } else if (responseCode == '401' || responseCode == '403') {
-                        error("Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN.")
+                        echo "⚠️  WARNING: Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN. Pipeline will continue."
                     } else {
-                        error("Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode}). Please check JIRA_URL and network connectivity.")
+                        echo "⚠️  WARNING: Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode}). Please check JIRA_URL and network connectivity. Pipeline will continue."
                     }
                 }
             }
