@@ -46,6 +46,10 @@ ENV/
 
 # OS
 .DS_Store
+
+# Jenkins data (runtime/operational data - should not be versioned)
+# Exclude entire data directory - all runtime Jenkins data
+.ops/.jenkins/data/
 Thumbs.db
 
 # Large data files
