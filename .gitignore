@@ -54,9 +54,5 @@ Thumbs.db
 **/edgar_companies/
 
 # Jenkins data (runtime/operational data - should not be versioned)
-# Exclude all job configurations and build artifacts (Jenkins manages these)
-.ops/.jenkins/data/jobs/
-# Exclude all logs
-.ops/.jenkins/data/logs/
-.ops/.jenkins/**/*.log
-.ops/.jenkins/**/*.log.*
+# Exclude entire data directory - all runtime Jenkins data
+.ops/.jenkins/data/
