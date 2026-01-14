@@ -311,7 +311,9 @@ pipeline {
                         reportName: 'Test Report',
                         reportDir: 'test-results',
                         reportFiles: 'report.html',
-                        keepAll: true
+                        keepAll: true,
+                        alwaysLinkToLastBuild: true,
+                        allowMissing: false
                     ])
                 }
             }
