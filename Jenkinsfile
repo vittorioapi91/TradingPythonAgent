@@ -268,6 +268,26 @@ pipeline {
             }
         }
         
+        stage('Run Tests') {
+            steps {
+                script {
+                    echo "Running unit tests..."
+                    sh """
+                        # Install pytest if not already installed
+                        python3 -m pip install --quiet pytest pytest-mock || pip3 install --quiet pytest pytest-mock || pip install --quiet pytest pytest-mock
+                        
+                        # Run tests with verbose output
+                        python3 -m pytest tests/ -v --tb=short || {
+                            echo "⚠️  Some tests failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        echo "✓ All tests passed"
+                    """
+                }
+            }
+        }
+        
         stage('Build Docker Image') {
             steps {
                 script {
