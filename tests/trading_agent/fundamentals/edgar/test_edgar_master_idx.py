@@ -165,7 +165,7 @@ class TestEDGARMasterIdxSaving:
         assert csv_file.exists()
         
         # Verify CSV content
-        df = pd.read_csv(csv_file)
+        df = pd.read_csv(csv_file, dtype={'cik': str})  # Read CIK as string to preserve leading zeros
         assert len(df) == 1
         assert df.iloc[0]['cik'] == '0001000045'
     
@@ -261,11 +261,14 @@ class TestEDGARMasterIdxDownload:
         # Verify failure was marked
         assert mock_mark_failed.called
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
-        self, mock_get_status, mock_conn, downloader
+        self, mock_get_status, mock_get_pending, mock_conn, downloader
     ):
         """Test that successful quarters are skipped"""
+        # Mock get_pending_or_failed_quarters to return empty list
+        mock_get_pending.return_value = []
         # Mock all quarters as successful
         mock_get_status.return_value = {'status': 'success'}
         
@@ -296,7 +299,8 @@ class TestEDGARMasterIdxDatabase:
         downloader.master_dir.mkdir(exist_ok=True)
         return downloader
     
-    def test_save_master_idx_to_db_loads_csv_files(self, downloader, mock_conn, tmp_path):
+    @patch('src.trading_agent.fundamentals.edgar.edgar.execute_values')
+    def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, downloader, mock_conn, tmp_path):
         """Test that _save_master_idx_to_db loads CSV files correctly"""
         # Create test CSV file
         year_dir = downloader.master_dir / "2022"
@@ -313,7 +317,7 @@ class TestEDGARMasterIdxDatabase:
         csv_file = year_dir / "QTR4_master_parsed.csv"
         test_df.to_csv(csv_file, index=False)
         
-        # Mock cursor and execute_values
+        # Mock cursor
         cursor = mock_conn.cursor.return_value
         
         downloader._save_master_idx_to_db(mock_conn)
