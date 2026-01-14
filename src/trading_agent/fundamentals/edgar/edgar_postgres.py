@@ -10,6 +10,7 @@ from datetime import datetime
 import psycopg2
 from psycopg2.extras import execute_values, RealDictCursor
 from psycopg2 import sql
+import pandas as pd
 
 
 def get_postgres_connection(dbname: str = "edgar", user: Optional[str] = None, 
@@ -218,12 +219,74 @@ def init_edgar_postgres_tables(conn: psycopg2.extensions.connection) -> None:
             initial_metadata
         )
     
+    # Create master_idx_files table for storing parsed master.idx file data
+    master_idx_existed = table_exists('master_idx_files')
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS master_idx_files (
+            year INTEGER NOT NULL,
+            quarter VARCHAR(10) NOT NULL,
+            cik VARCHAR(10) NOT NULL,
+            company_name TEXT NOT NULL,
+            form_type VARCHAR(50) NOT NULL,
+            date_filed DATE NOT NULL,
+            filename TEXT NOT NULL,
+            accession_number VARCHAR(50),
+            downloaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (year, quarter, cik, form_type, date_filed, filename)
+        )
+    """)
+    if not master_idx_existed:
+        print("  ✓ Created master_idx_files table")
+    
+    # Create indexes for faster lookups
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_master_idx_files_year_quarter 
+        ON master_idx_files(year, quarter)
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_master_idx_files_cik 
+        ON master_idx_files(cik)
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_master_idx_files_form_type 
+        ON master_idx_files(form_type)
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_master_idx_files_date_filed 
+        ON master_idx_files(date_filed)
+    """)
+    
+    # Create master_idx_download_ledger table for tracking download status
+    ledger_existed = table_exists('master_idx_download_ledger')
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS master_idx_download_ledger (
+            year INTEGER NOT NULL,
+            quarter VARCHAR(10) NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'pending',
+            downloaded_at TIMESTAMP,
+            failed_at TIMESTAMP,
+            error_message TEXT,
+            retry_count INTEGER DEFAULT 0,
+            last_attempt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (year, quarter),
+            CHECK (status IN ('pending', 'success', 'failed'))
+        )
+    """)
+    if not ledger_existed:
+        print("  ✓ Created master_idx_download_ledger table")
+    
+    # Create index for faster lookups
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_master_idx_ledger_status 
+        ON master_idx_download_ledger(status)
+    """)
+    
     # Verify all tables were created before committing
     cur.execute("""
         SELECT table_name 
         FROM information_schema.tables 
         WHERE table_schema = 'public' 
-        AND table_name IN ('companies', 'filings', 'company_history', 'metadata', 'year_completion_ledger')
+        AND table_name IN ('companies', 'filings', 'company_history', 'metadata', 'year_completion_ledger', 'master_idx_files', 'master_idx_download_ledger')
         ORDER BY table_name
     """)
     created_tables = [row[0] for row in cur.fetchall()]
@@ -873,4 +936,170 @@ def update_filing_downloaded_path(conn: psycopg2.extensions.connection,
     cur.execute(query, (downloaded_file_path, cik, accession_number))
     conn.commit()
     cur.close()
+
+
+def save_master_idx_to_db(conn: psycopg2.extensions.connection, year: int, quarter: str, 
+                          df: pd.DataFrame) -> None:
+    """
+    Save parsed master.idx file data to database
+    
+    Args:
+        conn: PostgreSQL connection
+        year: Year (e.g., 2024)
+        quarter: Quarter (e.g., 'QTR1')
+        df: DataFrame with columns: cik, company_name, form_type, filing_date, filename, accession_number
+    """
+    if df is None or df.empty:
+        return
+    
+    cur = conn.cursor()
+    try:
+        # Prepare data for bulk insert
+        # Required columns: CIK, Company Name, Form Type, Date Filed, Filename
+        records = []
+        for _, row in df.iterrows():
+            records.append((
+                year,
+                quarter,
+                row['cik'],                    # CIK
+                row['company_name'],           # Company Name
+                row['form_type'],              # Form Type
+                row['filing_date'],            # Date Filed
+                row['filename'],               # Filename
+                row.get('accession_number', '')  # Additional: accession_number
+            ))
+        
+        # Bulk insert with conflict handling (skip duplicates)
+        execute_values(
+            cur,
+            """
+            INSERT INTO master_idx_files 
+                (year, quarter, cik, company_name, form_type, date_filed, filename, accession_number)
+            VALUES %s
+            ON CONFLICT (year, quarter, cik, form_type, date_filed, filename) DO NOTHING
+            """,
+            records
+        )
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+
+
+def get_master_idx_download_status(conn: psycopg2.extensions.connection, year: int, quarter: str) -> Optional[Dict]:
+    """
+    Get download status for a specific year/quarter from the ledger
+    
+    Args:
+        conn: PostgreSQL connection
+        year: Year (e.g., 2024)
+        quarter: Quarter (e.g., 'QTR1')
+        
+    Returns:
+        Dictionary with status info or None if not found
+    """
+    cur = conn.cursor(cursor_factory=RealDictCursor)
+    try:
+        cur.execute("""
+            SELECT year, quarter, status, downloaded_at, failed_at, error_message, retry_count, last_attempt
+            FROM master_idx_download_ledger
+            WHERE year = %s AND quarter = %s
+        """, (year, quarter))
+        result = cur.fetchone()
+        if result:
+            return dict(result)
+        return None
+    finally:
+        cur.close()
+
+
+def mark_master_idx_download_success(conn: psycopg2.extensions.connection, year: int, quarter: str) -> None:
+    """
+    Mark a year/quarter download as successful in the ledger
+    
+    Args:
+        conn: PostgreSQL connection
+        year: Year (e.g., 2024)
+        quarter: Quarter (e.g., 'QTR1')
+    """
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO master_idx_download_ledger (year, quarter, status, downloaded_at, last_attempt)
+            VALUES (%s, %s, 'success', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ON CONFLICT (year, quarter) 
+            DO UPDATE SET 
+                status = 'success',
+                downloaded_at = CURRENT_TIMESTAMP,
+                last_attempt = CURRENT_TIMESTAMP,
+                retry_count = 0,
+                error_message = NULL
+        """, (year, quarter))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+
+
+def mark_master_idx_download_failed(conn: psycopg2.extensions.connection, year: int, quarter: str, 
+                                     error_message: str) -> None:
+    """
+    Mark a year/quarter download as failed in the ledger
+    
+    Args:
+        conn: PostgreSQL connection
+        year: Year (e.g., 2024)
+        quarter: Quarter (e.g., 'QTR1')
+        error_message: Error message describing the failure
+    """
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            INSERT INTO master_idx_download_ledger (year, quarter, status, failed_at, error_message, retry_count, last_attempt)
+            VALUES (%s, %s, 'failed', CURRENT_TIMESTAMP, %s, 1, CURRENT_TIMESTAMP)
+            ON CONFLICT (year, quarter) 
+            DO UPDATE SET 
+                status = 'failed',
+                failed_at = CURRENT_TIMESTAMP,
+                error_message = %s,
+                retry_count = master_idx_download_ledger.retry_count + 1,
+                last_attempt = CURRENT_TIMESTAMP
+        """, (year, quarter, error_message, error_message))
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise e
+    finally:
+        cur.close()
+
+
+def get_pending_or_failed_quarters(conn: psycopg2.extensions.connection, 
+                                   start_year: Optional[int] = None) -> List[tuple]:
+    """
+    Get list of quarters that are pending or failed (need to be downloaded)
+    
+    Args:
+        conn: PostgreSQL connection
+        start_year: Start year to check from (default: 1993)
+        
+    Returns:
+        List of (year, quarter) tuples that need to be downloaded
+    """
+    start_year = start_year or 1993
+    cur = conn.cursor()
+    try:
+        cur.execute("""
+            SELECT year, quarter
+            FROM master_idx_download_ledger
+            WHERE status IN ('pending', 'failed')
+            AND year >= %s
+            ORDER BY year, quarter
+        """, (start_year,))
+        return cur.fetchall()
+    finally:
+        cur.close()
 

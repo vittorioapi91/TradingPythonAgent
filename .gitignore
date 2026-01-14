@@ -60,6 +60,7 @@ Thumbs.db
 *.parquet
 **/backup_parquet/
 **/edgar_companies/
+src/trading_agent/fundamentals/edgar/master/
 
 # Jenkins data (runtime/operational data - should not be versioned)
 # Exclude entire data directory - all runtime Jenkins data
