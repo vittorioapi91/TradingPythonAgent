@@ -1,0 +1,49 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "BIS - List Dataflows",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--list-dataflows"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BIS - Generate Parquet Database",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/bis_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "BIS - Download Dataset (Example)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/bis/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/bis_parquet",
+                "--dataflow",
+                "WS_CBPOL_D",
+                "--key",
+                "ALL",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/bis/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

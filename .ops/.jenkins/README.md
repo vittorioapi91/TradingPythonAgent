@@ -1,4 +1,50 @@
-# Jenkins CI/CD Setup for HMM Model Training
+# Jenkins CI/CD Setup
+
+This directory contains scripts and configuration for deploying Jenkins with all plugins, credentials, and pipeline configuration.
+
+## Quick Start
+
+### Deploy Jenkins
+
+```bash
+# Deploy Jenkins with current configuration
+./deploy-jenkins.sh
+
+# Deploy with fresh install (removes existing data)
+./deploy-jenkins.sh --fresh
+
+# Create backup before deployment
+./deploy-jenkins.sh --backup
+```
+
+The deployment script will:
+1. Build the custom Jenkins Docker image (if needed)
+2. Verify/initialize Jenkins data directory
+3. Start Jenkins container
+4. Wait for Jenkins to be ready
+5. Display deployment summary
+
+### Backup Jenkins Configuration
+
+```bash
+# Create a backup of current Jenkins state
+./backup-jenkins.sh
+
+# Restore from backup
+./deploy-jenkins.sh --restore backups/jenkins_backup_YYYYMMDD_HHMMSS.tar.gz
+```
+
+## Jenkins Configuration
+
+The current Jenkins setup includes:
+- **106 plugins** (including Jira, GitHub Branch Source, Pipeline, etc.)
+- **Multibranch Pipeline** for TradingPythonAgent
+- **GitHub integration** with automatic branch discovery
+- **JIRA integration** for issue validation
+- **User authentication** configured
+- **Periodic branch scanning** (every 5 minutes)
+
+## Manual Setup
 
 This guide explains how to set up Jenkins to automatically build and deploy the HMM model training Docker image to your Kubernetes cluster on every commit.
 

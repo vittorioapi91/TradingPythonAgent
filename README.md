@@ -299,6 +299,25 @@ Examples:
 - `dev/PROJ-123/trading_agent-macro`
 - `dev/BUG-789/trading_agent-model`
 
+**Important**: The Jenkins pipeline automatically validates branch names and JIRA issues:
+
+- **Branch Name Validation**: The pipeline extracts the JIRA issue key (e.g., `DEV-4`) from the branch name using the pattern `dev/{JIRA_KEY-NUMBER}/{project}-{subproject}`
+- **JIRA Issue Validation**: For feature branches, the pipeline:
+  - Tests JIRA connection and authentication
+  - Validates that the JIRA issue exists and is accessible
+  - If validation fails, the pipeline continues with a warning (non-blocking)
+
+### Commit Message Requirements
+
+**All commit messages must include the JIRA issue key** in the format `[JIRA_ISSUE]` at the beginning of the commit message.
+
+Examples:
+- `[DEV-4] Add EDGAR download functionality`
+- `[PROJ-123] Fix database connection issue`
+- `[DEV-4] Update README with JIRA validation info`
+
+The JIRA issue key in the commit message should match the one in the branch name. This ensures proper tracking and linking between commits and JIRA issues.
+
 ## 📊 Monitoring
 
 ### Prometheus Metrics

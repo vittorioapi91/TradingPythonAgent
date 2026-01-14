@@ -26,9 +26,15 @@ env/
 ENV/
 .venv
 .venv-kserve
+# Jenkins venv (created during CI/CD)
+.venv-jenkins/
 
 # IDE
-.vscode/
+# Allow all .vscode configuration files
+.vscode/*
+!.vscode/**/*.json
+!.vscode/**/*.md
+!.vscode/**/*.py
 .idea/
 *.swp
 *.swo
@@ -46,12 +52,17 @@ ENV/
 
 # OS
 .DS_Store
+
+# Jenkins data (runtime/operational data - should not be versioned)
+# Exclude entire data directory - all runtime Jenkins data
+.ops/.jenkins/data/
 Thumbs.db
 
 # Large data files
 *.parquet
 **/backup_parquet/
 **/edgar_companies/
+src/trading_agent/fundamentals/edgar/master/
 
 # Jenkins data (runtime/operational data - should not be versioned)
 # Exclude entire data directory - all runtime Jenkins data

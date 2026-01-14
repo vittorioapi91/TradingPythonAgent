@@ -1,0 +1,52 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Eurostat - Generate Parquet Database",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/eurostat_parquet"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Eurostat - Download from Parquet",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--from-parquet",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/eurostat_parquet",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/data",
+                "--format",
+                "both"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "Eurostat - Download Specific Dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro_model/eurostat/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--dataset",
+                "nama_10_gdp",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro_model/eurostat/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}

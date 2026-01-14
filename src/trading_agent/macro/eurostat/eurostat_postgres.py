@@ -24,7 +24,7 @@ def get_postgres_connection(dbname: str = "eurostat", user: Optional[str] = None
         user: Database user (optional, can use POSTGRES_USER env var, default: 'tradingAgent')
         host: Database host (optional, can use POSTGRES_HOST env var, default: 'localhost')
         password: Database password (optional, can use POSTGRES_PASSWORD env var)
-        port: Database port (optional, can use POSTGRES_PORT env var, default: 55432 for Docker Compose)
+        port: Database port (optional, can use POSTGRES_PORT env var, default: 5432)
     
     Returns:
         PostgreSQL connection
@@ -33,7 +33,7 @@ def get_postgres_connection(dbname: str = "eurostat", user: Optional[str] = None
     user = user or os.getenv('POSTGRES_USER', 'tradingAgent')
     host = host or os.getenv('POSTGRES_HOST', 'localhost')
     password = password or os.getenv('POSTGRES_PASSWORD', '')
-    port = port if port is not None else int(os.getenv('POSTGRES_PORT', '55432'))
+    port = port if port is not None else int(os.getenv('POSTGRES_PORT', '5432'))
     
     return psycopg2.connect(
         dbname=dbname,

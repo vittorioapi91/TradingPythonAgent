@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "FRED - Generate Catalog",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro/fred/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--generate-db"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "FRED - Download Specific Series (GDP, UNRATE)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/macro/fred/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--series",
+                "GDP",
+                "UNRATE",
+                "--format",
+                "both",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/macro/fred/data"
+            ],
+            "cwd": "${workspaceFolder}"
+        }
+    ]
+}
