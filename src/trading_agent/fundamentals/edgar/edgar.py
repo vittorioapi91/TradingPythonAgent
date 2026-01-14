@@ -492,20 +492,14 @@ Examples:
   # Generate catalog using existing companies (no company download):
   python -m trading_agent.fundamentals.edgar --generate-catalog
   
-  # Generate catalog for specific tickers:
-  python -m trading_agent.fundamentals.edgar --generate-catalog --download-companies --ticker AAPL,MSFT
-  
   # Download filings from database:
-  python -m trading_agent.fundamentals.edgar --from-db --ticker NVDA
+  python -m trading_agent.fundamentals.edgar --from-db
         """
     )
     parser.add_argument('--start-year', type=int, default=None,
                        help='Start year for filings (default: None = all available from earliest date, typically 1993)')
     parser.add_argument('--output-dir', type=str, default='edgar_filings',
                        help='Output directory for downloaded filing files (default: edgar_filings)')
-    parser.add_argument('--ticker', type=str,
-                       help='Filter by specific ticker symbol(s). Can be comma-separated (e.g., AAPL,MSFT,NVDA) '
-                            'or space-separated (e.g., AAPL MSFT NVDA). Case-insensitive.')
     parser.add_argument('--user-agent', type=str,
                        default='VittorioApicella apicellavittorio@hotmail.it',
                        help='User-Agent string for SEC EDGAR requests (required by SEC). '
@@ -559,17 +553,7 @@ Examples:
         
         # If generate-catalog is requested, generate the catalog in PostgreSQL
         if args.generate_catalog:
-            # Support ticker filtering for catalog generation
-            tickers = None
-            if args.ticker:
-                # Support comma-separated or space-separated tickers
-                if ',' in args.ticker:
-                    tickers = [t.strip().upper() for t in args.ticker.split(',')]
-                else:
-                    tickers = [args.ticker.upper()]
-                print(f"Generating catalog for ticker(s): {', '.join(tickers)}")
-            else:
-                print("Generating catalog with all companies and filings...")
+            print("Generating catalog with all companies and filings...")
             
             # Download and save master.idx files
             try:

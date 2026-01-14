@@ -16,36 +16,6 @@
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "EDGAR - Download Single Ticker",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--ticker",
-                "WMT",
-                "--output-dir",
-                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
-            ],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Download Multiple Tickers",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--ticker",
-                "NVDA, AAPL, MSFT",
-                "--output-dir",
-                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
-            ],
-            "cwd": "${workspaceFolder}"
-        },
-        {
             "name": "EDGAR - Process ZIP Files",
             "type": "debugpy",
             "request": "launch",
@@ -67,42 +37,6 @@
             "justMyCode": true,
             "args": [
                 "--generate-catalog"
-            ],
-            "env": {
-                "POSTGRES_PASSWORD": "2014",
-                "POSTGRES_PORT": "5432"
-            },
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Generate Catalog (Single Ticker: NVDA)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--generate-catalog",
-                "--ticker",
-                "NVDA"
-            ],
-            "env": {
-                "POSTGRES_PASSWORD": "2014",
-                "POSTGRES_PORT": "5432"
-            },
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Generate Catalog (Multiple Tickers)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--generate-catalog",
-                "--ticker",
-                "NVDA, AAPL, MSFT"
             ],
             "env": {
                 "POSTGRES_PASSWORD": "2014",
