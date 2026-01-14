@@ -292,10 +292,30 @@ pipeline {
                         mkdir -p test-results
                         
                         # Run tests with verbose output and JUnit XML for Jenkins
-                        \${VENV_PYTHON} -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html || {
+                        # Note: pytest will exit with non-zero if tests fail, which is expected
+                        set +e  # Don't exit on error immediately
+                        \${VENV_PYTHON} -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html
+                        TEST_EXIT_CODE=\$?
+                        set -e  # Re-enable exit on error
+                        
+                        # Check if test results were generated
+                        if [ -f "test-results/junit.xml" ]; then
+                            echo "✓ Test results generated: test-results/junit.xml"
+                        else
+                            echo "⚠️  Warning: JUnit XML file was not generated"
+                        fi
+                        
+                        if [ -f "test-results/report.html" ]; then
+                            echo "✓ HTML report generated: test-results/report.html"
+                        else
+                            echo "⚠️  Warning: HTML report was not generated"
+                        fi
+                        
+                        # Exit with the test exit code
+                        if [ \$TEST_EXIT_CODE -ne 0 ]; then
                             echo "⚠️  Some tests failed. Check output above for details."
-                            exit 1
-                        }
+                            exit \$TEST_EXIT_CODE
+                        fi
                         
                         echo "✓ All tests passed"
                     """
@@ -303,16 +323,32 @@ pipeline {
             }
             post {
                 always {
-                    // Archive test results
-                    junit 'test-results/junit.xml'
-                    publishHTML([
-                        reportName: 'Test Report',
-                        reportDir: 'test-results',
-                        reportFiles: 'report.html',
-                        keepAll: true,
-                        alwaysLinkToLastBuild: true,
-                        allowMissing: false
-                    ])
+                    // Archive test results (JUnit XML)
+                    script {
+                        try {
+                            junit 'test-results/junit.xml'
+                        } catch (Exception e) {
+                            echo "Warning: Could not archive JUnit test results: ${e.message}"
+                        }
+                        
+                        // Publish HTML report if it exists
+                        try {
+                            if (fileExists('test-results/report.html')) {
+                                publishHTML([
+                                    reportName: 'Test Report',
+                                    reportDir: 'test-results',
+                                    reportFiles: 'report.html',
+                                    keepAll: true,
+                                    alwaysLinkToLastBuild: true,
+                                    allowMissing: true
+                                ])
+                            } else {
+                                echo "HTML test report not found, skipping HTML publishing"
+                            }
+                        } catch (Exception e) {
+                            echo "Warning: Could not publish HTML test report: ${e.message}"
+                        }
+                    }
                 }
             }
         }
