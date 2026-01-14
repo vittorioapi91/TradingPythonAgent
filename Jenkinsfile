@@ -273,14 +273,28 @@ pipeline {
                 script {
                     echo "Running unit tests..."
                     sh """
-                        # Install pytest and plugins if not already installed
-                        python3 -m pip install --quiet pytest pytest-mock pytest-html || pip3 install --quiet pytest pytest-mock pytest-html || pip install --quiet pytest pytest-mock pytest-html
+                        # Create virtual environment if it doesn't exist
+                        if [ ! -d "venv" ]; then
+                            python3 -m venv venv
+                        fi
+                        
+                        # Activate virtual environment and install dependencies
+                        source venv/bin/activate
+                        
+                        # Upgrade pip first
+                        pip install --quiet --upgrade pip
+                        
+                        # Install project dependencies
+                        pip install --quiet -r requirements.txt
+                        
+                        # Install pytest and plugins
+                        pip install --quiet pytest pytest-mock pytest-html
                         
                         # Create test results directory
                         mkdir -p test-results
                         
                         # Run tests with verbose output and JUnit XML for Jenkins
-                        python3 -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html || {
+                        python -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html || {
                             echo "⚠️  Some tests failed. Check output above for details."
                             exit 1
                         }

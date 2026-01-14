@@ -26,6 +26,8 @@ env/
 ENV/
 .venv
 .venv-kserve
+# Jenkins venv (created during CI/CD)
+.venv-jenkins/
 
 # IDE
 # Allow all .vscode configuration files
