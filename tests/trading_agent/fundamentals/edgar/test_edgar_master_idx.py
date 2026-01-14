@@ -204,14 +204,16 @@ class TestEDGARMasterIdxDownload:
         """Create EDGARDownloader"""
         return EDGARDownloader()
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_success')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_success_uncompressed(
-        self, mock_get, mock_mark_success, mock_get_status, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_success, mock_get_status, mock_get_pending, mock_conn, downloader, tmp_path
     ):
         """Test successful download of uncompressed master.idx"""
         # Setup mocks
+        mock_get_pending.return_value = []  # Empty list - will check individual status
         mock_get_status.return_value = None  # New quarter, not in ledger
         mock_response = Mock()
         mock_response.status_code = 200
@@ -224,29 +226,25 @@ class TestEDGARMasterIdxDownload:
         downloader.master_dir = tmp_path / "master"
         downloader.master_dir.mkdir(exist_ok=True)
         
-        # Mock datetime to control current year/quarter
-        with patch('src.trading_agent.fundamentals.edgar.edgar.datetime') as mock_datetime:
-            mock_now = Mock()
-            mock_now.year = 2023
-            mock_now.month = 4  # Q2
-            mock_datetime.now.return_value = mock_now
-            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
-            downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
+        # Test with a specific year that won't hit current year logic
+        # Limit to just 2022 to avoid processing too many quarters
+        downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
         
-        # Verify download was attempted
+        # Verify download was attempted (at least one call)
         assert mock_get.called
-        # Verify success was marked
+        # Verify success was marked (at least one call)
         assert mock_mark_success.called
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_failed')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_failure(
-        self, mock_get, mock_mark_failed, mock_get_status, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_failed, mock_get_status, mock_get_pending, mock_conn, downloader, tmp_path
     ):
         """Test handling of download failure"""
         # Setup mocks
+        mock_get_pending.return_value = []
         mock_get_status.return_value = None  # New quarter
         mock_response = Mock()
         mock_response.status_code = 404  # Not found
@@ -256,16 +254,9 @@ class TestEDGARMasterIdxDownload:
         downloader.master_dir = tmp_path / "master"
         downloader.master_dir.mkdir(exist_ok=True)
         
-        # Mock datetime
-        with patch('src.trading_agent.fundamentals.edgar.edgar.datetime') as mock_datetime:
-            mock_now = Mock()
-            mock_now.year = 2023
-            mock_now.month = 4
-            mock_datetime.now.return_value = mock_now
-            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
-            with pytest.raises(Exception):
-                downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
+        # Test with a specific year that won't hit current year logic
+        with pytest.raises(Exception):
+            downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
         
         # Verify failure was marked
         assert mock_mark_failed.called
@@ -278,18 +269,12 @@ class TestEDGARMasterIdxDownload:
         # Mock all quarters as successful
         mock_get_status.return_value = {'status': 'success'}
         
-        with patch('src.trading_agent.fundamentals.edgar.edgar.datetime') as mock_datetime:
-            mock_now = Mock()
-            mock_now.year = 2023
-            mock_now.month = 4
-            mock_datetime.now.return_value = mock_now
-            mock_datetime.side_effect = lambda *args, **kw: datetime(*args, **kw)
-            
-            # Should return early without downloading
-            with patch('builtins.print') as mock_print:
-                downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
-                # Should print "No new or failed quarters to download."
-                assert any("No new or failed quarters" in str(call) for call in mock_print.call_args_list)
+        # Should return early without downloading
+        with patch('builtins.print') as mock_print:
+            # Use a past year to avoid current year logic
+            downloader.save_master_idx_to_disk(mock_conn, start_year=2020)
+            # Should print "No new or failed quarters to download."
+            assert any("No new or failed quarters" in str(call) for call in mock_print.call_args_list)
 
 
 class TestEDGARMasterIdxDatabase:

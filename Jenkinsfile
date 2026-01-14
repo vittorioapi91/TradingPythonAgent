@@ -273,17 +273,32 @@ pipeline {
                 script {
                     echo "Running unit tests..."
                     sh """
-                        # Install pytest if not already installed
-                        python3 -m pip install --quiet pytest pytest-mock || pip3 install --quiet pytest pytest-mock || pip install --quiet pytest pytest-mock
+                        # Install pytest and plugins if not already installed
+                        python3 -m pip install --quiet pytest pytest-mock pytest-html || pip3 install --quiet pytest pytest-mock pytest-html || pip install --quiet pytest pytest-mock pytest-html
                         
-                        # Run tests with verbose output
-                        python3 -m pytest tests/ -v --tb=short || {
+                        # Create test results directory
+                        mkdir -p test-results
+                        
+                        # Run tests with verbose output and JUnit XML for Jenkins
+                        python3 -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html || {
                             echo "⚠️  Some tests failed. Check output above for details."
                             exit 1
                         }
                         
                         echo "✓ All tests passed"
                     """
+                }
+            }
+            post {
+                always {
+                    // Archive test results
+                    junit 'test-results/junit.xml'
+                    publishHTML([
+                        reportName: 'Test Report',
+                        reportDir: 'test-results',
+                        reportFiles: 'report.html',
+                        keepAll: true
+                    ])
                 }
             }
         }
