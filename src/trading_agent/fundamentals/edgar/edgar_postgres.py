@@ -1082,6 +1082,37 @@ def mark_master_idx_download_failed(conn: psycopg2.extensions.connection, year: 
         cur.close()
 
 
+def get_quarters_with_data(conn: psycopg2.extensions.connection, start_year: Optional[int] = None) -> List[tuple]:
+    """
+    Get list of quarters that already have data in master_idx_files table
+    
+    Args:
+        conn: PostgreSQL connection
+        start_year: Optional start year filter
+        
+    Returns:
+        List of (year, quarter) tuples that have data
+    """
+    cur = conn.cursor()
+    try:
+        # Set search path to edgar schema
+        cur.execute("SET search_path TO edgar, public;")
+        query = """
+            SELECT DISTINCT year, quarter 
+            FROM master_idx_files
+        """
+        params = []
+        if start_year:
+            query += " WHERE year >= %s"
+            params.append(start_year)
+        query += " ORDER BY year, quarter"
+        
+        cur.execute(query, params)
+        return [(row[0], row[1]) for row in cur.fetchall()]
+    finally:
+        cur.close()
+
+
 def get_pending_or_failed_quarters(conn: psycopg2.extensions.connection, 
                                    start_year: Optional[int] = None) -> List[tuple]:
     """

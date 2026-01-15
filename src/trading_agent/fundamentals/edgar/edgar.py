@@ -74,7 +74,8 @@ try:
         get_year_completion_status, update_year_completion_ledger,
         get_db_filing_counts_by_year, is_year_complete, get_incomplete_years,
         get_master_idx_download_status, mark_master_idx_download_success,
-        mark_master_idx_download_failed, get_pending_or_failed_quarters
+        mark_master_idx_download_failed, get_pending_or_failed_quarters,
+        get_quarters_with_data
     )
 except ImportError:
     # Handle direct script execution - use absolute imports
@@ -96,7 +97,8 @@ except ImportError:
         get_year_completion_status, update_year_completion_ledger,
         get_db_filing_counts_by_year, is_year_complete, get_incomplete_years,
         get_master_idx_download_status, mark_master_idx_download_success,
-        mark_master_idx_download_failed, get_pending_or_failed_quarters
+        mark_master_idx_download_failed, get_pending_or_failed_quarters,
+        get_quarters_with_data
     )
 
 warnings.filterwarnings('ignore')
@@ -157,11 +159,18 @@ class EDGARDownloader:
                         continue
                 all_quarters.append((year, quarter))
         
-        # Filter to only pending/failed quarters from ledger
-        pending_failed = set(get_pending_or_failed_quarters(conn, start_year))
-        # Also include quarters not in ledger at all (new)
+        # Get quarters that already have data in the database
+        quarters_with_data = set(get_quarters_with_data(conn, start_year))
+        
+        # Filter to only quarters that are missing from database
+        # Check both ledger status and actual database content
         total_items = []
         for year, quarter in all_quarters:
+            # Skip if data already exists in database
+            if (year, quarter) in quarters_with_data:
+                continue
+            
+            # Check ledger status - only download if pending, failed, or not in ledger
             status = get_master_idx_download_status(conn, year, quarter)
             if status is None or status['status'] in ('pending', 'failed'):
                 total_items.append((year, quarter))
@@ -348,7 +357,10 @@ class EDGARDownloader:
         if not self.master_dir.exists():
             return
         
-        # Collect all CSV files first to get total count
+        # Get quarters that already have data in the database
+        quarters_with_data = set(get_quarters_with_data(conn))
+        
+        # Collect all CSV files first, but only for quarters missing from database
         csv_files = []
         for year_dir in sorted(self.master_dir.iterdir()):
             if not year_dir.is_dir():
@@ -376,7 +388,11 @@ class EDGARDownloader:
                     continue
                 quarter = quarter_match.group(0)
                 
-                csv_files.append((year_int, quarter, filepath))
+                # Only process if data doesn't already exist in database
+                if (year_int, quarter) not in quarters_with_data:
+                    csv_files.append((year_int, quarter, filepath))
+                else:
+                    print(f"Skipping {year_int}/{quarter} - data already exists in database")
         
         # Progress bar for database saving
         with tqdm(total=len(csv_files), desc="Saving to database", unit="file") as pbar:
