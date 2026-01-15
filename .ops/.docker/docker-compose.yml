@@ -76,9 +76,9 @@ services:
     container_name: airflow-dev
     ports:
       - "8082:8080"
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: 1.0
+    mem_limit: 1.5g
+    mem_reservation: 512m
+    cpus: 0.75
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -86,11 +86,13 @@ services:
       # Use FAB auth manager so 'airflow users create' controls login
       - AIRFLOW__CORE__AUTH_MANAGER=airflow.auth.managers.fab.fab_auth_manager.FabAuthManager
       - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/1
-      # Optimize for resource usage
-      - AIRFLOW__WEBSERVER__WORKERS=2
-      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=30
-      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=5
-      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
+      # Optimize for resource usage - use single worker to reduce memory
+      - AIRFLOW__WEBSERVER__WORKERS=1
+      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=60
+      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=10
+      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=10
+      - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=180
+      - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=120
       # Make host project package and custom operators available inside the container
       - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
       # Set environment for config.py (since git commands may not work in container)
@@ -133,9 +135,9 @@ services:
     container_name: airflow-test
     ports:
       - "8083:8080"
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: 1.0
+    mem_limit: 1.5g
+    mem_reservation: 512m
+    cpus: 0.75
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -143,11 +145,13 @@ services:
       # Use FAB auth manager so 'airflow users create' controls login
       - AIRFLOW__CORE__AUTH_MANAGER=airflow.auth.managers.fab.fab_auth_manager.FabAuthManager
       - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/2
-      # Optimize for resource usage
-      - AIRFLOW__WEBSERVER__WORKERS=2
-      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=30
-      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=5
-      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
+      # Optimize for resource usage - use single worker to reduce memory
+      - AIRFLOW__WEBSERVER__WORKERS=1
+      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=60
+      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=10
+      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=10
+      - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=180
+      - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=120
       # Make host project package and custom operators available inside the container
       - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
       # Set environment for config.py (since git commands may not work in container)
@@ -190,9 +194,9 @@ services:
     container_name: airflow-prod
     ports:
       - "8084:8080"
-    mem_limit: 2g
-    mem_reservation: 1g
-    cpus: 1.0
+    mem_limit: 1.5g
+    mem_reservation: 512m
+    cpus: 0.75
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -200,11 +204,13 @@ services:
       # Use FAB auth manager so 'airflow users create' controls login
       - AIRFLOW__CORE__AUTH_MANAGER=airflow.auth.managers.fab.fab_auth_manager.FabAuthManager
       - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/3
-      # Optimize for resource usage
-      - AIRFLOW__WEBSERVER__WORKERS=2
-      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=30
-      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=5
-      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
+      # Optimize for resource usage - use single worker to reduce memory
+      - AIRFLOW__WEBSERVER__WORKERS=1
+      - AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=60
+      - AIRFLOW__SCHEDULER__JOB_HEARTBEAT_SEC=10
+      - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=10
+      - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=180
+      - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=120
       # Make host project package and custom operators available inside the container
       - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
       # Set environment for config.py (since git commands may not work in container)
