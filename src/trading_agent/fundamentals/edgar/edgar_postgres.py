@@ -13,7 +13,7 @@ from psycopg2 import sql
 import pandas as pd
 
 
-def get_postgres_connection(dbname: str = "edgar", user: Optional[str] = None, 
+def get_postgres_connection(dbname: str = "postgres", user: Optional[str] = None, 
                             host: Optional[str] = None, password: Optional[str] = None,
                             port: Optional[int] = None) -> psycopg2.extensions.connection:
     """
@@ -54,12 +54,17 @@ def init_edgar_postgres_tables(conn: psycopg2.extensions.connection) -> None:
     print("Initializing EDGAR PostgreSQL tables...")
     cur = conn.cursor()
     
+    # Create edgar schema if it doesn't exist
+    cur.execute("CREATE SCHEMA IF NOT EXISTS edgar;")
+    cur.execute("SET search_path TO edgar, public;")
+    conn.commit()
+    
     # Helper function to check if table exists
     def table_exists(table_name: str) -> bool:
         cur.execute("""
             SELECT EXISTS (
                 SELECT FROM information_schema.tables 
-                WHERE table_schema = 'public' 
+                WHERE table_schema = 'edgar' 
                 AND table_name = %s
             )
         """, (table_name,))
@@ -285,7 +290,7 @@ def init_edgar_postgres_tables(conn: psycopg2.extensions.connection) -> None:
     cur.execute("""
         SELECT table_name 
         FROM information_schema.tables 
-        WHERE table_schema = 'public' 
+                WHERE table_schema = 'edgar'
         AND table_name IN ('companies', 'filings', 'company_history', 'metadata', 'year_completion_ledger', 'master_idx_files', 'master_idx_download_ledger')
         ORDER BY table_name
     """)

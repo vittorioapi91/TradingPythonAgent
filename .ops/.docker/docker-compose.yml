@@ -93,7 +93,7 @@ services:
       - POSTGRES_PORT=5432
       - POSTGRES_USER=tradingAgent
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
-      - POSTGRES_DB=edgar
+      - POSTGRES_DB=postgres
     volumes:
       - ../.airflow/dags:/opt/airflow/dags
       - ../.airflow/logs:/opt/airflow/logs
