@@ -187,8 +187,8 @@ pipeline {
                                             echo "✓ Kubernetes Dashboard deployment exists"
                                             
                                             # Check if dashboard is running
-                                            DASHBOARD_READY=$(kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
-                                            if [ "$DASHBOARD_READY" -gt 0 ]; then
+                                            DASHBOARD_READY=\$(kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+                                            if [ "\$DASHBOARD_READY" -gt 0 ]; then
                                                 echo "✓ Kubernetes Dashboard is running (\${DASHBOARD_READY} replica(s) ready)"
                                             else
                                                 echo "⚠️  Warning: Kubernetes Dashboard deployment exists but no replicas are ready"
