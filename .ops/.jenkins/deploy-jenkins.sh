@@ -278,10 +278,6 @@ verify_jenkins_data() {
               <strategyId>2</strategyId>
               <trust class="org.jenkinsci.plugins.github_branch_source.ForkPullRequestDiscoveryTrait$TrustPermission"/>
             </org.jenkinsci.plugins.github__branch__source.ForkPullRequestDiscoveryTrait>
-            <org.jenkinsci.plugins.github__branch__source.PathRestrictionTrait plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
-              <includes>.ops/**</includes>
-              <excludes></excludes>
-            </org.jenkinsci.plugins.github__branch__source.PathRestrictionTrait>
           </traits>
         </source>
         <strategy class="jenkins.branch.DefaultBranchPropertyStrategy">

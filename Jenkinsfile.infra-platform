@@ -5,6 +5,35 @@ pipeline {
     // It validates and builds infra-platform components (Airflow, Grafana, etc.)
     
     stages {
+        stage('Check if .ops Changed') {
+            steps {
+                script {
+                    // Check if .ops/ directory has changes
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only origin/${GIT_BRANCH} 2>/dev/null || echo ""',
+                        returnStdout: true
+                    ).trim()
+                    
+                    def hasOpsChanges = false
+                    if (changedFiles) {
+                        changedFiles.split('\n').each { file ->
+                            if (file.startsWith('.ops/')) {
+                                hasOpsChanges = true
+                            }
+                        }
+                    }
+                    
+                    if (!hasOpsChanges) {
+                        echo "⚠️  No .ops/ directory changes detected. Skipping infra-platform pipeline."
+                        currentBuild.result = 'ABORTED'
+                        error("Pipeline aborted: No infrastructure changes detected")
+                    }
+                    
+                    echo "✓ .ops/ directory changes detected. Proceeding with infra-platform validation."
+                }
+            }
+        }
+        
         stage('Checkout') {
             steps {
                 checkout scm
