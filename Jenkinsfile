@@ -422,10 +422,6 @@ pipeline {
         }
         
         stage('Build Docker Image') {
-            when {
-                // Only build if not just infrastructure changes
-                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
-            }
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
@@ -442,9 +438,6 @@ pipeline {
         }
         
         stage('Load Image into Kind Cluster') {
-            when {
-                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
-            }
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
@@ -458,9 +451,6 @@ pipeline {
         }
         
         stage('Create Namespace (if needed)') {
-            when {
-                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
-            }
             steps {
                 script {
                     echo "Ensuring namespace ${env.NAMESPACE} exists"
@@ -472,9 +462,6 @@ pipeline {
         }
         
         stage('Update Kubernetes Job') {
-            when {
-                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
-            }
             steps {
                 script {
                     echo "Updating Kubernetes Job with new image"
@@ -501,9 +488,6 @@ pipeline {
         }
         
         stage('Verify Deployment') {
-            when {
-                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
-            }
             steps {
                 script {
                     echo "Verifying job deployment"
