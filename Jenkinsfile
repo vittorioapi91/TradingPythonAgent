@@ -5,44 +5,11 @@ pipeline {
         KIND_CLUSTER = 'trading-cluster'
     }
     
-    // Check if this is an infrastructure change (only .ops changed)
-    options {
-        skipDefaultCheckout(false)
-    }
-    
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
                 script {
-                    // Check if only infrastructure (.ops) changed
-                    def changedFiles = sh(
-                        script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only origin/${GIT_BRANCH} 2>/dev/null || echo ""',
-                        returnStdout: true
-                    ).trim()
-                    
-                    env.ONLY_INFRASTRUCTURE_CHANGED = 'false'
-                    if (changedFiles) {
-                        def infraOnly = true
-                        changedFiles.split('\n').each { file ->
-                            if (!file.startsWith('.ops/') && file != 'Jenkinsfile.infrastructure') {
-                                infraOnly = false
-                            }
-                        }
-                        env.ONLY_INFRASTRUCTURE_CHANGED = infraOnly ? 'true' : 'false'
-                    }
-                    
-                    echo "Changed files: ${changedFiles}"
-                    echo "Only infrastructure changed: ${env.ONLY_INFRASTRUCTURE_CHANGED}"
-                    
-                    // Skip application pipeline if only infrastructure changed
-                    if (env.ONLY_INFRASTRUCTURE_CHANGED == 'true') {
-                        echo "⚠️  Only infrastructure (.ops) changed. This pipeline is for application code."
-                        echo "⚠️  Please use Jenkinsfile.infrastructure pipeline for infrastructure changes."
-                        currentBuild.result = 'ABORTED'
-                        error("Pipeline aborted: Use infrastructure pipeline for .ops changes")
-                    }
-                    
                     env.GIT_COMMIT_SHORT = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
