@@ -68,3 +68,9 @@ src/trading_agent/fundamentals/edgar/master/
 # Exclude entire data directory - all runtime Jenkins data
 .ops/.jenkins/data/
 company_tickers.json
+
+# Airflow log directories
+.ops/.airflow/logs-*/
+.ops/.airflow/logs-dev/
+.ops/.airflow/logs-test/
+.ops/.airflow/logs-prod/
