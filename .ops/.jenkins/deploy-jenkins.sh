@@ -409,7 +409,7 @@ verify_jenkins_data() {
   </sources>
   <factory class="org.jenkinsci.plugins.workflow.multibranch.WorkflowBranchProjectFactory">
     <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
-    <scriptPath>Jenkinsfile.infra-platform</scriptPath>
+    <scriptPath>.ops/Jenkinsfile.infra-platform</scriptPath>
   </factory>
 </org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject>
 INFRAPLATFORM_CONFIG_EOF
