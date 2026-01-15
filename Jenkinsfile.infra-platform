@@ -175,7 +175,7 @@ pipeline {
                                 echo "✓ Kind cluster '${CLUSTER_NAME}' exists"
                                 
                                 # Validate cluster is accessible
-                                kubectl config use-context "kind-${CLUSTER_NAME}" > /dev/null 2>&1 && {
+                                kubectl config use-context "kind-\${CLUSTER_NAME}" > /dev/null 2>&1 && {
                                     if kubectl cluster-info > /dev/null 2>&1; then
                                         echo "✓ Kind cluster is accessible"
                                         kubectl get nodes 2>/dev/null | head -3
