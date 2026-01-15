@@ -268,6 +268,83 @@ pipeline {
             }
         }
         
+        stage('Validate Airflow DAGs') {
+            steps {
+                script {
+                    echo "Validating Airflow DAGs..."
+                    sh """
+                        # Create virtual environment if it doesn't exist
+                        if [ ! -d "venv" ]; then
+                            python3 -m venv venv
+                        fi
+                        
+                        # Use virtual environment's Python directly
+                        VENV_PYTHON="venv/bin/python"
+                        VENV_PIP="venv/bin/pip"
+                        
+                        # Upgrade pip first
+                        \${VENV_PIP} install --quiet --upgrade pip
+                        
+                        # Install Airflow and dependencies for DAG validation
+                        \${VENV_PIP} install --quiet apache-airflow==2.9.3 || \${VENV_PIP} install --quiet apache-airflow
+                        
+                        # Install project dependencies (needed for DAG imports)
+                        \${VENV_PIP} install --quiet -r requirements.txt
+                        
+                        # Set environment variables for DAG execution context
+                        export AIRFLOW_HOME=/tmp/airflow_home
+                        export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                        export AIRFLOW__CORE__LOAD_EXAMPLES=False
+                        
+                        # Create minimal Airflow config
+                        mkdir -p \${AIRFLOW_HOME}
+                        echo "[core]" > \${AIRFLOW_HOME}/airflow.cfg
+                        echo "dags_folder = .ops/.airflow/dags" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "load_examples = False" >> \${AIRFLOW_HOME}/airflow.cfg
+                        
+                        # Initialize Airflow database (SQLite for testing)
+                        \${VENV_PYTHON} -m airflow db init || echo "Database may already exist"
+                        
+                        # Validate DAGs by listing them (this will parse and validate)
+                        echo "Validating DAG files..."
+                        \${VENV_PYTHON} -m airflow dags list || {
+                            echo "⚠️  DAG validation failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        # Try to import DAG files to catch import errors
+                        echo "Testing DAG imports..."
+                        for dag_file in .ops/.airflow/dags/*.py; do
+                            if [ -f "\$dag_file" ]; then
+                                echo "Validating \$dag_file..."
+                                \${VENV_PYTHON} -c "
+import sys
+import os
+sys.path.insert(0, 'src')
+sys.path.insert(0, os.path.dirname('\$dag_file'))
+# Set environment for config.py
+os.environ['GIT_BRANCH'] = os.environ.get('BRANCH_NAME', 'dev')
+try:
+    with open('\$dag_file', 'r') as f:
+        code = compile(f.read(), '\$dag_file', 'exec')
+        exec(code, {'__file__': '\$dag_file'})
+    print('✓ \$dag_file validated successfully')
+except Exception as e:
+    print(f'✗ \$dag_file failed: {e}')
+    sys.exit(1)
+" || {
+                                    echo "⚠️  Failed to validate \$dag_file"
+                                    exit 1
+                                }
+                            fi
+                        done
+                        
+                        echo "✓ All DAGs validated successfully"
+                    """
+                }
+            }
+        }
+        
         stage('Run Tests') {
             steps {
                 script {

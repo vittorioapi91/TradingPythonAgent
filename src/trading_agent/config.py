@@ -37,12 +37,14 @@ def get_git_branch() -> Optional[str]:
             capture_output=True,
             text=True,
             check=True,
-            cwd=Path(__file__).parent.parent.parent.parent
+            cwd=Path(__file__).parent.parent.parent.parent,
+            timeout=5  # Add timeout to prevent hanging
         )
         return result.stdout.strip()
-    except (subprocess.CalledProcessError, FileNotFoundError):
-        # Fallback: try to get from environment variable (useful in CI/CD)
-        return os.getenv('GIT_BRANCH') or os.getenv('BRANCH_NAME')
+    except (subprocess.CalledProcessError, FileNotFoundError, PermissionError, OSError, subprocess.TimeoutExpired):
+        # Fallback: try to get from environment variable (useful in CI/CD or containers)
+        # This handles cases where git is not available or not accessible
+        return os.getenv('GIT_BRANCH') or os.getenv('BRANCH_NAME') or os.getenv('AIRFLOW_ENV')
 
 
 def get_environment_from_branch(branch: Optional[str]) -> str:
