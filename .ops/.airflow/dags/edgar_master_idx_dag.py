@@ -47,6 +47,13 @@ dag = DAG(
 
 def download_master_idx_files(**context):
     """Download master.idx files (only new/failed quarters)"""
+    # Ensure project root is in path at runtime
+    import sys
+    import os
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
     # Import here to avoid import errors at DAG parse time
     from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
     from src.trading_agent.fundamentals.edgar.edgar_postgres import (
@@ -89,6 +96,13 @@ def download_master_idx_files(**context):
 
 def save_master_idx_to_database(**context):
     """Save parsed CSV files to PostgreSQL database"""
+    # Ensure project root is in path at runtime
+    import sys
+    import os
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+    
     # Import here to avoid import errors at DAG parse time
     from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
     from src.trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
