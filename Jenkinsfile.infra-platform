@@ -2,7 +2,7 @@ pipeline {
     agent any
     
     // This pipeline only runs when .ops directory changes
-    // It validates and builds infrastructure components (Airflow, Grafana, etc.)
+    // It validates and builds infra-platform components (Airflow, Grafana, etc.)
     
     stages {
         stage('Checkout') {
@@ -11,19 +11,19 @@ pipeline {
             }
         }
         
-        stage('Validate Infrastructure Configuration') {
+        stage('Validate Infra-Platform Configuration') {
             steps {
                 script {
-                    echo "Validating infrastructure configuration..."
+                    echo "Validating infra-platform configuration..."
                     sh """
                         # Validate docker-compose files
-                        if [ -f ".ops/.docker/docker-compose.infrastructure.yml" ]; then
-                            echo "Validating docker-compose.infrastructure.yml..."
-                            docker-compose -f .ops/.docker/docker-compose.infrastructure.yml config > /dev/null || {
-                                echo "❌ docker-compose.infrastructure.yml is invalid"
+                        if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
+                            echo "Validating docker-compose.infra-platform.yml..."
+                            docker-compose -f .ops/.docker/docker-compose.infra-platform.yml config > /dev/null || {
+                                echo "❌ docker-compose.infra-platform.yml is invalid"
                                 exit 1
                             }
-                            echo "✓ docker-compose.infrastructure.yml is valid"
+                            echo "✓ docker-compose.infra-platform.yml is valid"
                         fi
                         
                         if [ -f ".ops/.docker/docker-compose.yml" ]; then
@@ -56,16 +56,16 @@ pipeline {
                             }
                         fi
                         
-                        echo "✓ Infrastructure configuration validated"
+                        echo "✓ Infra-platform configuration validated"
                     """
                 }
             }
         }
         
-        stage('Build Infrastructure Images') {
+        stage('Build Infra-Platform Images') {
             steps {
                 script {
-                    echo "Building infrastructure Docker images..."
+                    echo "Building infra-platform Docker images..."
                     sh """
                         # Build Jenkins custom image if Dockerfile exists
                         if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
@@ -75,22 +75,22 @@ pipeline {
                             }
                         fi
                         
-                        echo "✓ Infrastructure images built (or using pre-built images)"
+                        echo "✓ Infra-platform images built (or using pre-built images)"
                     """
                 }
             }
         }
         
-        stage('Validate Infrastructure Services') {
+        stage('Validate Infra-Platform Services') {
             steps {
                 script {
-                    echo "Validating infrastructure services can start..."
+                    echo "Validating infra-platform services can start..."
                     sh """
                         # Test that docker-compose files are valid and services can be checked
-                        if [ -f ".ops/.docker/docker-compose.infrastructure.yml" ]; then
-                            echo "Checking infrastructure services..."
-                            docker-compose -f .ops/.docker/docker-compose.infrastructure.yml config --services | head -10
-                            echo "✓ Infrastructure services configuration is valid"
+                        if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
+                            echo "Checking infra-platform services..."
+                            docker-compose -f .ops/.docker/docker-compose.infra-platform.yml config --services | head -10
+                            echo "✓ Infra-platform services configuration is valid"
                         fi
                     """
                 }
@@ -100,10 +100,10 @@ pipeline {
     
     post {
         success {
-            echo "✓ Infrastructure pipeline succeeded!"
+            echo "✓ Infra-platform pipeline succeeded!"
         }
         failure {
-            echo "✗ Infrastructure pipeline failed. Check logs for details."
+            echo "✗ Infra-platform pipeline failed. Check logs for details."
         }
     }
 }

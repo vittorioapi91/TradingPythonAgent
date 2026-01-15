@@ -12,8 +12,8 @@ if [ -f "docker-compose.yml" ]; then
     docker-compose -f docker-compose.yml down
 fi
 
-# Stop infrastructure services
-docker-compose -f docker-compose.infrastructure.yml down
+# Stop infra-platform services
+docker-compose -f docker-compose.infra-platform.yml down
 
 echo "✅ Services stopped"
 

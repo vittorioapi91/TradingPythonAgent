@@ -15,9 +15,9 @@ fi
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
-# Start infrastructure services
-echo "📦 Starting Infrastructure services..."
-docker-compose -f docker-compose.infrastructure.yml up -d
+# Start infra-platform services
+echo "📦 Starting Infra-Platform services..."
+docker-compose -f docker-compose.infra-platform.yml up -d
 
 # Start application services (if any)
 if [ -f "docker-compose.yml" ]; then
@@ -31,8 +31,8 @@ sleep 10
 
 # Check service status
 echo ""
-echo "📊 Infrastructure Service Status:"
-docker-compose -f docker-compose.infrastructure.yml ps
+echo "📊 Infra-Platform Service Status:"
+docker-compose -f docker-compose.infra-platform.yml ps
 
 if [ -f "docker-compose.yml" ]; then
     echo ""
