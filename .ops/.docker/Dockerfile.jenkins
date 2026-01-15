@@ -24,6 +24,11 @@ RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.
     chmod +x /usr/local/bin/docker && \
     rm -rf /tmp/docker /tmp/docker.tgz
 
+# Install Docker Compose V2 plugin (as standalone binary for compatibility)
+RUN curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
+    mkdir -p /usr/local/lib/docker/cli-plugins
+
 # Install kubectl
 RUN curl -fsSL https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && \
     chmod +x /usr/local/bin/kubectl
