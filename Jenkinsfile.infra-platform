@@ -172,7 +172,7 @@ pipeline {
                             # Check if kind cluster exists (if kind is available)
                             CLUSTER_NAME="trading-cluster"
                             if kind get clusters 2>/dev/null | grep -q "^\\${CLUSTER_NAME}\$"; then
-                                echo "✓ Kind cluster '${CLUSTER_NAME}' exists"
+                                echo "✓ Kind cluster '\\${CLUSTER_NAME}' exists"
                                 
                                 # Validate cluster is accessible
                                 kubectl config use-context "kind-\${CLUSTER_NAME}" > /dev/null 2>&1 && {
@@ -189,7 +189,7 @@ pipeline {
                                             # Check if dashboard is running
                                             DASHBOARD_READY=$(kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
                                             if [ "$DASHBOARD_READY" -gt 0 ]; then
-                                                echo "✓ Kubernetes Dashboard is running (${DASHBOARD_READY} replica(s) ready)"
+                                                echo "✓ Kubernetes Dashboard is running (\\${DASHBOARD_READY} replica(s) ready)"
                                             else
                                                 echo "⚠️  Warning: Kubernetes Dashboard deployment exists but no replicas are ready"
                                             fi
@@ -217,7 +217,7 @@ pipeline {
                                     echo "⚠️  Warning: Could not switch to kind cluster context"
                                 }
                             else
-                                echo "ℹ️  Kind cluster '${CLUSTER_NAME}' does not exist (will be created by start-kubernetes.sh when needed)"
+                                echo "ℹ️  Kind cluster '\\${CLUSTER_NAME}' does not exist (will be created by start-kubernetes.sh when needed)"
                             fi
                             
                             # Validate start-kubernetes.sh script exists and is executable
