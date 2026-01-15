@@ -179,6 +179,37 @@ pipeline {
                                     if kubectl cluster-info > /dev/null 2>&1; then
                                         echo "✓ Kind cluster is accessible"
                                         kubectl get nodes 2>/dev/null | head -3
+                                        
+                                        # Check Kubernetes Dashboard
+                                        echo ""
+                                        echo "Checking Kubernetes Dashboard..."
+                                        if kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard > /dev/null 2>&1; then
+                                            echo "✓ Kubernetes Dashboard deployment exists"
+                                            
+                                            # Check if dashboard is running
+                                            DASHBOARD_READY=$(kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+                                            if [ "$DASHBOARD_READY" -gt 0 ]; then
+                                                echo "✓ Kubernetes Dashboard is running (${DASHBOARD_READY} replica(s) ready)"
+                                            else
+                                                echo "⚠️  Warning: Kubernetes Dashboard deployment exists but no replicas are ready"
+                                            fi
+                                            
+                                            # Check dashboard service
+                                            if kubectl get service kubernetes-dashboard -n kubernetes-dashboard > /dev/null 2>&1; then
+                                                echo "✓ Kubernetes Dashboard service exists"
+                                            else
+                                                echo "⚠️  Warning: Kubernetes Dashboard service not found"
+                                            fi
+                                            
+                                            # Check admin user service account
+                                            if kubectl get serviceaccount admin-user -n kubernetes-dashboard > /dev/null 2>&1; then
+                                                echo "✓ Dashboard admin-user service account exists"
+                                            else
+                                                echo "⚠️  Warning: Dashboard admin-user service account not found"
+                                            fi
+                                        else
+                                            echo "ℹ️  Kubernetes Dashboard not installed (will be installed by start-kubernetes.sh when needed)"
+                                        fi
                                     else
                                         echo "⚠️  Warning: Kind cluster exists but is not accessible"
                                     }

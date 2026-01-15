@@ -78,13 +78,27 @@ docker-compose -f docker-compose.yml down
 - **Data**: Stored in Docker volume `mlflow-data`
 
 ### Airflow
-- **Port**: 8080
-- **URL**: http://localhost:8080
+- **Port**: 8080 (dev: 8082, test: 8083, prod: 8084)
+- **URL**: 
+  - DEV: http://localhost:8082 (admin/2014)
+  - TEST: http://localhost:8083 (admin/2014)
+  - PROD: http://localhost:8084 (admin/2014)
 - **Home (in container)**: `/opt/airflow`
 - **DAGs folder (in container)**: `/opt/airflow/dags` (mapped from `.ops/.airflow/dags`)
-- **Command**: `airflow db migrate && airflow standalone`
 
 See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user, and authentication details.
+
+### Kubernetes Dashboard
+- **Part of infra-platform infrastructure** (managed via kind cluster)
+- **Access**: Via `kubectl proxy` (typically http://localhost:8001)
+- **Setup**: Run `.ops/.kubernetes/start-kubernetes.sh` to create kind cluster and install dashboard
+- **Documentation**: See `.ops/.kubernetes/DASHBOARD_ACCESS.md` for access details
+
+### Jenkins
+- **Port**: 8081
+- **URL**: http://localhost:8081
+- **Credentials**: Configured in Jenkins UI
+- **Has kubectl/kind tools** for Kubernetes cluster management
 
 ## Custom Configuration
 
