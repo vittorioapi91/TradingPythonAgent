@@ -91,7 +91,7 @@ services:
       # PostgreSQL connection (use container name, not localhost)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=tradingAgent
+      - POSTGRES_USER=dev.tradingAgent
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
       - POSTGRES_DB=postgres
     volumes:
@@ -140,7 +140,7 @@ services:
       # PostgreSQL connection (use container name, not localhost)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=tradingAgent
+      - POSTGRES_USER=test.tradingAgent
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
       - POSTGRES_DB=postgres
     volumes:
@@ -189,7 +189,7 @@ services:
       # PostgreSQL connection (use container name, not localhost)
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_USER=tradingAgent
+      - POSTGRES_USER=prod.tradingAgent
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
       - POSTGRES_DB=postgres
     volumes:
