@@ -176,6 +176,43 @@ initialize_jenkins_data() {
 EOF
     fi
     
+    # Create global credentials.xml if it doesn't exist or update it
+    log_info "Setting up global GitHub credentials..."
+    if [ ! -f "${JENKINS_DATA_DIR}/credentials.xml" ]; then
+        log_info "Creating global credentials.xml..."
+        cat > "${JENKINS_DATA_DIR}/credentials.xml" <<'CREDENTIALS_EOF'
+<?xml version='1.1' encoding='UTF-8'?>
+<com.cloudbees.plugins.credentials.SystemCredentialsProvider plugin="credentials@2.8.1">
+  <domainCredentialsMap class="hudson.util.CopyOnWriteMap$Hash">
+    <entry>
+      <com.cloudbees.plugins.credentials.domains.Domain>
+        <specifications/>
+      </com.cloudbees.plugins.credentials.domains.Domain>
+      <java.util.concurrent.CopyOnWriteArrayList>
+        <com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
+          <scope>GLOBAL</scope>
+          <id>39a94d87-8a43-468b-9138-14b4f86d7b93</id>
+          <description>GitHub credentials for all pipelines</description>
+          <username>vittorioapi</username>
+          <password>{AQAAABAAAAAwAE/LDOOFpZxnqI9m2WyXgytqc+SiBfQhsVqywQNtetFXvoYMadSSb1FQdflKbz/nr2LkfnFAYBUIwHouLU8HUQ==}</password>
+          <usernameSecret>false</usernameSecret>
+        </com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
+      </java.util.concurrent.CopyOnWriteArrayList>
+    </entry>
+  </domainCredentialsMap>
+</com.cloudbees.plugins.credentials.SystemCredentialsProvider>
+CREDENTIALS_EOF
+        log_info "✓ Global credentials.xml created"
+    else
+        # Check if credentials already exist in the file
+        if ! grep -q "39a94d87-8a43-468b-9138-14b4f86d7b93" "${JENKINS_DATA_DIR}/credentials.xml" 2>/dev/null; then
+            log_warn "credentials.xml exists but GitHub credentials not found. Please add manually via Jenkins UI."
+            log_warn "Or delete credentials.xml and re-run deploy script to auto-create it."
+        else
+            log_info "✓ Global credentials already configured"
+        fi
+    fi
+    
     log_info "Jenkins data structure initialized"
 }
 
