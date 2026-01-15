@@ -79,7 +79,10 @@ TradingPythonAgent/
 ├── .env.staging                     # Staging environment config
 ├── .env.prod                        # Production environment config
 ├── Jenkinsfile                      # CI/CD pipeline
-├── requirements.txt                 # Python dependencies
+├── requirements.txt                 # Base Python dependencies (shared)
+├── requirements-dev.txt             # Development dependencies (dev/* branches)
+├── requirements-staging.txt         # Staging dependencies (staging branch)
+├── requirements-prod.txt            # Production dependencies (main branch)
 └── README.md                        # This file
 ```
 
@@ -159,9 +162,16 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**:
+3. **Install dependencies** (environment-specific):
    ```bash
-   pip install -r requirements.txt
+   # The system automatically detects your environment based on git branch
+   # For manual installation, use the appropriate file:
+   pip install -r requirements-dev.txt      # For dev/* branches
+   pip install -r requirements-staging.txt  # For staging branch
+   pip install -r requirements-prod.txt     # For main branch
+   
+   # Or use the config module to get the right file:
+   python -c "from src.trading_agent.config import get_requirements_file; print(get_requirements_file())"
    ```
 
 4. **Configure environment**:

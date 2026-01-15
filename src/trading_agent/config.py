@@ -83,6 +83,42 @@ def get_environment_from_branch(branch: Optional[str]) -> str:
     return 'dev'
 
 
+def get_environment() -> str:
+    """
+    Get the current environment name based on git branch.
+    
+    Returns:
+        Environment name: 'dev', 'staging', or 'prod'
+    """
+    branch = get_git_branch()
+    return get_environment_from_branch(branch)
+
+
+def get_requirements_file() -> Path:
+    """
+    Get the path to the environment-specific requirements file.
+    
+    Returns:
+        Path to requirements file (requirements-dev.txt, requirements-staging.txt, or requirements-prod.txt)
+        Falls back to requirements.txt if environment-specific file doesn't exist
+    """
+    env = get_environment()
+    project_root = Path(__file__).parent.parent.parent
+    
+    if env == 'dev':
+        req_file = project_root / 'requirements-dev.txt'
+    elif env == 'staging':
+        req_file = project_root / 'requirements-staging.txt'
+    else:  # prod
+        req_file = project_root / 'requirements-prod.txt'
+    
+    # Fallback to base requirements.txt if environment-specific file doesn't exist
+    if not req_file.exists():
+        return project_root / 'requirements.txt'
+    
+    return req_file
+
+
 def load_environment_config(env_name: Optional[str] = None) -> None:
     """
     Load environment variables from the appropriate .env file based on branch.

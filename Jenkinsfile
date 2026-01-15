@@ -353,8 +353,25 @@ pipeline {
                         # Upgrade pip first
                         \${VENV_PIP} install --quiet --upgrade pip
                         
-                        # Install project dependencies
-                        \${VENV_PIP} install --quiet -r requirements.txt
+                        # Install project dependencies (environment-specific)
+                        # Determine environment from branch
+                        if [[ "\${GIT_BRANCH}" == "staging" ]]; then
+                            REQ_FILE="requirements-staging.txt"
+                        elif [[ "\${GIT_BRANCH}" == "main" ]]; then
+                            REQ_FILE="requirements-prod.txt"
+                        else
+                            # dev/* branches
+                            REQ_FILE="requirements-dev.txt"
+                        fi
+                        
+                        # Fallback to base requirements.txt if env-specific file doesn't exist
+                        if [ ! -f "\${REQ_FILE}" ]; then
+                            echo "⚠️  \${REQ_FILE} not found, using requirements.txt"
+                            REQ_FILE="requirements.txt"
+                        fi
+                        
+                        echo "Installing dependencies from \${REQ_FILE}..."
+                        \${VENV_PIP} install --quiet -r \${REQ_FILE}
                         
                         # Create test results directory
                         mkdir -p test-results
