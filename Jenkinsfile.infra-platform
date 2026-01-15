@@ -171,7 +171,7 @@ pipeline {
                             
                             # Check if kind cluster exists (if kind is available)
                             CLUSTER_NAME="trading-cluster"
-                            if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
+                            if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}\$"; then
                                 echo "✓ Kind cluster '${CLUSTER_NAME}' exists"
                                 
                                 # Validate cluster is accessible
