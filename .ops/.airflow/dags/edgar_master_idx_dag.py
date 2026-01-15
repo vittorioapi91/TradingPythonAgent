@@ -95,7 +95,7 @@ def download_master_idx_files(**context):
     )
     
     try:
-        # Initialize tables including ledger
+        # Initialize tables including ledger (creates schema and tables)
         init_edgar_postgres_tables(conn)
         
         # Download only new/failed quarters
@@ -149,6 +149,9 @@ def save_master_idx_to_database(**context):
     )
     
     try:
+        # Ensure tables exist (in case they weren't created in download step)
+        init_edgar_postgres_tables(conn)
+        
         # Save parsed CSV files to database
         downloader._save_master_idx_to_db(conn)
     finally:

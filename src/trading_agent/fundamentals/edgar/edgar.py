@@ -404,6 +404,9 @@ class EDGARDownloader:
                 if df is not None and not df.empty:
                     cur = conn.cursor()
                     try:
+                        # Set search path to edgar schema
+                        cur.execute("SET search_path TO edgar, public;")
+                        
                         # Prepare data for bulk insert
                         records = []
                         for _, row in df.iterrows():
