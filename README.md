@@ -70,6 +70,8 @@ TradingPythonAgent/
 │   └── prometheus.py                # Prometheus metrics
 ├── .ops/                            # Operations and infrastructure
 │   ├── .docker/                     # Docker Compose configurations
+│   │   ├── docker-compose.infra-platform.yml  # Infrastructure services (Airflow, Grafana, etc.)
+│   │   └── docker-compose.yml      # Application services (future use)
 │   ├── .jenkins/                    # Jenkins configuration
 │   ├── .kubernetes/                 # Kubernetes manifests
 │   └── .mlflow/                     # MLflow configuration
@@ -173,13 +175,15 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
 5. **Start PostgreSQL** (if using Docker):
    ```bash
    cd .ops/.docker
-   docker-compose up -d postgres
+   docker-compose -f docker-compose.infra-platform.yml up -d postgres
    ```
 
 6. **Start monitoring services** (optional):
    ```bash
    cd .ops/.docker
-   docker-compose up -d grafana prometheus mlflow
+   ./start-docker-monitoring.sh
+   # Or manually:
+   docker-compose -f docker-compose.infra-platform.yml up -d grafana prometheus mlflow
    ```
 
 ### Environment Configuration
@@ -279,8 +283,28 @@ The system automatically creates database schemas when first connecting. Ensure 
 
 ## 🏭 CI/CD Pipeline
 
-The project includes a Jenkins CI/CD pipeline with branch-aware deployments:
+The project includes separate Jenkins CI/CD pipelines for application code and infrastructure:
 
+### Application Pipeline (`Jenkinsfile`)
+- **Purpose**: Builds and validates trading_agent application code
+- **Triggers**: On all code changes (except `.ops/` only changes)
+- **Stages**:
+  - JIRA validation (for feature branches)
+  - Module validation
+  - Airflow DAG validation (syntax/imports)
+  - Unit tests
+  - Docker image builds
+  - Kubernetes deployments
+
+### Infrastructure Pipeline (`Jenkinsfile.infra-platform`)
+- **Purpose**: Validates and builds infrastructure components
+- **Triggers**: Only when `.ops/` directory changes
+- **Stages**:
+  - Infrastructure configuration validation
+  - Docker image builds (e.g., jenkins-custom)
+  - Service validation
+
+**Branch-aware deployments:**
 - **Feature branches** (`dev/{jira_issue}/{project}-{subproject}`): Deploy to dev environment
 - **Staging branch**: Deploy to staging environment
 - **Main branch**: Deploy to production

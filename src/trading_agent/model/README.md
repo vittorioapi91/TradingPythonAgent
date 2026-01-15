@@ -91,22 +91,27 @@ Start Grafana, Prometheus, MLflow, and Airflow using Docker:
 
 ```bash
 cd .ops/.docker
-./start-monitoring.sh
+./start-docker-monitoring.sh
 ```
 
-Or manually:
+Or manually start infrastructure services:
 ```bash
 cd .ops/.docker
-docker-compose up -d
+docker-compose -f docker-compose.infra-platform.yml up -d
 ```
 
 This starts:
-- **Grafana** on http://localhost:3000 (admin/admin)
+- **Grafana** on http://localhost:3000 (admin/2014)
 - **Prometheus** on http://localhost:9090
 - **MLflow** on http://localhost:55000
-- **Airflow** on http://localhost:8080
+- **Airflow DEV** on http://localhost:8082 (admin/2014) - for dev/* branches
+- **Airflow TEST** on http://localhost:8083 (admin/2014) - for staging branch
+- **Airflow PROD** on http://localhost:8084 (admin/2014) - for main branch
+- **PostgreSQL** on localhost:55432
+- **Redis** on localhost:6379
+- **Jenkins** on http://localhost:8081
 
-See [.ops/.docker/DOCKER_SETUP.md](../.ops/.docker/DOCKER_SETUP.md) for detailed instructions.
+See [.ops/.docker/README.md](../../../.ops/.docker/README.md) for detailed instructions.
 
 ## Usage
 
