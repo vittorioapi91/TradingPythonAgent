@@ -444,10 +444,17 @@ pipeline {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                     sh """
-                        docker build \
+                        # Ensure buildx is available and create builder if needed
+                        docker buildx version || docker buildx install
+                        docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
+                        
+                        # Build using buildx with BuildKit
+                        docker buildx build \
+                            --platform linux/amd64 \
                             -f .ops/.kubernetes/Dockerfile.model-training \
                             -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
                             -t ${latestTag} \
+                            --load \
                             .
                     """
                 }

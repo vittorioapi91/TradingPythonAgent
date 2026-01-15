@@ -96,10 +96,19 @@ pipeline {
                 script {
                     echo "Building infra-platform Docker images..."
                     sh """
+                        # Ensure buildx is available and create builder if needed
+                        docker buildx version || docker buildx install
+                        docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
+                        
                         # Build Jenkins custom image if Dockerfile exists
                         if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
                             echo "Building jenkins-custom:lts image..."
-                            docker build -f .ops/.docker/Dockerfile.jenkins -t jenkins-custom:lts .ops/.docker/ || {
+                            docker buildx build \
+                                --platform linux/amd64 \
+                                -f .ops/.docker/Dockerfile.jenkins \
+                                -t jenkins-custom:lts \
+                                --load \
+                                .ops/.docker/ || {
                                 echo "⚠️  Warning: Could not build Jenkins image"
                             }
                         fi
