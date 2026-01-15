@@ -250,9 +250,13 @@ class TestEDGARMasterIdxDownload:
         mock_get_quarters.return_value = []  # No existing data in database
         mock_get_pending.return_value = []
         mock_get_status.return_value = None  # New quarter
-        mock_response = Mock()
-        mock_response.status_code = 404  # Not found
-        mock_get.return_value = mock_response
+        
+        # Mock response for both uncompressed and compressed attempts (both will fail with 404)
+        # The function tries uncompressed first, then compressed if uncompressed fails
+        mock_response_404 = Mock()
+        mock_response_404.status_code = 404  # Not found
+        # Both requests.get calls will return 404, so it will mark as failed and raise
+        mock_get.return_value = mock_response_404
         
         # Override master_dir
         downloader.master_dir = tmp_path / "master"
@@ -264,13 +268,8 @@ class TestEDGARMasterIdxDownload:
             downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
         
         # Verify failure was marked (should be called before exception is raised)
-        # Note: If exception is raised immediately, mark_failed might not be called
-        # Let's check if it was called at least once
-        if mock_mark_failed.called:
-            assert True  # Failure was marked
-        else:
-            # If not called, that's okay - exception might be raised before marking
-            pass
+        # The code marks failure in the else block when compressed download also fails
+        assert mock_mark_failed.called, "mark_master_idx_download_failed should be called when download fails"
     
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
