@@ -236,6 +236,24 @@ verify_jenkins_data() {
         </hudson.plugins.jira.JiraSite>
       </sites>
     </hudson.plugins.jira.JiraFolderProperty>
+    <com.cloudbees.hudson.plugins.folder.properties.FolderCredentialsProvider_-FolderCredentialsProperty plugin="cloudbees-folder@6.1073.va_7888eb_dd514">
+      <domainCredentialsMap class="hudson.util.CopyOnWriteMap\$Hash">
+        <entry>
+          <com.cloudbees.plugins.credentials.domains.Domain plugin="credentials@1480.v2246fd131e83">
+            <specifications/>
+          </com.cloudbees.plugins.credentials.domains.Domain>
+          <java.util.concurrent.CopyOnWriteArrayList>
+            <com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl plugin="credentials@1480.v2246fd131e83">
+              <id>39a94d87-8a43-468b-9138-14b4f86d7b93</id>
+              <description></description>
+              <username>vittorioapi</username>
+              <password>{AQAAABAAAAAwAE/LDOOFpZxnqI9m2WyXgytqc+SiBfQhsVqywQNtetFXvoYMadSSb1FQdflKbz/nr2LkfnFAYBUIwHouLU8HUQ==}</password>
+              <usernameSecret>false</usernameSecret>
+            </com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl>
+          </java.util.concurrent.CopyOnWriteArrayList>
+        </entry>
+      </domainCredentialsMap>
+    </com.cloudbees.hudson.plugins.folder.properties.FolderCredentialsProvider_-FolderCredentialsProperty>
   </properties>
   <folderViews class="jenkins.branch.MultiBranchProjectViewHolder" plugin="branch-api@2.1268.v044a_87612da_8">
     <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
