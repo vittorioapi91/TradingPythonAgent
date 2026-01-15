@@ -128,7 +128,8 @@ def save_master_idx_to_database(**context):
     from trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
     
     # Get database connection from environment or use defaults
-    dbname = os.getenv('POSTGRES_DB', 'edgar')
+    # Note: Database is 'postgres', schema is 'edgar'
+    dbname = os.getenv('POSTGRES_DB', 'postgres')
     dbuser = os.getenv('POSTGRES_USER', 'tradingAgent')
     dbhost = os.getenv('POSTGRES_HOST', 'localhost')
     dbpassword = os.getenv('POSTGRES_PASSWORD', '')
