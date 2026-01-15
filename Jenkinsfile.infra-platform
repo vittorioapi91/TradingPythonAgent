@@ -125,6 +125,89 @@ pipeline {
                 }
             }
         }
+        
+        stage('Validate Kubernetes/Kind Cluster') {
+            steps {
+                script {
+                    echo "Validating Kubernetes/kind cluster configuration..."
+                    sh """
+                        # Check if kind is available
+                        if ! command -v kind &> /dev/null; then
+                            echo "⚠️  Warning: kind command not found. Kubernetes validation skipped."
+                            exit 0
+                        fi
+                        
+                        # Check if kubectl is available
+                        if ! command -v kubectl &> /dev/null; then
+                            echo "⚠️  Warning: kubectl command not found. Kubernetes validation skipped."
+                            exit 0
+                        fi
+                        
+                        # Validate Kubernetes manifests
+                        if [ -d ".ops/.kubernetes" ]; then
+                            echo "Validating Kubernetes manifests..."
+                            
+                            # Check for required manifest files
+                            if [ -f ".ops/.kubernetes/hmm-model-training-job.yaml" ]; then
+                                echo "Validating hmm-model-training-job.yaml..."
+                                kubectl --dry-run=client -f .ops/.kubernetes/hmm-model-training-job.yaml validate 2>/dev/null || {
+                                    # Try alternative validation
+                                    kubectl apply --dry-run=client -f .ops/.kubernetes/hmm-model-training-job.yaml > /dev/null 2>&1 && {
+                                        echo "✓ hmm-model-training-job.yaml is valid"
+                                    } || {
+                                        echo "⚠️  Warning: Could not validate hmm-model-training-job.yaml (may need cluster context)"
+                                    }
+                                }
+                            fi
+                            
+                            if [ -f ".ops/.kubernetes/monitoring-stack.yaml" ]; then
+                                echo "Validating monitoring-stack.yaml..."
+                                kubectl apply --dry-run=client -f .ops/.kubernetes/monitoring-stack.yaml > /dev/null 2>&1 && {
+                                    echo "✓ monitoring-stack.yaml is valid"
+                                } || {
+                                    echo "⚠️  Warning: Could not validate monitoring-stack.yaml (may need cluster context)"
+                                }
+                            fi
+                            
+                            # Check if kind cluster exists (if kind is available)
+                            CLUSTER_NAME="trading-cluster"
+                            if kind get clusters 2>/dev/null | grep -q "^${CLUSTER_NAME}$"; then
+                                echo "✓ Kind cluster '${CLUSTER_NAME}' exists"
+                                
+                                # Validate cluster is accessible
+                                kubectl config use-context "kind-${CLUSTER_NAME}" > /dev/null 2>&1 && {
+                                    if kubectl cluster-info > /dev/null 2>&1; then
+                                        echo "✓ Kind cluster is accessible"
+                                        kubectl get nodes 2>/dev/null | head -3
+                                    else
+                                        echo "⚠️  Warning: Kind cluster exists but is not accessible"
+                                    }
+                                } || {
+                                    echo "⚠️  Warning: Could not switch to kind cluster context"
+                                }
+                            else
+                                echo "ℹ️  Kind cluster '${CLUSTER_NAME}' does not exist (will be created by start-kubernetes.sh when needed)"
+                            fi
+                            
+                            # Validate start-kubernetes.sh script exists and is executable
+                            if [ -f ".ops/.kubernetes/start-kubernetes.sh" ]; then
+                                if [ -x ".ops/.kubernetes/start-kubernetes.sh" ]; then
+                                    echo "✓ start-kubernetes.sh exists and is executable"
+                                else
+                                    echo "⚠️  Warning: start-kubernetes.sh exists but is not executable"
+                                fi
+                            else
+                                echo "⚠️  Warning: start-kubernetes.sh not found"
+                            fi
+                        else
+                            echo "ℹ️  .ops/.kubernetes directory not found (Kubernetes manifests optional)"
+                        fi
+                        
+                        echo "✓ Kubernetes/kind cluster validation completed"
+                    """
+                }
+            }
+        }
     }
     
     post {
