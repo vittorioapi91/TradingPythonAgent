@@ -424,9 +424,8 @@ class TestEDGARCLIArgumentGroups:
         with patch('sys.argv', ['edgar.py'] + test_args):
             with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader'):
                 with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
-                            with patch('src.trading_agent.fundamentals.edgar.edgar.download_and_save_companies'):
+                        with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                            with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
                                 try:
                                     edgar_main()
                                 except (SystemExit, Exception):
