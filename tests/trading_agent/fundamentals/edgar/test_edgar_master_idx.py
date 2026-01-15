@@ -18,8 +18,8 @@ project_root = Path(__file__).parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
-from src.trading_agent.fundamentals.edgar.edgar_postgres import (
+from src.trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
+from src.trading_agent.fundamentals.edgar.master_idx_postgres import (
     get_master_idx_download_status,
     mark_master_idx_download_success,
     mark_master_idx_download_failed,
@@ -32,7 +32,7 @@ class TestEDGARMasterIdxParsing:
     
     def test_parse_master_idx_valid_content(self):
         """Test parsing valid master.idx content"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         # Sample master.idx content (simplified)
         content = b"""CIK|Company Name|Form Type|Date Filed|Filename
@@ -40,7 +40,7 @@ class TestEDGARMasterIdxParsing:
 789019|MICROSOFT CORP|10-K|2023-07-28|edgar/data/789019/0000789019-23-000077.txt
 """
         
-        df = downloader._parse_master_idx(content)
+        df = manager._parse_master_idx(content)
         
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 2
@@ -53,7 +53,7 @@ class TestEDGARMasterIdxParsing:
     
     def test_parse_master_idx_with_gzip(self):
         """Test parsing gzipped master.idx content"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         # Create gzipped content
         original_content = b"""CIK|Company Name|Form Type|Date Filed|Filename
@@ -61,7 +61,7 @@ class TestEDGARMasterIdxParsing:
 """
         gzipped_content = gzip.compress(original_content)
         
-        df = downloader._parse_master_idx(gzipped_content)
+        df = manager._parse_master_idx(gzipped_content)
         
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 1
@@ -69,20 +69,20 @@ class TestEDGARMasterIdxParsing:
     
     def test_parse_master_idx_skips_header_lines(self):
         """Test that header lines and separators are skipped"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         content = b"""CIK|Company Name|Form Type|Date Filed|Filename
 ---
 1000045|NICHOLAS FINANCIAL INC|10-Q|2022-11-14|edgar/data/1000045/0000950170-22-024756.txt
 """
         
-        df = downloader._parse_master_idx(content)
+        df = manager._parse_master_idx(content)
         
         assert len(df) == 1  # Should skip header and separator lines
     
     def test_parse_master_idx_invalid_lines(self):
         """Test that invalid lines are skipped"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         content = b"""CIK|Company Name|Form Type|Date Filed|Filename
 1000045|NICHOLAS FINANCIAL INC|10-Q|2022-11-14|edgar/data/1000045/0000950170-22-024756.txt
@@ -91,19 +91,19 @@ invalid|line|with|wrong|format|extra|field
 789019|MICROSOFT CORP|10-K|2023-07-28|edgar/data/789019/0000789019-23-000077.txt
 """
         
-        df = downloader._parse_master_idx(content)
+        df = manager._parse_master_idx(content)
         
         # Should only parse valid lines (2 valid entries)
         assert len(df) == 2
     
     def test_parse_master_idx_empty_content(self):
         """Test parsing empty content"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         content = b"""CIK|Company Name|Form Type|Date Filed|Filename
 """
         
-        df = downloader._parse_master_idx(content)
+        df = manager._parse_master_idx(content)
         
         assert isinstance(df, pd.DataFrame)
         assert len(df) == 0
@@ -111,7 +111,7 @@ invalid|line|with|wrong|format|extra|field
     
     def test_parse_master_idx_date_formats(self):
         """Test parsing different date formats"""
-        downloader = EDGARDownloader()
+        manager = MasterIdxManager()
         
         # Test YYYYMMDD format
         content1 = b"""CIK|Company Name|Form Type|Date Filed|Filename
@@ -139,29 +139,26 @@ class TestEDGARMasterIdxSaving:
         shutil.rmtree(temp_path)
     
     @pytest.fixture
-    def downloader(self, temp_dir):
-        """Create EDGARDownloader with temporary master directory"""
-        downloader = EDGARDownloader()
-        # Override master_dir to use temp directory
-        downloader.master_dir = temp_dir / "master"
-        downloader.master_dir.mkdir(exist_ok=True)
-        return downloader
+    def manager(self, temp_dir):
+        """Create MasterIdxManager with temporary master directory"""
+        manager = MasterIdxManager(master_dir=temp_dir / "master")
+        return manager
     
-    def test_save_master_idx_content_uncompressed(self, downloader):
+    def test_save_master_idx_content_uncompressed(self, manager):
         """Test saving uncompressed master.idx content"""
         content = b"""CIK|Company Name|Form Type|Date Filed|Filename
 1000045|NICHOLAS FINANCIAL INC|10-Q|2022-11-14|edgar/data/1000045/0000950170-22-024756.txt
 """
         
-        downloader._save_master_idx_content(content, "2022", "QTR4", is_compressed=False)
+        manager._save_master_idx_content(content, "2022", "QTR4", is_compressed=False)
         
         # Check raw file exists
-        raw_file = downloader.master_dir / "2022" / "QTR4_master.idx"
+        raw_file = manager.master_dir / "2022" / "QTR4_master.idx"
         assert raw_file.exists()
         assert raw_file.read_bytes() == content
         
         # Check CSV file exists
-        csv_file = downloader.master_dir / "2022" / "QTR4_master_parsed.csv"
+        csv_file = manager.master_dir / "2022" / "QTR4_master_parsed.csv"
         assert csv_file.exists()
         
         # Verify CSV content
@@ -169,21 +166,21 @@ class TestEDGARMasterIdxSaving:
         assert len(df) == 1
         assert df.iloc[0]['cik'] == '0001000045'
     
-    def test_save_master_idx_content_compressed(self, downloader):
+    def test_save_master_idx_content_compressed(self, manager):
         """Test saving compressed master.idx content"""
         original_content = b"""CIK|Company Name|Form Type|Date Filed|Filename
 1000045|NICHOLAS FINANCIAL INC|10-Q|2022-11-14|edgar/data/1000045/0000950170-22-024756.txt
 """
         gzipped_content = gzip.compress(original_content)
         
-        downloader._save_master_idx_content(gzipped_content, "2022", "QTR4", is_compressed=True)
+        manager._save_master_idx_content(gzipped_content, "2022", "QTR4", is_compressed=True)
         
         # Check raw file exists
-        raw_file = downloader.master_dir / "2022" / "QTR4_master.idx.gz"
+        raw_file = manager.master_dir / "2022" / "QTR4_master.idx.gz"
         assert raw_file.exists()
         
         # Check CSV file exists and is parsed correctly
-        csv_file = downloader.master_dir / "2022" / "QTR4_master_parsed.csv"
+        csv_file = manager.master_dir / "2022" / "QTR4_master_parsed.csv"
         assert csv_file.exists()
         
         df = pd.read_csv(csv_file)
@@ -200,16 +197,16 @@ class TestEDGARMasterIdxDownload:
         return conn
     
     @pytest.fixture
-    def downloader(self):
-        """Create EDGARDownloader"""
-        return EDGARDownloader()
+    def manager(self):
+        """Create MasterIdxManager"""
+        return MasterIdxManager()
     
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_success')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.mark_master_idx_download_success')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.requests.get')
     def test_save_master_idx_to_disk_success_uncompressed(
-        self, mock_get, mock_mark_success, mock_get_status, mock_get_quarters, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_success, mock_get_status, mock_get_quarters, mock_conn, manager, tmp_path
     ):
         """Test successful download of uncompressed master.idx"""
         # Setup mocks
@@ -223,24 +220,24 @@ class TestEDGARMasterIdxDownload:
         mock_get.return_value = mock_response
         
         # Override master_dir
-        downloader.master_dir = tmp_path / "master"
-        downloader.master_dir.mkdir(exist_ok=True)
+        manager.master_dir = tmp_path / "master"
+        manager.master_dir.mkdir(exist_ok=True)
         
         # Test with a specific year that won't hit current year logic
         # Limit to just 2022 to avoid processing too many quarters
-        downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
+        manager.save_master_idx_to_disk(mock_conn, start_year=2022)
         
         # Verify download was attempted (at least one call)
         assert mock_get.called
         # Verify success was marked (at least one call)
         assert mock_mark_success.called
     
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_failed')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.mark_master_idx_download_failed')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.requests.get')
     def test_save_master_idx_to_disk_failure(
-        self, mock_get, mock_mark_failed, mock_get_status, mock_get_quarters, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_failed, mock_get_status, mock_get_quarters, mock_conn, manager, tmp_path
     ):
         """Test handling of download failure"""
         # Setup mocks
@@ -255,22 +252,22 @@ class TestEDGARMasterIdxDownload:
         mock_get.return_value = mock_response_404
         
         # Override master_dir
-        downloader.master_dir = tmp_path / "master"
-        downloader.master_dir.mkdir(exist_ok=True)
+        manager.master_dir = tmp_path / "master"
+        manager.master_dir.mkdir(exist_ok=True)
         
         # Test with a specific year that won't hit current year logic
         # The function should raise an exception when both compressed and uncompressed downloads fail
         with pytest.raises(Exception):
-            downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
+            manager.save_master_idx_to_disk(mock_conn, start_year=2022)
         
         # Verify failure was marked (should be called before exception is raised)
         # The code marks failure in the else block when compressed download also fails
         assert mock_mark_failed.called, "mark_master_idx_download_failed should be called when download fails"
     
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
-        self, mock_get_status, mock_get_quarters, mock_conn, downloader
+        self, mock_get_status, mock_get_quarters, mock_conn, manager
     ):
         """Test that successful quarters are skipped"""
         # Mock get_quarters_with_data to return all quarters (all have data)
@@ -281,7 +278,7 @@ class TestEDGARMasterIdxDownload:
         # Should return early without downloading
         with patch('builtins.print') as mock_print:
             # Use a past year to avoid current year logic
-            downloader.save_master_idx_to_disk(mock_conn, start_year=2020)
+            manager.save_master_idx_to_disk(mock_conn, start_year=2020)
             # Should print "No new or failed quarters to download."
             assert any("No new or failed quarters" in str(call) for call in mock_print.call_args_list)
 
@@ -298,22 +295,20 @@ class TestEDGARMasterIdxDatabase:
         return conn
     
     @pytest.fixture
-    def downloader(self, tmp_path):
-        """Create EDGARDownloader with temporary master directory"""
-        downloader = EDGARDownloader()
-        downloader.master_dir = tmp_path / "master"
-        downloader.master_dir.mkdir(exist_ok=True)
-        return downloader
+    def manager(self, tmp_path):
+        """Create MasterIdxManager with temporary master directory"""
+        manager = MasterIdxManager(master_dir=tmp_path / "master")
+        return manager
     
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.execute_values')
-    def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, mock_get_quarters, downloader, mock_conn, tmp_path):
-        """Test that _save_master_idx_to_db loads CSV files correctly"""
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.execute_values')
+    def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, mock_get_quarters, manager, mock_conn, tmp_path):
+        """Test that save_master_idx_to_db loads CSV files correctly"""
         # Mock get_quarters_with_data to return empty (no existing data)
         mock_get_quarters.return_value = []
         
         # Create test CSV file
-        year_dir = downloader.master_dir / "2022"
+        year_dir = manager.master_dir / "2022"
         year_dir.mkdir(exist_ok=True)
         
         test_df = pd.DataFrame({
@@ -330,27 +325,27 @@ class TestEDGARMasterIdxDatabase:
         # Mock cursor
         cursor = mock_conn.cursor.return_value
         
-        downloader._save_master_idx_to_db(mock_conn)
+        manager.save_master_idx_to_db(mock_conn)
         
         # Verify cursor was used
         assert mock_conn.cursor.called
         # Verify commit was called
         assert mock_conn.commit.called
     
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    def test_save_master_idx_to_db_skips_non_csv_files(self, mock_get_quarters, downloader, mock_conn, tmp_path):
+    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    def test_save_master_idx_to_db_skips_non_csv_files(self, mock_get_quarters, manager, mock_conn, tmp_path):
         """Test that non-CSV files are skipped"""
         # Mock get_quarters_with_data to return empty (no existing data)
         mock_get_quarters.return_value = []
         
-        year_dir = downloader.master_dir / "2022"
+        year_dir = manager.master_dir / "2022"
         year_dir.mkdir(exist_ok=True)
         
         # Create a non-CSV file
         other_file = year_dir / "other_file.txt"
         other_file.write_text("not a csv")
         
-        downloader._save_master_idx_to_db(mock_conn)
+        manager.save_master_idx_to_db(mock_conn)
         
         # Should not process the non-CSV file
         # (cursor should not be called if no CSV files found)

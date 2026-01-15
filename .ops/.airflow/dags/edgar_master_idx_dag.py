@@ -65,7 +65,7 @@ def download_master_idx_files(**context):
     # Import here to avoid import errors at DAG parse time
     # Note: /opt/airflow/src contains trading_agent/ directly (not src/trading_agent/)
     # because the mount is ../../src:/opt/airflow/src
-    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+    from trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
     from trading_agent.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection,
         init_edgar_postgres_tables
@@ -81,9 +81,9 @@ def download_master_idx_files(**context):
     # Get start year from context or use default
     start_year = context.get('dag_run').conf.get('start_year') if context.get('dag_run') else None
     
-    # Initialize downloader
+    # Initialize master index manager
     user_agent = os.getenv('EDGAR_USER_AGENT', 'VittorioApicella apicellavittorio@hotmail.it')
-    downloader = EDGARDownloader(user_agent=user_agent)
+    master_idx_manager = MasterIdxManager(user_agent=user_agent)
     
     # Connect to database
     conn = get_postgres_connection(
@@ -99,7 +99,7 @@ def download_master_idx_files(**context):
         init_edgar_postgres_tables(conn)
         
         # Download only new/failed quarters
-        downloader.save_master_idx_to_disk(conn, start_year=start_year)
+        master_idx_manager.save_master_idx_to_disk(conn, start_year=start_year)
     finally:
         conn.close()
 
@@ -124,7 +124,7 @@ def save_master_idx_to_database(**context):
     # Import here to avoid import errors at DAG parse time
     # Note: /opt/airflow/src contains trading_agent/ directly (not src/trading_agent/)
     # because the mount is ../../src:/opt/airflow/src
-    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+    from trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
     from trading_agent.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection,
         init_edgar_postgres_tables
@@ -138,9 +138,9 @@ def save_master_idx_to_database(**context):
     dbpassword = os.getenv('POSTGRES_PASSWORD', '')
     dbport = int(os.getenv('POSTGRES_PORT', '5432'))
     
-    # Initialize downloader
+    # Initialize master index manager
     user_agent = os.getenv('EDGAR_USER_AGENT', 'VittorioApicella apicellavittorio@hotmail.it')
-    downloader = EDGARDownloader(user_agent=user_agent)
+    master_idx_manager = MasterIdxManager(user_agent=user_agent)
     
     # Connect to database
     conn = get_postgres_connection(
@@ -156,7 +156,7 @@ def save_master_idx_to_database(**context):
         init_edgar_postgres_tables(conn)
         
         # Save parsed CSV files to database
-        downloader._save_master_idx_to_db(conn)
+        master_idx_manager.save_master_idx_to_db(conn)
     finally:
         conn.close()
 
