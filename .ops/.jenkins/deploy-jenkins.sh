@@ -200,6 +200,109 @@ verify_jenkins_data() {
     fi
     
     # Check for pipeline job
+    # Check for TradingPythonAgent pipeline
+    if [ ! -f "${JENKINS_DATA_DIR}/jobs/TradingPythonAgent/config.xml" ]; then
+        log_warn "TradingPythonAgent pipeline config not found. It will need to be created manually or via Jenkins UI."
+    fi
+    
+    # Check for infra-platform pipeline
+    if [ ! -f "${JENKINS_DATA_DIR}/jobs/infra-platform/config.xml" ]; then
+        log_info "Creating infra-platform pipeline configuration..."
+        mkdir -p "${JENKINS_DATA_DIR}/jobs/infra-platform"
+        cat > "${JENKINS_DATA_DIR}/jobs/infra-platform/config.xml" << 'INFRAPLATFORM_CONFIG_EOF'
+<?xml version='1.1' encoding='UTF-8'?>
+<org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject plugin="workflow-multibranch@821.vc3b_4ea_780798">
+  <actions/>
+  <description>Infrastructure platform pipeline - validates and builds infrastructure components (Airflow, Grafana, etc.). Triggers on .ops/ directory changes.</description>
+  <displayName>infra-platform</displayName>
+  <properties>
+    <hudson.plugins.jira.JiraFolderProperty plugin="jira@3.21">
+      <sites>
+        <hudson.plugins.jira.JiraSite>
+          <url>https://vittorioapi91.atlassian.net/</url>
+          <useHTTPAuth>false</useHTTPAuth>
+          <credentialsId>65d65507-43f0-4806-b1ae-f526b96fe236</credentialsId>
+          <useBearerAuth>false</useBearerAuth>
+          <supportsWikiStyleComment>false</supportsWikiStyleComment>
+          <recordScmChanges>false</recordScmChanges>
+          <disableChangelogAnnotations>false</disableChangelogAnnotations>
+          <updateJIRAIssueForAllStatus>false</updateJIRAIssueForAllStatus>
+          <timeout>10</timeout>
+          <readTimeout>30</readTimeout>
+          <threadExecutorNumber>10</threadExecutorNumber>
+          <appendChangeTimestamp>false</appendChangeTimestamp>
+          <maxIssuesFromJqlSearch>100</maxIssuesFromJqlSearch>
+          <ioThreadCount>2</ioThreadCount>
+        </hudson.plugins.jira.JiraSite>
+      </sites>
+    </hudson.plugins.jira.JiraFolderProperty>
+  </properties>
+  <folderViews class="jenkins.branch.MultiBranchProjectViewHolder" plugin="branch-api@2.1268.v044a_87612da_8">
+    <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
+  </folderViews>
+  <healthMetrics/>
+  <icon class="jenkins.branch.MetadataActionFolderIcon" plugin="branch-api@2.1268.v044a_87612da_8">
+    <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
+  </icon>
+  <orphanedItemStrategy class="com.cloudbees.hudson.plugins.folder.computed.DefaultOrphanedItemStrategy" plugin="cloudbees-folder@6.1073.va_7888eb_dd514">
+    <pruneDeadBranches>true</pruneDeadBranches>
+    <daysToKeep>-1</daysToKeep>
+    <numToKeep>-1</numToKeep>
+    <abortBuilds>false</abortBuilds>
+  </orphanedItemStrategy>
+  <triggers>
+    <com.cloudbees.hudson.plugins.folder.computed.PeriodicFolderTrigger plugin="cloudbees-folder@6.1073.va_7888eb_dd514">
+      <spec>H/5 * * * *</spec>
+      <interval>300000</interval>
+    </com.cloudbees.hudson.plugins.folder.computed.PeriodicFolderTrigger>
+  </triggers>
+  <disabled>false</disabled>
+  <sources class="jenkins.branch.MultiBranchProject$BranchSourceList" plugin="branch-api@2.1268.v044a_87612da_8">
+    <data>
+      <jenkins.branch.BranchSource>
+        <source class="org.jenkinsci.plugins.github_branch_source.GitHubSCMSource" plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
+          <id>1</id>
+          <apiUri>https://api.github.com</apiUri>
+          <credentialsId>39a94d87-8a43-468b-9138-14b4f86d7b93</credentialsId>
+          <repoOwner>vittorioapi91</repoOwner>
+          <repository>TradingPythonAgent</repository>
+          <repositoryUrl>https://github.com/vittorioapi91/TradingPythonAgent.git</repositoryUrl>
+          <traits>
+            <org.jenkinsci.plugins.github__branch__source.BranchDiscoveryTrait>
+              <strategyId>1</strategyId>
+            </org.jenkinsci.plugins.github__branch__source.BranchDiscoveryTrait>
+            <org.jenkinsci.plugins.github__branch__source.OriginPullRequestDiscoveryTrait>
+              <strategyId>2</strategyId>
+            </org.jenkinsci.plugins.github__branch__source.OriginPullRequestDiscoveryTrait>
+            <org.jenkinsci.plugins.github__branch__source.ForkPullRequestDiscoveryTrait>
+              <strategyId>2</strategyId>
+              <trust class="org.jenkinsci.plugins.github_branch_source.ForkPullRequestDiscoveryTrait$TrustPermission"/>
+            </org.jenkinsci.plugins.github__branch__source.ForkPullRequestDiscoveryTrait>
+            <org.jenkinsci.plugins.github__branch__source.PathRestrictionTrait plugin="github-branch-source@1917.v9ee8a_39b_3d0d">
+              <includes>.ops/**</includes>
+              <excludes></excludes>
+            </org.jenkinsci.plugins.github__branch__source.PathRestrictionTrait>
+          </traits>
+        </source>
+        <strategy class="jenkins.branch.DefaultBranchPropertyStrategy">
+          <properties class="empty-list"/>
+        </strategy>
+      </jenkins.branch.BranchSource>
+    </data>
+    <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
+  </sources>
+  <factory class="org.jenkinsci.plugins.workflow.multibranch.WorkflowBranchProjectFactory">
+    <owner class="org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject" reference="../.."/>
+    <scriptPath>Jenkinsfile.infra-platform</scriptPath>
+  </factory>
+</org.jenkinsci.plugins.workflow.multibranch.WorkflowMultiBranchProject>
+INFRAPLATFORM_CONFIG_EOF
+        log_info "✓ infra-platform pipeline configuration created"
+    else
+        log_info "✓ infra-platform pipeline configuration already exists"
+    fi
+    
+    # Original check (keeping for backward compatibility)
     if [ ! -f "${JENKINS_DATA_DIR}/jobs/TradingPythonAgent/config.xml" ]; then
         log_warn "Pipeline job config not found (will be created on first scan)"
     else
