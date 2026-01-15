@@ -47,9 +47,26 @@ dag = DAG(
 
 def download_master_idx_files(**context):
     """Download master.idx files (only new/failed quarters)"""
+    # The src directory is mounted at /opt/airflow/src and added to PYTHONPATH
+    # So we can import directly. If that doesn't work, add the path explicitly.
+    import sys
+    import os
+    
+    # Ensure /opt/airflow/src is in path (where src is mounted in the container)
+    src_path = '/opt/airflow/src'
+    if os.path.exists(src_path) and src_path not in sys.path:
+        sys.path.insert(0, src_path)
+    # Also try adding from DAG directory (fallback)
+    dag_dir = os.path.dirname(__file__)  # /opt/airflow/dags
+    project_root_from_dag = os.path.abspath(os.path.join(dag_dir, '..', 'src'))
+    if os.path.exists(project_root_from_dag) and project_root_from_dag not in sys.path:
+        sys.path.insert(0, project_root_from_dag)
+    
     # Import here to avoid import errors at DAG parse time
-    from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
-    from src.trading_agent.fundamentals.edgar.edgar_postgres import (
+    # Note: /opt/airflow/src contains trading_agent/ directly (not src/trading_agent/)
+    # because the mount is ../../src:/opt/airflow/src
+    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+    from trading_agent.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection,
         init_edgar_postgres_tables
     )
@@ -78,7 +95,7 @@ def download_master_idx_files(**context):
     )
     
     try:
-        # Initialize tables including ledger
+        # Initialize tables including ledger (creates schema and tables)
         init_edgar_postgres_tables(conn)
         
         # Download only new/failed quarters
@@ -89,12 +106,30 @@ def download_master_idx_files(**context):
 
 def save_master_idx_to_database(**context):
     """Save parsed CSV files to PostgreSQL database"""
+    # The src directory is mounted at /opt/airflow/src and added to PYTHONPATH
+    # So we can import directly. If that doesn't work, add the path explicitly.
+    import sys
+    import os
+    
+    # Ensure /opt/airflow/src is in path (where src is mounted in the container)
+    src_path = '/opt/airflow/src'
+    if os.path.exists(src_path) and src_path not in sys.path:
+        sys.path.insert(0, src_path)
+    # Also try adding from DAG directory (fallback)
+    dag_dir = os.path.dirname(__file__)  # /opt/airflow/dags
+    project_root_from_dag = os.path.abspath(os.path.join(dag_dir, '..', 'src'))
+    if os.path.exists(project_root_from_dag) and project_root_from_dag not in sys.path:
+        sys.path.insert(0, project_root_from_dag)
+    
     # Import here to avoid import errors at DAG parse time
-    from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
-    from src.trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
+    # Note: /opt/airflow/src contains trading_agent/ directly (not src/trading_agent/)
+    # because the mount is ../../src:/opt/airflow/src
+    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+    from trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
     
     # Get database connection from environment or use defaults
-    dbname = os.getenv('POSTGRES_DB', 'edgar')
+    # Note: Database is 'postgres', schema is 'edgar'
+    dbname = os.getenv('POSTGRES_DB', 'postgres')
     dbuser = os.getenv('POSTGRES_USER', 'tradingAgent')
     dbhost = os.getenv('POSTGRES_HOST', 'localhost')
     dbpassword = os.getenv('POSTGRES_PASSWORD', '')
@@ -114,6 +149,9 @@ def save_master_idx_to_database(**context):
     )
     
     try:
+        # Ensure tables exist (in case they weren't created in download step)
+        init_edgar_postgres_tables(conn)
+        
         # Save parsed CSV files to database
         downloader._save_master_idx_to_db(conn)
     finally:

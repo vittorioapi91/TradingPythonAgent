@@ -85,6 +85,15 @@ services:
       - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/0
       # Make host project package and custom operators available inside the container
       - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
+      # Set environment for config.py (since git commands may not work in container)
+      - AIRFLOW_ENV=staging
+      - GIT_BRANCH=${GIT_BRANCH:-staging}
+      # PostgreSQL connection (use container name, not localhost)
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=tradingAgent
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
+      - POSTGRES_DB=postgres
     volumes:
       - ../.airflow/dags:/opt/airflow/dags
       - ../.airflow/logs:/opt/airflow/logs
@@ -94,17 +103,16 @@ services:
       # Mount project source (contains the trading_agent package) into the container
       # .ops/.docker/.. = .ops, .ops/.. = project root, so ../../src is correct here
       - ../../src:/opt/airflow/src
+      # Mount requirements.txt so we can install dependencies
+      - ../../requirements.txt:/opt/airflow/requirements.txt:ro
       - airflow-db:/opt/airflow
     command: >
       bash -c "
+        # Install critical project dependencies needed for DAGs (run in background, don't block)
+        python3 -m pip install --quiet tqdm pandas psycopg2-binary requests python-dotenv > /tmp/pip_install.log 2>&1 &
+        # Start Airflow services immediately (dependencies will install in background)
         airflow db migrate &&
-        airflow users create
-          --username admin
-          --firstname Admin
-          --lastname User
-          --role Admin
-          --email admin@example.com
-          --password 2014 || echo 'Admin user may already exist' ;
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
         airflow webserver --port 8080 &
         airflow scheduler
       "

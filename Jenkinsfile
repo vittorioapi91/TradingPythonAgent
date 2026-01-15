@@ -268,6 +268,68 @@ pipeline {
             }
         }
         
+        stage('Validate Airflow DAGs') {
+            steps {
+                script {
+                    echo "Validating Airflow DAGs..."
+                    sh """
+                        # Create virtual environment if it doesn't exist
+                        if [ ! -d "venv" ]; then
+                            python3 -m venv venv
+                        fi
+                        
+                        # Use virtual environment's Python directly
+                        VENV_PYTHON="venv/bin/python"
+                        VENV_PIP="venv/bin/pip"
+                        
+                        # Upgrade pip first
+                        \${VENV_PIP} install --quiet --upgrade pip
+                        
+                        # Install Airflow (try latest stable, fallback to any version)
+                        \${VENV_PIP} install --quiet apache-airflow || {
+                            echo "Warning: Could not install apache-airflow, trying without version constraint"
+                            \${VENV_PIP} install --quiet 'apache-airflow>=2.0.0' || {
+                                echo "⚠️  Could not install Airflow. Skipping DAG validation."
+                                exit 0
+                            }
+                        }
+                        
+                        # Install only critical project dependencies (needed for DAG imports)
+                        \${VENV_PIP} install --quiet tqdm pandas psycopg2-binary requests python-dotenv || echo "Warning: Some dependencies failed"
+                        
+                        # Set environment variables for DAG execution context
+                        export AIRFLOW_HOME=/tmp/airflow_home
+                        export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                        export AIRFLOW__CORE__LOAD_EXAMPLES=False
+                        export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/airflow_home/airflow.db
+                        
+                        # Create minimal Airflow config
+                        mkdir -p \${AIRFLOW_HOME}
+                        echo "[core]" > \${AIRFLOW_HOME}/airflow.cfg
+                        echo "dags_folder = .ops/.airflow/dags" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "load_examples = False" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "[database]" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "sql_alchemy_conn = sqlite:////tmp/airflow_home/airflow.db" >> \${AIRFLOW_HOME}/airflow.cfg
+                        
+                        # Initialize Airflow database (use migrate instead of init for newer Airflow versions)
+                        \${VENV_PYTHON} -m airflow db migrate || {
+                            # Fallback: try init for older versions
+                            \${VENV_PYTHON} -m airflow db init 2>/dev/null || echo "Database may already exist"
+                        }
+                        
+                        # Validate DAGs by listing them (this will parse and validate)
+                        echo "Validating DAG files..."
+                        \${VENV_PYTHON} -m airflow dags list || {
+                            echo "⚠️  DAG validation failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        echo "✓ All DAGs validated successfully"
+                    """
+                }
+            }
+        }
+        
         stage('Run Tests') {
             steps {
                 script {

@@ -204,15 +204,17 @@ class TestEDGARMasterIdxDownload:
         """Create EDGARDownloader"""
         return EDGARDownloader()
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_success')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_success_uncompressed(
-        self, mock_get, mock_mark_success, mock_get_status, mock_get_pending, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_success, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader, tmp_path
     ):
         """Test successful download of uncompressed master.idx"""
         # Setup mocks
+        mock_get_quarters.return_value = []  # No existing data in database
         mock_get_pending.return_value = []  # Empty list - will check individual status
         mock_get_status.return_value = None  # New quarter, not in ledger
         mock_response = Mock()
@@ -235,38 +237,49 @@ class TestEDGARMasterIdxDownload:
         # Verify success was marked (at least one call)
         assert mock_mark_success.called
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_failed')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_failure(
-        self, mock_get, mock_mark_failed, mock_get_status, mock_get_pending, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_failed, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader, tmp_path
     ):
         """Test handling of download failure"""
         # Setup mocks
+        mock_get_quarters.return_value = []  # No existing data in database
         mock_get_pending.return_value = []
         mock_get_status.return_value = None  # New quarter
-        mock_response = Mock()
-        mock_response.status_code = 404  # Not found
-        mock_get.return_value = mock_response
+        
+        # Mock response for both uncompressed and compressed attempts (both will fail with 404)
+        # The function tries uncompressed first, then compressed if uncompressed fails
+        mock_response_404 = Mock()
+        mock_response_404.status_code = 404  # Not found
+        # Both requests.get calls will return 404, so it will mark as failed and raise
+        mock_get.return_value = mock_response_404
         
         # Override master_dir
         downloader.master_dir = tmp_path / "master"
         downloader.master_dir.mkdir(exist_ok=True)
         
         # Test with a specific year that won't hit current year logic
+        # The function should raise an exception when both compressed and uncompressed downloads fail
         with pytest.raises(Exception):
             downloader.save_master_idx_to_disk(mock_conn, start_year=2022)
         
-        # Verify failure was marked
-        assert mock_mark_failed.called
+        # Verify failure was marked (should be called before exception is raised)
+        # The code marks failure in the else block when compressed download also fails
+        assert mock_mark_failed.called, "mark_master_idx_download_failed should be called when download fails"
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
-        self, mock_get_status, mock_get_pending, mock_conn, downloader
+        self, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader
     ):
         """Test that successful quarters are skipped"""
+        # Mock get_quarters_with_data to return all quarters (all have data)
+        mock_get_quarters.return_value = [(2020, 'QTR1'), (2020, 'QTR2'), (2020, 'QTR3'), (2020, 'QTR4')]
         # Mock get_pending_or_failed_quarters to return empty list
         mock_get_pending.return_value = []
         # Mock all quarters as successful
@@ -299,9 +312,13 @@ class TestEDGARMasterIdxDatabase:
         downloader.master_dir.mkdir(exist_ok=True)
         return downloader
     
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.edgar.execute_values')
-    def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, downloader, mock_conn, tmp_path):
+    def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, mock_get_quarters, downloader, mock_conn, tmp_path):
         """Test that _save_master_idx_to_db loads CSV files correctly"""
+        # Mock get_quarters_with_data to return empty (no existing data)
+        mock_get_quarters.return_value = []
+        
         # Create test CSV file
         year_dir = downloader.master_dir / "2022"
         year_dir.mkdir(exist_ok=True)
@@ -327,8 +344,12 @@ class TestEDGARMasterIdxDatabase:
         # Verify commit was called
         assert mock_conn.commit.called
     
-    def test_save_master_idx_to_db_skips_non_csv_files(self, downloader, mock_conn, tmp_path):
+    @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
+    def test_save_master_idx_to_db_skips_non_csv_files(self, mock_get_quarters, downloader, mock_conn, tmp_path):
         """Test that non-CSV files are skipped"""
+        # Mock get_quarters_with_data to return empty (no existing data)
+        mock_get_quarters.return_value = []
+        
         year_dir = downloader.master_dir / "2022"
         year_dir.mkdir(exist_ok=True)
         
