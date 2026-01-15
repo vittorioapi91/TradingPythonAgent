@@ -176,8 +176,10 @@ initialize_jenkins_data() {
 EOF
     fi
     
-    # Create global credentials.xml if it doesn't exist or update it
+    # Create or update global credentials.xml
     log_info "Setting up global GitHub credentials..."
+    local CRED_ID="39a94d87-8a43-468b-9138-14b4f86d7b93"
+    
     if [ ! -f "${JENKINS_DATA_DIR}/credentials.xml" ]; then
         log_info "Creating global credentials.xml..."
         cat > "${JENKINS_DATA_DIR}/credentials.xml" <<'CREDENTIALS_EOF'
@@ -204,12 +206,75 @@ EOF
 CREDENTIALS_EOF
         log_info "✓ Global credentials.xml created"
     else
-        # Check if credentials already exist in the file
-        if ! grep -q "39a94d87-8a43-468b-9138-14b4f86d7b93" "${JENKINS_DATA_DIR}/credentials.xml" 2>/dev/null; then
-            log_warn "credentials.xml exists but GitHub credentials not found. Please add manually via Jenkins UI."
-            log_warn "Or delete credentials.xml and re-run deploy script to auto-create it."
-        else
+        # Check if credentials already exist
+        if grep -q "${CRED_ID}" "${JENKINS_DATA_DIR}/credentials.xml" 2>/dev/null; then
             log_info "✓ Global credentials already configured"
+        else
+            log_warn "credentials.xml exists but GitHub credentials (${CRED_ID}) not found."
+            log_warn "Adding credentials to existing credentials.xml..."
+            
+            # Backup existing file
+            cp "${JENKINS_DATA_DIR}/credentials.xml" "${JENKINS_DATA_DIR}/credentials.xml.backup.${TIMESTAMP}"
+            
+            # Use Python or sed to add credentials (Python is more reliable for XML)
+            python3 <<PYTHON_EOF
+import xml.etree.ElementTree as ET
+import sys
+
+try:
+    tree = ET.parse("${JENKINS_DATA_DIR}/credentials.xml")
+    root = tree.getroot()
+    
+    # Find or create the domainCredentialsMap
+    domain_map = root.find('.//domainCredentialsMap')
+    if domain_map is None:
+        # Create structure if it doesn't exist
+        provider = root.find('.//com.cloudbees.plugins.credentials.SystemCredentialsProvider')
+        if provider is None:
+            print("Error: Could not find SystemCredentialsProvider", file=sys.stderr)
+            sys.exit(1)
+        domain_map = ET.SubElement(provider, 'domainCredentialsMap')
+        domain_map.set('class', 'hudson.util.CopyOnWriteMap\$Hash')
+    
+    # Find or create entry
+    entry = domain_map.find('entry')
+    if entry is None:
+        entry = ET.SubElement(domain_map, 'entry')
+        domain = ET.SubElement(entry, 'com.cloudbees.plugins.credentials.domains.Domain')
+        specs = ET.SubElement(domain, 'specifications')
+        cred_list = ET.SubElement(entry, 'java.util.concurrent.CopyOnWriteArrayList')
+    else:
+        cred_list = entry.find('java.util.concurrent.CopyOnWriteArrayList')
+        if cred_list is None:
+            cred_list = ET.SubElement(entry, 'java.util.concurrent.CopyOnWriteArrayList')
+    
+    # Check if credential already exists
+    if cred_list.find(f".//id[.='${CRED_ID}']") is None:
+        cred = ET.SubElement(cred_list, 'com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl')
+        ET.SubElement(cred, 'scope').text = 'GLOBAL'
+        ET.SubElement(cred, 'id').text = '${CRED_ID}'
+        ET.SubElement(cred, 'description').text = 'GitHub credentials for all pipelines'
+        ET.SubElement(cred, 'username').text = 'vittorioapi'
+        ET.SubElement(cred, 'password').text = '{AQAAABAAAAAwAE/LDOOFpZxnqI9m2WyXgytqc+SiBfQhsVqywQNtetFXvoYMadSSb1FQdflKbz/nr2LkfnFAYBUIwHouLU8HUQ==}'
+        ET.SubElement(cred, 'usernameSecret').text = 'false'
+        tree.write("${JENKINS_DATA_DIR}/credentials.xml", encoding='UTF-8', xml_declaration=True)
+        print("✓ Credentials added to existing credentials.xml")
+    else:
+        print("✓ Credentials already exist in credentials.xml")
+except Exception as e:
+    print(f"Error updating credentials.xml: {e}", file=sys.stderr)
+    print("Please add credentials manually via Jenkins UI: Manage Jenkins → Manage Credentials → Global", file=sys.stderr)
+    sys.exit(1)
+PYTHON_EOF
+            
+            if [ $? -eq 0 ]; then
+                log_info "✓ Credentials added to existing credentials.xml"
+            else
+                log_error "Failed to add credentials automatically"
+                log_warn "Please add credentials manually via Jenkins UI:"
+                log_warn "  Manage Jenkins → Manage Credentials → Global → Add Credentials"
+                log_warn "  Or restore from backup: ${JENKINS_DATA_DIR}/credentials.xml.backup.${TIMESTAMP}"
+            fi
         fi
     fi
     
