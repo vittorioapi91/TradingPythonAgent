@@ -1,35 +1,35 @@
 pipeline {
     agent any
     
-    // This pipeline only runs when .ops directory changes
+    // This pipeline runs when .ops directory or Jenkinsfile.infra-platform changes
     // It validates and builds infra-platform components (Airflow, Grafana, etc.)
     
     stages {
-        stage('Check if .ops Changed') {
+        stage('Check if .ops or Jenkinsfile.infra-platform Changed') {
             steps {
                 script {
-                    // Check if .ops/ directory has changes
+                    // Check if .ops/ directory or Jenkinsfile.infra-platform has changes
                     def changedFiles = sh(
                         script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only origin/${GIT_BRANCH} 2>/dev/null || echo ""',
                         returnStdout: true
                     ).trim()
                     
-                    def hasOpsChanges = false
+                    def hasInfraChanges = false
                     if (changedFiles) {
                         changedFiles.split('\n').each { file ->
-                            if (file.startsWith('.ops/')) {
-                                hasOpsChanges = true
+                            if (file.startsWith('.ops/') || file == 'Jenkinsfile.infra-platform') {
+                                hasInfraChanges = true
                             }
                         }
                     }
                     
-                    if (!hasOpsChanges) {
-                        echo "⚠️  No .ops/ directory changes detected. Skipping infra-platform pipeline."
+                    if (!hasInfraChanges) {
+                        echo "⚠️  No .ops/ directory or Jenkinsfile.infra-platform changes detected. Skipping infra-platform pipeline."
                         currentBuild.result = 'ABORTED'
                         error("Pipeline aborted: No infrastructure changes detected")
                     }
                     
-                    echo "✓ .ops/ directory changes detected. Proceeding with infra-platform validation."
+                    echo "✓ Infrastructure changes detected (.ops/ or Jenkinsfile.infra-platform). Proceeding with infra-platform validation."
                 }
             }
         }
