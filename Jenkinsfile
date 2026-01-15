@@ -356,7 +356,7 @@ pipeline {
                         # Run tests with verbose output and JUnit XML for Jenkins
                         # Note: pytest will exit with non-zero if tests fail, which is expected
                         set +e  # Don't exit on error immediately
-                        \${VENV_PYTHON} -m pytest tests/ -v --tb=short --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html --html-report-title="TradingPythonAgent Test Report"
+                        \${VENV_PYTHON} -m pytest tests/ --junitxml=test-results/junit.xml --html=test-results/report.html --self-contained-html
                         TEST_EXIT_CODE=\$?
                         set -e  # Re-enable exit on error
                         
