@@ -377,7 +377,13 @@ print_summary() {
     if [ -d "${JENKINS_DATA_DIR}/jobs/TradingPythonAgent" ]; then
         log_info "Pipeline job: TradingPythonAgent (configured)"
     else
-        log_info "Pipeline job: Will be created on first branch scan"
+        log_info "Pipeline job: TradingPythonAgent (will be created on first branch scan)"
+    fi
+    
+    if [ -d "${JENKINS_DATA_DIR}/jobs/infra-platform" ]; then
+        log_info "Pipeline job: infra-platform (configured)"
+    else
+        log_info "Pipeline job: infra-platform (will be created automatically)"
     fi
     
     if [ -d "${JENKINS_DATA_DIR}/users" ]; then
@@ -389,7 +395,9 @@ print_summary() {
     log_info "Next steps:"
     log_info "1. Access Jenkins at http://localhost:8081"
     log_info "2. Log in with your credentials"
-    log_info "3. The TradingPythonAgent pipeline will scan for branches automatically"
+    log_info "3. Pipelines will scan for branches automatically:"
+    log_info "   - TradingPythonAgent (application code)"
+    log_info "   - infra-platform (infrastructure, triggers on .ops/ changes)"
     log_info "=========================================="
 }
 
