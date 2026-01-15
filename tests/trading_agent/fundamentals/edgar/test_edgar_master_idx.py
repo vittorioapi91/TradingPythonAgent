@@ -205,17 +205,15 @@ class TestEDGARMasterIdxDownload:
         return EDGARDownloader()
     
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_success')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_success_uncompressed(
-        self, mock_get, mock_mark_success, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_success, mock_get_status, mock_get_quarters, mock_conn, downloader, tmp_path
     ):
         """Test successful download of uncompressed master.idx"""
         # Setup mocks
         mock_get_quarters.return_value = []  # No existing data in database
-        mock_get_pending.return_value = []  # Empty list - will check individual status
         mock_get_status.return_value = None  # New quarter, not in ledger
         mock_response = Mock()
         mock_response.status_code = 200
@@ -238,17 +236,15 @@ class TestEDGARMasterIdxDownload:
         assert mock_mark_success.called
     
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     @patch('src.trading_agent.fundamentals.edgar.edgar.mark_master_idx_download_failed')
     @patch('src.trading_agent.fundamentals.edgar.edgar.requests.get')
     def test_save_master_idx_to_disk_failure(
-        self, mock_get, mock_mark_failed, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader, tmp_path
+        self, mock_get, mock_mark_failed, mock_get_status, mock_get_quarters, mock_conn, downloader, tmp_path
     ):
         """Test handling of download failure"""
         # Setup mocks
         mock_get_quarters.return_value = []  # No existing data in database
-        mock_get_pending.return_value = []
         mock_get_status.return_value = None  # New quarter
         
         # Mock response for both uncompressed and compressed attempts (both will fail with 404)
@@ -272,16 +268,13 @@ class TestEDGARMasterIdxDownload:
         assert mock_mark_failed.called, "mark_master_idx_download_failed should be called when download fails"
     
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.edgar.get_pending_or_failed_quarters')
     @patch('src.trading_agent.fundamentals.edgar.edgar.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
-        self, mock_get_status, mock_get_pending, mock_get_quarters, mock_conn, downloader
+        self, mock_get_status, mock_get_quarters, mock_conn, downloader
     ):
         """Test that successful quarters are skipped"""
         # Mock get_quarters_with_data to return all quarters (all have data)
         mock_get_quarters.return_value = [(2020, 'QTR1'), (2020, 'QTR2'), (2020, 'QTR3'), (2020, 'QTR4')]
-        # Mock get_pending_or_failed_quarters to return empty list
-        mock_get_pending.return_value = []
         # Mock all quarters as successful
         mock_get_status.return_value = {'status': 'success'}
         
