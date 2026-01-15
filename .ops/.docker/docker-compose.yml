@@ -88,6 +88,12 @@ services:
       # Set environment for config.py (since git commands may not work in container)
       - AIRFLOW_ENV=staging
       - GIT_BRANCH=${GIT_BRANCH:-staging}
+      # PostgreSQL connection (use container name, not localhost)
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=tradingAgent
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
+      - POSTGRES_DB=edgar
     volumes:
       - ../.airflow/dags:/opt/airflow/dags
       - ../.airflow/logs:/opt/airflow/logs
