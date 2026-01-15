@@ -5,11 +5,44 @@ pipeline {
         KIND_CLUSTER = 'trading-cluster'
     }
     
+    // Check if this is an infrastructure change (only .ops changed)
+    options {
+        skipDefaultCheckout(false)
+    }
+    
     stages {
         stage('Checkout') {
             steps {
                 checkout scm
                 script {
+                    // Check if only infrastructure (.ops) changed
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only origin/${GIT_BRANCH} 2>/dev/null || echo ""',
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.ONLY_INFRASTRUCTURE_CHANGED = 'false'
+                    if (changedFiles) {
+                        def infraOnly = true
+                        changedFiles.split('\n').each { file ->
+                            if (!file.startsWith('.ops/') && file != 'Jenkinsfile.infrastructure') {
+                                infraOnly = false
+                            }
+                        }
+                        env.ONLY_INFRASTRUCTURE_CHANGED = infraOnly ? 'true' : 'false'
+                    }
+                    
+                    echo "Changed files: ${changedFiles}"
+                    echo "Only infrastructure changed: ${env.ONLY_INFRASTRUCTURE_CHANGED}"
+                    
+                    // Skip application pipeline if only infrastructure changed
+                    if (env.ONLY_INFRASTRUCTURE_CHANGED == 'true') {
+                        echo "⚠️  Only infrastructure (.ops) changed. This pipeline is for application code."
+                        echo "⚠️  Please use Jenkinsfile.infrastructure pipeline for infrastructure changes."
+                        currentBuild.result = 'ABORTED'
+                        error("Pipeline aborted: Use infrastructure pipeline for .ops changes")
+                    }
+                    
                     env.GIT_COMMIT_SHORT = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
@@ -269,9 +302,15 @@ pipeline {
         }
         
         stage('Validate Airflow DAGs') {
+            when {
+                // Only validate DAGs if .ops/.airflow/dags exists (application code pipeline)
+                expression { 
+                    fileExists('.ops/.airflow/dags') 
+                }
+            }
             steps {
                 script {
-                    echo "Validating Airflow DAGs..."
+                    echo "Validating Airflow DAGs (application code validation only)..."
                     sh """
                         # Create virtual environment if it doesn't exist
                         if [ ! -d "venv" ]; then
@@ -416,6 +455,10 @@ pipeline {
         }
         
         stage('Build Docker Image') {
+            when {
+                // Only build if not just infrastructure changes
+                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
+            }
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
@@ -432,6 +475,9 @@ pipeline {
         }
         
         stage('Load Image into Kind Cluster') {
+            when {
+                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
+            }
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
@@ -445,6 +491,9 @@ pipeline {
         }
         
         stage('Create Namespace (if needed)') {
+            when {
+                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
+            }
             steps {
                 script {
                     echo "Ensuring namespace ${env.NAMESPACE} exists"
@@ -456,6 +505,9 @@ pipeline {
         }
         
         stage('Update Kubernetes Job') {
+            when {
+                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
+            }
             steps {
                 script {
                     echo "Updating Kubernetes Job with new image"
@@ -482,6 +534,9 @@ pipeline {
         }
         
         stage('Verify Deployment') {
+            when {
+                expression { env.ONLY_INFRASTRUCTURE_CHANGED != 'true' }
+            }
             steps {
                 script {
                     echo "Verifying job deployment"

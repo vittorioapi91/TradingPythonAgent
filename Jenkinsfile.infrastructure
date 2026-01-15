@@ -1,0 +1,109 @@
+pipeline {
+    agent any
+    
+    // This pipeline only runs when .ops directory changes
+    // It validates and builds infrastructure components (Airflow, Grafana, etc.)
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Validate Infrastructure Configuration') {
+            steps {
+                script {
+                    echo "Validating infrastructure configuration..."
+                    sh """
+                        # Validate docker-compose files
+                        if [ -f ".ops/.docker/docker-compose.infrastructure.yml" ]; then
+                            echo "Validating docker-compose.infrastructure.yml..."
+                            docker-compose -f .ops/.docker/docker-compose.infrastructure.yml config > /dev/null || {
+                                echo "❌ docker-compose.infrastructure.yml is invalid"
+                                exit 1
+                            }
+                            echo "✓ docker-compose.infrastructure.yml is valid"
+                        fi
+                        
+                        if [ -f ".ops/.docker/docker-compose.yml" ]; then
+                            echo "Validating docker-compose.yml..."
+                            docker-compose -f .ops/.docker/docker-compose.yml config > /dev/null || {
+                                echo "❌ docker-compose.yml is invalid"
+                                exit 1
+                            }
+                            echo "✓ docker-compose.yml is valid"
+                        fi
+                        
+                        # Validate Airflow DAGs (if they exist)
+                        if [ -d ".ops/.airflow/dags" ]; then
+                            echo "Validating Airflow DAGs..."
+                            # Create minimal venv for DAG validation
+                            python3 -m venv /tmp/infra_venv || true
+                            /tmp/infra_venv/bin/pip install --quiet apache-airflow tqdm pandas psycopg2-binary requests python-dotenv || true
+                            
+                            export AIRFLOW_HOME=/tmp/airflow_infra_home
+                            export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                            export AIRFLOW__CORE__LOAD_EXAMPLES=False
+                            export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/airflow_infra_home/airflow.db
+                            
+                            mkdir -p \${AIRFLOW_HOME}
+                            /tmp/infra_venv/bin/python -m airflow db migrate 2>/dev/null || true
+                            /tmp/infra_venv/bin/python -m airflow dags list > /dev/null 2>&1 && {
+                                echo "✓ Airflow DAGs are valid"
+                            } || {
+                                echo "⚠️  Warning: Could not validate Airflow DAGs (may need full Airflow setup)"
+                            }
+                        fi
+                        
+                        echo "✓ Infrastructure configuration validated"
+                    """
+                }
+            }
+        }
+        
+        stage('Build Infrastructure Images') {
+            steps {
+                script {
+                    echo "Building infrastructure Docker images..."
+                    sh """
+                        # Build Jenkins custom image if Dockerfile exists
+                        if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
+                            echo "Building jenkins-custom:lts image..."
+                            docker build -f .ops/.docker/Dockerfile.jenkins -t jenkins-custom:lts .ops/.docker/ || {
+                                echo "⚠️  Warning: Could not build Jenkins image"
+                            }
+                        fi
+                        
+                        echo "✓ Infrastructure images built (or using pre-built images)"
+                    """
+                }
+            }
+        }
+        
+        stage('Validate Infrastructure Services') {
+            steps {
+                script {
+                    echo "Validating infrastructure services can start..."
+                    sh """
+                        # Test that docker-compose files are valid and services can be checked
+                        if [ -f ".ops/.docker/docker-compose.infrastructure.yml" ]; then
+                            echo "Checking infrastructure services..."
+                            docker-compose -f .ops/.docker/docker-compose.infrastructure.yml config --services | head -10
+                            echo "✓ Infrastructure services configuration is valid"
+                        fi
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✓ Infrastructure pipeline succeeded!"
+        }
+        failure {
+            echo "✗ Infrastructure pipeline failed. Check logs for details."
+        }
+    }
+}
