@@ -125,7 +125,10 @@ def save_master_idx_to_database(**context):
     # Note: /opt/airflow/src contains trading_agent/ directly (not src/trading_agent/)
     # because the mount is ../../src:/opt/airflow/src
     from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
-    from trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
+    from trading_agent.fundamentals.edgar.edgar_postgres import (
+        get_postgres_connection,
+        init_edgar_postgres_tables
+    )
     
     # Get database connection from environment or use defaults
     # Note: Database is 'postgres', schema is 'edgar'
