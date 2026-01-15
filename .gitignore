@@ -67,3 +67,4 @@ src/trading_agent/fundamentals/edgar/master/
 # Jenkins data (runtime/operational data - should not be versioned)
 # Exclude entire data directory - all runtime Jenkins data
 .ops/.jenkins/data/
+company_tickers.json
