@@ -117,14 +117,14 @@ invalid|line|with|wrong|format|extra|field
         content1 = b"""CIK|Company Name|Form Type|Date Filed|Filename
 1000045|COMPANY|10-Q|20221114|edgar/data/1000045/0000950170-22-024756.txt
 """
-        df1 = downloader._parse_master_idx(content1)
+        df1 = manager._parse_master_idx(content1)
         assert df1.iloc[0]['filing_date'] == '2022-11-14'
         
         # Test YYYY-MM-DD format
         content2 = b"""CIK|Company Name|Form Type|Date Filed|Filename
 1000045|COMPANY|10-Q|2022-11-14|edgar/data/1000045/0000950170-22-024756.txt
 """
-        df2 = downloader._parse_master_idx(content2)
+        df2 = manager._parse_master_idx(content2)
         assert df2.iloc[0]['filing_date'] == '2022-11-14'
 
 
