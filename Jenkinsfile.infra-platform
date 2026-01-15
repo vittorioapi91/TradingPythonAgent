@@ -48,7 +48,7 @@ pipeline {
                         # Validate docker-compose files (using 'docker compose' plugin, not 'docker-compose' binary)
                         if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
                             echo "Validating docker-compose.infra-platform.yml..."
-                            docker compose -f .ops/.docker/docker-compose.infra-platform.yml config > /dev/null || {
+                            docker compose --file .ops/.docker/docker-compose.infra-platform.yml config > /dev/null || {
                                 echo "❌ docker-compose.infra-platform.yml is invalid"
                                 exit 1
                             }
@@ -57,7 +57,7 @@ pipeline {
                         
                         if [ -f ".ops/.docker/docker-compose.yml" ]; then
                             echo "Validating docker-compose.yml..."
-                            docker compose -f .ops/.docker/docker-compose.yml config > /dev/null || {
+                            docker compose --file .ops/.docker/docker-compose.yml config > /dev/null || {
                                 echo "❌ docker-compose.yml is invalid"
                                 exit 1
                             }
@@ -127,7 +127,7 @@ pipeline {
                         # Test that docker-compose files are valid and services can be checked
                         if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
                             echo "Checking infra-platform services..."
-                            docker compose -f .ops/.docker/docker-compose.infra-platform.yml config --services | head -10
+                            docker compose --file .ops/.docker/docker-compose.infra-platform.yml config --services | head -10
                             echo "✓ Infra-platform services configuration is valid"
                         fi
                     """
