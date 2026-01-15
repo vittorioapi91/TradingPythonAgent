@@ -123,7 +123,7 @@ initialize_jenkins_data() {
     
     mkdir -p "${JENKINS_DATA_DIR}"/{plugins,jobs,users,war}
     
-    # Create minimal config.xml if it doesn't exist
+    # Create or update config.xml with GitHub API usage strategy
     if [ ! -f "${JENKINS_DATA_DIR}/config.xml" ]; then
         log_info "Creating minimal Jenkins config.xml..."
         cat > "${JENKINS_DATA_DIR}/config.xml" <<'EOF'
@@ -172,8 +172,71 @@ initialize_jenkins_data() {
   <nodeProperties/>
   <globalNodeProperties/>
   <nodeRenameMigrationNeeded>false</nodeRenameMigrationNeeded>
+  <org.jenkinsci.plugins.github_branch_source.GitHubSCMSource>
+    <apiRateLimitChecker class="org.jenkinsci.plugins.github_branch_source.ThrottleForNormalize"/>
+  </org.jenkinsci.plugins.github_branch_source.GitHubSCMSource>
 </hudson>
 EOF
+        log_info "✓ Created config.xml with GitHub API usage strategy: 'Only when near or above limit'"
+    else
+        # Update existing config.xml to include GitHub API usage strategy
+        log_info "Updating config.xml with GitHub API usage strategy..."
+        python3 <<PYTHON_CONFIG_EOF
+import xml.etree.ElementTree as ET
+import sys
+from datetime import datetime
+import shutil
+
+config_file = "${JENKINS_DATA_DIR}/config.xml"
+
+try:
+    # Backup existing file
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_file = f"{config_file}.backup.{timestamp}"
+    shutil.copy(config_file, backup_file)
+    print(f"✓ Backup created: {backup_file}")
+    
+    tree = ET.parse(config_file)
+    root = tree.getroot()
+    
+    # Check if GitHubSCMSource config already exists
+    github_config = root.find('.//org.jenkinsci.plugins.github_branch_source.GitHubSCMSource')
+    
+    if github_config is None:
+        # Add GitHub API usage strategy configuration
+        github_config = ET.SubElement(root, 'org.jenkinsci.plugins.github_branch_source.GitHubSCMSource')
+        rate_limit_checker = ET.SubElement(github_config, 'apiRateLimitChecker')
+        rate_limit_checker.set('class', 'org.jenkinsci.plugins.github_branch_source.ThrottleForNormalize')
+        tree.write(config_file, encoding='UTF-8', xml_declaration=True)
+        print("✓ Added GitHub API usage strategy: 'Only when near or above limit'")
+    else:
+        # Check if apiRateLimitChecker is already set correctly
+        rate_checker = github_config.find('apiRateLimitChecker')
+        if rate_checker is None:
+            rate_checker = ET.SubElement(github_config, 'apiRateLimitChecker')
+            rate_checker.set('class', 'org.jenkinsci.plugins.github_branch_source.ThrottleForNormalize')
+            tree.write(config_file, encoding='UTF-8', xml_declaration=True)
+            print("✓ Added GitHub API usage strategy: 'Only when near or above limit'")
+        elif rate_checker.get('class') != 'org.jenkinsci.plugins.github_branch_source.ThrottleForNormalize':
+            rate_checker.set('class', 'org.jenkinsci.plugins.github_branch_source.ThrottleForNormalize')
+            tree.write(config_file, encoding='UTF-8', xml_declaration=True)
+            print("✓ Updated GitHub API usage strategy: 'Only when near or above limit'")
+        else:
+            print("✓ GitHub API usage strategy already configured correctly")
+    
+except Exception as e:
+    print(f"Error updating config.xml: {e}", file=sys.stderr)
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+PYTHON_CONFIG_EOF
+        
+        if [ $? -eq 0 ]; then
+            log_info "✓ GitHub API usage strategy configured in config.xml"
+        else
+            log_warn "Failed to update config.xml automatically"
+            log_warn "Please configure manually: Manage Jenkins → Configure System → GitHub API usage → 'Only when near or above limit'"
+        fi
     fi
     
     # Create or update global credentials.xml
