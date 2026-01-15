@@ -63,19 +63,10 @@ from tqdm import tqdm
 
 # Handle import for both module import and direct script execution
 try:
-    from ..download_logger import get_download_logger
     from .edgar_postgres import (
         get_postgres_connection, init_edgar_postgres_tables,
-        add_companies_fast, add_filings_fast, get_existing_accessions,
-        load_companies_from_postgres, load_filings_from_postgres,
-        add_company_history_snapshot, update_edgar_metadata,
-        get_edgar_metadata, get_edgar_statistics, update_filing_downloaded_path,
-        get_processed_years, mark_year_processed, get_enriched_ciks,
-        get_year_completion_status, update_year_completion_ledger,
-        get_db_filing_counts_by_year, is_year_complete, get_incomplete_years,
         get_master_idx_download_status, mark_master_idx_download_success,
-        mark_master_idx_download_failed, get_pending_or_failed_quarters,
-        get_quarters_with_data
+        mark_master_idx_download_failed, get_quarters_with_data
     )
 except ImportError:
     # Handle direct script execution - use absolute imports
@@ -86,19 +77,10 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from src.trading_agent.fundamentals.download_logger import get_download_logger
     from src.trading_agent.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection, init_edgar_postgres_tables,
-        add_companies_fast, add_filings_fast, get_existing_accessions,
-        load_companies_from_postgres, load_filings_from_postgres,
-        add_company_history_snapshot, update_edgar_metadata,
-        get_edgar_metadata, get_edgar_statistics, update_filing_downloaded_path,
-        get_processed_years, mark_year_processed, get_enriched_ciks,
-        get_year_completion_status, update_year_completion_ledger,
-        get_db_filing_counts_by_year, is_year_complete, get_incomplete_years,
         get_master_idx_download_status, mark_master_idx_download_success,
-        mark_master_idx_download_failed, get_pending_or_failed_quarters,
-        get_quarters_with_data
+        mark_master_idx_download_failed, get_quarters_with_data
     )
 
 warnings.filterwarnings('ignore')
@@ -441,59 +423,7 @@ class EDGARDownloader:
                         cur.close()
                 else:
                     pbar.set_postfix_str(f"{year_int}/{quarter} (empty)")
-                pbar.update(1)
-
-
-    def get_filing_url(self, cik: str, accession_number: str, filing_type: str = '') -> Optional[str]:
-        """
-        Get filing URL for a specific filing
-        
-        Args:
-            cik: Company CIK
-            accession_number: Filing accession number (e.g., 0001234567-12-000001)
-            filing_type: Type of filing (e.g., '10-K', '4', '8-K')
-        
-        Returns:
-            Tuple of (URL, file_extension) or (None, None)
-        """
-        try:
-            # Format: https://www.sec.gov/Archives/edgar/data/{CIK}/{accession_number}/...
-            # Remove dashes from accession number for folder path
-            accession_clean = accession_number.replace('-', '')
-            cik_int = int(cik.lstrip('0'))  # Remove leading zeros for URL
-            
-            # Base path for the filing
-            base_path = f"{self.base_url}/Archives/edgar/data/{cik_int}/{accession_clean}"
-            
-            # Form 144 is a folder - need to download all files in the folder
-            if filing_type and filing_type.upper() in ['144', '144/A']:
-                # Form 144 URL is just the folder path
-                return base_path, 'folder'
-            
-            # Form 4 and some other forms are XML/TXT files directly (no zip)
-            # Check if this is a form type that uses XML directly
-            if filing_type and filing_type.upper() in ['4', '4/A', '3', '3/A', '5', '5/A']:
-                # Form 4 files are stored as .txt files (even though they contain XML)
-                # URL format: base_path/accession_number.txt
-                txt_url = f"{base_path}/{accession_number}.txt"
-                return txt_url, '.txt'
-            
-            # XBRL files are typically named: {accession_number}-xbrl.zip
-            xbrl_zip_url = f"{base_path}/{accession_number}-xbrl.zip"
-            
-            # Check if XBRL zip exists
-            try:
-                test_response = requests.head(xbrl_zip_url, headers=self.headers, timeout=10)
-                if test_response.status_code == 200:
-                    return xbrl_zip_url, '.zip'
-            except:
-                pass
-            
-            return None, None
-            
-        except Exception as e:
-            return None, None
-    
+                pbar.update(1)    
 
 def main():
     """Main function to download EDGAR filings"""
