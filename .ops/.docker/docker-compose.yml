@@ -85,6 +85,9 @@ services:
       - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/0
       # Make host project package and custom operators available inside the container
       - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
+      # Set environment for config.py (since git commands may not work in container)
+      - AIRFLOW_ENV=staging
+      - GIT_BRANCH=${GIT_BRANCH:-staging}
     volumes:
       - ../.airflow/dags:/opt/airflow/dags
       - ../.airflow/logs:/opt/airflow/logs
