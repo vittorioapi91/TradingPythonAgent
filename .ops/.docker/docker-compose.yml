@@ -97,9 +97,16 @@ services:
       # Mount project source (contains the trading_agent package) into the container
       # .ops/.docker/.. = .ops, .ops/.. = project root, so ../../src is correct here
       - ../../src:/opt/airflow/src
+      # Mount requirements.txt so we can install dependencies
+      - ../../requirements.txt:/opt/airflow/requirements.txt:ro
       - airflow-db:/opt/airflow
     command: >
       bash -c "
+        # Install project dependencies if requirements.txt exists
+        if [ -f /opt/airflow/requirements.txt ]; then
+          echo 'Installing project dependencies...'
+          python3 -m pip install --quiet -r /opt/airflow/requirements.txt || echo 'Warning: Some dependencies may have failed to install'
+        fi
         airflow db migrate &&
         airflow users create
           --username admin
