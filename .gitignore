@@ -52,22 +52,26 @@ ENV/
 
 # OS
 .DS_Store
+Thumbs.db
 
 # Jenkins data (runtime/operational data - should not be versioned)
 # Exclude entire data directory - all runtime Jenkins data
 .ops/.jenkins/data/
-Thumbs.db
 
 # Large data files
 *.parquet
 **/backup_parquet/
 **/edgar_companies/
 src/trading_agent/fundamentals/edgar/master/
-
-# Jenkins data (runtime/operational data - should not be versioned)
-# Exclude entire data directory - all runtime Jenkins data
-.ops/.jenkins/data/
 company_tickers.json
+
+# Python build artifacts (keep directory, ignore contents)
+build/
+dist/
+*.egg-info/
+
+# Airflow wheels (wheels are built and copied here, but not versioned)
+.ops/.airflow/wheels/*.whl
 
 # Airflow log directories
 .ops/.airflow/logs-*/
