@@ -364,7 +364,7 @@ services:
     mem_reservation: 1g
     cpus: 2.0
     environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m -Xms1024m -XX:MaxMetaspaceSize=512m -Djenkins.model.Jenkins.slaveAgentPort=50000
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m -Xms1024m -XX:MaxMetaspaceSize=512m -Djenkins.model.Jenkins.slaveAgentPort=50000 -Dhudson.model.AbstractCIBase.timeout=1800 -Dhudson.remoting.Launcher.pingIntervalSec=300
       # Reverse proxy configuration (for nginx HTTPS proxy)
       - JENKINS_OPTS=--prefix=/ --httpPort=8080
       - JENKINS_ARGS=--prefix=/ --httpPort=8080
