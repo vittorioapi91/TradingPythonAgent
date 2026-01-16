@@ -3,7 +3,8 @@ Airflow local settings for UI customization
 This file allows adding UI alerts/banners to the Airflow UI
 """
 from airflow.configuration import conf
-from airflow.utils.dag_processing_context import get_current_context
+# Removed import - not available in Airflow 2.9.3
+# from airflow.utils.dag_processing_context import get_current_context
 import os
 
 # Get environment info
