@@ -114,6 +114,8 @@ services:
       - ../.airflow/operators:/opt/airflow/operators
       # Mount wheels directory (contains environment-specific wheels)
       - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount custom templates for environment banner
+      - ../.airflow/plugins/environment_info/templates:/opt/airflow/templates:ro
       - airflow-db-dev:/opt/airflow
     command: >
       bash -c "
@@ -189,6 +191,8 @@ services:
       - ../.airflow/operators:/opt/airflow/operators
       # Mount wheels directory (contains environment-specific wheels)
       - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount custom templates for environment banner
+      - ../.airflow/plugins/environment_info/templates:/opt/airflow/templates:ro
       - airflow-db-test:/opt/airflow
     command: >
       bash -c "
@@ -264,6 +268,8 @@ services:
       - ../.airflow/operators:/opt/airflow/operators
       # Mount wheels directory (contains environment-specific wheels)
       - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount custom templates for environment banner
+      - ../.airflow/plugins/environment_info/templates:/opt/airflow/templates:ro
       - airflow-db-prod:/opt/airflow
     command: >
       bash -c "

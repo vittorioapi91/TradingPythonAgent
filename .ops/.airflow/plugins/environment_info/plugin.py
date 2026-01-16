@@ -100,10 +100,52 @@ bp = Blueprint(
 )
 
 
+@bp.before_app_first_request
+def register_template_globals():
+    """Register template globals to inject environment info"""
+    from flask import g
+    g.airflow_env = ENV.upper()
+    g.airflow_wheel_version = WHEEL_VERSION
+    g.airflow_wheel_file = WHEEL_FILE
+    
+    db_host = os.getenv("POSTGRES_HOST", "not set")
+    db_port = os.getenv("POSTGRES_PORT", "not set")
+    db_name = os.getenv("POSTGRES_DB", "not set")
+    db_user = os.getenv("POSTGRES_USER", "not set")
+    
+    if db_host != "not set" and db_port != "not set":
+        g.airflow_db_instance = f"{db_host}:{db_port}/{db_name}"
+    else:
+        g.airflow_db_instance = "not configured"
+    g.airflow_db_user = db_user
+
+
 @bp.route("/environment-badge")
 def environment_badge():
     """Simple endpoint that returns environment info as text"""
     return f"Environment: {ENV} | Wheel: {WHEEL_VERSION}", 200, {"Content-Type": "text/plain"}
+
+
+@bp.app_context_processor
+def inject_environment_info():
+    """Inject environment info into all templates"""
+    db_host = os.getenv("POSTGRES_HOST", "not set")
+    db_port = os.getenv("POSTGRES_PORT", "not set")
+    db_name = os.getenv("POSTGRES_DB", "not set")
+    db_user = os.getenv("POSTGRES_USER", "not set")
+    
+    if db_host != "not set" and db_port != "not set":
+        db_instance = f"{db_host}:{db_port}/{db_name}"
+    else:
+        db_instance = "not configured"
+    
+    return {
+        "airflow_env": ENV.upper(),
+        "airflow_wheel_version": WHEEL_VERSION,
+        "airflow_wheel_file": WHEEL_FILE,
+        "airflow_db_instance": db_instance,
+        "airflow_db_user": db_user,
+    }
 
 
 class EnvironmentInfoPlugin(AirflowPlugin):
