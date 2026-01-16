@@ -57,6 +57,18 @@ class EnvironmentInfoView(BaseView):
     @expose("/")
     def info(self):
         """Display environment and wheel information"""
+        # Get database connection information
+        db_host = os.getenv("POSTGRES_HOST", "not set")
+        db_port = os.getenv("POSTGRES_PORT", "not set")
+        db_name = os.getenv("POSTGRES_DB", "not set")
+        db_user = os.getenv("POSTGRES_USER", "not set")
+        
+        # Construct database instance string
+        if db_host != "not set" and db_port != "not set":
+            db_instance = f"{db_host}:{db_port}/{db_name}"
+        else:
+            db_instance = "not configured"
+        
         return self.render_template(
             "environment_info/info.html",
             env=ENV,
@@ -64,6 +76,11 @@ class EnvironmentInfoView(BaseView):
             wheel_file=WHEEL_FILE,
             airflow_env=os.getenv("AIRFLOW_ENV", "not set"),
             git_branch=os.getenv("GIT_BRANCH", "not set"),
+            db_host=db_host,
+            db_port=db_port,
+            db_name=db_name,
+            db_user=db_user,
+            db_instance=db_instance,
         )
 
 
