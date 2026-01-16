@@ -5,62 +5,55 @@
 set -euo pipefail
 
 JENKINS_DATA_DIR="${1:-.ops/.jenkins/data}"
-CONFIG_XML="${JENKINS_DATA_DIR}/config.xml"
+LOCATION_CONFIG="${JENKINS_DATA_DIR}/jenkins.model.JenkinsLocationConfiguration.xml"
 
-if [ ! -f "$CONFIG_XML" ]; then
-    echo "Error: Jenkins config.xml not found at $CONFIG_XML"
-    exit 1
+if [ ! -f "$LOCATION_CONFIG" ]; then
+    echo "Creating Jenkins location configuration file..."
+    mkdir -p "$(dirname "$LOCATION_CONFIG")"
 fi
 
 echo "Fixing Jenkins reverse proxy configuration..."
 
-# Backup config
-cp "$CONFIG_XML" "${CONFIG_XML}.backup.$(date +%Y%m%d_%H%M%S)"
+# Backup config if it exists
+if [ -f "$LOCATION_CONFIG" ]; then
+    cp "$LOCATION_CONFIG" "${LOCATION_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)"
+fi
 
-# Use Python to update config.xml (more reliable than sed for XML)
+# Use Python to update the location config file (more reliable than sed for XML)
 python3 <<PYTHON_EOF
 import xml.etree.ElementTree as ET
 import sys
-from datetime import datetime
+import os
 
-config_file = "${CONFIG_XML}"
+config_file = "${LOCATION_CONFIG}"
 
 try:
-    tree = ET.parse(config_file)
-    root = tree.getroot()
-    
-    # Find or create jenkinsUrl property
-    properties = root.find('.//properties')
-    if properties is None:
-        # If properties doesn't exist, create it
-        properties = ET.SubElement(root.find('.//mode') or root.find('.//version') or root, 'properties')
-    
-    # Look for jenkins.model.JenkinsLocationConfiguration or create it
-    jenkins_loc = None
-    for prop in properties.findall('.//jenkins.model.JenkinsLocationConfiguration'):
-        jenkins_loc = prop
-        break
-    
-    if jenkins_loc is None:
-        jenkins_loc = ET.SubElement(properties, 'jenkins.model.JenkinsLocationConfiguration')
+    # Parse existing file or create new root
+    if os.path.exists(config_file):
+        tree = ET.parse(config_file)
+        root = tree.getroot()
+    else:
+        root = ET.Element('jenkins.model.JenkinsLocationConfiguration')
+        tree = ET.ElementTree(root)
     
     # Set jenkinsUrl
-    jenkins_url = jenkins_loc.find('jenkinsUrl')
+    jenkins_url = root.find('jenkinsUrl')
     if jenkins_url is None:
-        jenkins_url = ET.SubElement(jenkins_loc, 'jenkinsUrl')
+        jenkins_url = ET.SubElement(root, 'jenkinsUrl')
     jenkins_url.text = 'https://jenkins.local.info/'
     
     # Set adminAddress (optional but recommended)
-    admin_addr = jenkins_loc.find('adminAddress')
+    admin_addr = root.find('adminAddress')
     if admin_addr is None:
-        admin_addr = ET.SubElement(jenkins_loc, 'adminAddress')
+        admin_addr = ET.SubElement(root, 'adminAddress')
     admin_addr.text = 'admin@jenkins.local.info'
     
+    # Write with proper XML declaration and formatting
     tree.write(config_file, encoding='UTF-8', xml_declaration=True)
     print("✓ Updated Jenkins root URL to https://jenkins.local.info/")
     
 except Exception as e:
-    print(f"Error updating config.xml: {e}", file=sys.stderr)
+    print(f"Error updating location config: {e}", file=sys.stderr)
     import traceback
     traceback.print_exc()
     sys.exit(1)
