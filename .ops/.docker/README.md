@@ -98,10 +98,10 @@ docker-compose -f docker-compose.yml down
      ```bash
      sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
      ```
-  3. Start nginx proxies (if not already running):
+  3. Start nginx proxy (if not already running):
      ```bash
      cd .ops/.docker
-     docker-compose -f docker-compose.infra-platform.yml up -d nginx-airflow-dev nginx-airflow-test nginx-airflow-prod
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
      ```
 - **Home (in container)**: `/opt/airflow`
 - **DAGs folder (in container)**: `/opt/airflow/dags` (mapped from `.ops/.airflow/dags`)
@@ -131,7 +131,7 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
   3. Start nginx proxy (if not already running):
      ```bash
      cd .ops/.docker
-     docker-compose -f docker-compose.infra-platform.yml up -d nginx-jenkins
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
      ```
   4. Access: http://jenkins.local.info
 - **Credentials**: Configured in Jenkins UI
