@@ -125,7 +125,8 @@ services:
         WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\$${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
           # Store wheel info for plugin display
           export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
           export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
@@ -203,7 +204,8 @@ services:
         WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\$${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
           # Store wheel info for plugin display
           export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
           export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
@@ -281,7 +283,8 @@ services:
         WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\$${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
           # Store wheel info for plugin display
           export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
           export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
