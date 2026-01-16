@@ -95,9 +95,13 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
 - **Documentation**: See `.ops/.kubernetes/DASHBOARD_ACCESS.md` for access details
 
 ### Jenkins
-- **Port**: 8081
-- **URL**: http://localhost:8081
-- **Alias**: http://jenkins.local.info:8081 (add `127.0.0.1 jenkins.local.info` to `/etc/hosts`)
+- **Port**: 8081 (direct access)
+- **URL**: 
+  - Direct: http://localhost:8081
+  - Via alias: http://jenkins.local.info (requires `/etc/hosts` entry and nginx proxy)
+- **Setup alias**:
+  1. Add to `/etc/hosts`: `127.0.0.1 jenkins.local.info`
+  2. Nginx reverse proxy automatically configured in docker-compose
 - **Credentials**: Configured in Jenkins UI
 - **Has kubectl/kind tools** for Kubernetes cluster management
 

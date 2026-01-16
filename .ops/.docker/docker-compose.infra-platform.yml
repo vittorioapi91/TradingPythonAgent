@@ -330,6 +330,20 @@ services:
       - monitoring
     restart: unless-stopped
 
+  # Nginx reverse proxy for Jenkins
+  nginx-jenkins:
+    image: nginx:alpine
+    container_name: nginx-jenkins
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-jenkins.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - monitoring
+    depends_on:
+      - jenkins
+    restart: unless-stopped
+
   # Jenkins CI/CD server
   jenkins:
     image: jenkins-custom:lts  # Custom image with kubectl, kind, and Docker CLI pre-installed
