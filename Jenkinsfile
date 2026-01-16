@@ -522,6 +522,43 @@ pipeline {
                 }
             }
         }
+        
+        stage('Build Wheel') {
+            steps {
+                script {
+                    echo "Building environment-specific wheel..."
+                    
+                    // Determine environment from branch (same logic as earlier in pipeline)
+                    def wheelEnv = 'dev'
+                    if (env.GIT_BRANCH == 'staging') {
+                        wheelEnv = 'staging'
+                    } else if (env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'master') {
+                        wheelEnv = 'prod'
+                    }
+                    
+                    echo "Building wheel for environment: ${wheelEnv}"
+                    sh """
+                        # Ensure setuptools and wheel are installed
+                        python3 -m pip install --quiet --upgrade setuptools wheel || true
+                        
+                        # Build wheel (Jenkins already checked out the source)
+                        # Pass environment explicitly to build-wheel.sh
+                        ./build-wheel.sh ${wheelEnv} || {
+                            echo "⚠️  Wheel build failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        # Install wheel to Airflow wheels directory
+                        .ops/.airflow/install-wheel.sh ${wheelEnv} || {
+                            echo "⚠️  Wheel installation failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        echo "✓ Wheel built and installed successfully for ${wheelEnv} environment"
+                    """
+                }
+            }
+        }
     }
     
     post {

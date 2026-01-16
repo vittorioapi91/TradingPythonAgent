@@ -83,40 +83,92 @@ get_env_from_branch() {
 }
 
 # Get environment from argument or auto-detect from branch
+EXPLICIT_ENV=""
 if [ $# -gt 0 ]; then
-    ENV="${1}"
-    ENV="${ENV,,}"  # Convert to lowercase
+    EXPLICIT_ENV="${1}"
+    EXPLICIT_ENV=$(to_lower "$EXPLICIT_ENV")
     
     # Validate environment
-    if [[ ! "$ENV" =~ ^(dev|staging|prod)$ ]]; then
-        log_warn "Invalid environment: $ENV. Auto-detecting from branch..."
-        ENV=""
+    if [[ ! "$EXPLICIT_ENV" =~ ^(dev|staging|prod)$ ]]; then
+        log_warn "Invalid environment: $EXPLICIT_ENV. Auto-detecting from branch..."
+        EXPLICIT_ENV=""
     fi
-else
-    ENV=""
 fi
 
-# Auto-detect environment from branch if not specified
-if [ -z "$ENV" ]; then
+# If environment is explicitly provided, checkout the corresponding branch from origin
+if [ -n "$EXPLICIT_ENV" ]; then
+    log_info "Environment explicitly specified: $EXPLICIT_ENV"
+    log_info "Checking out corresponding branch from origin..."
+    
+    case "$EXPLICIT_ENV" in
+        dev)
+            # For dev, checkout the latest dev/* branch from origin
+            # First, fetch all branches
+            git fetch origin --prune 2>/dev/null || log_warn "Could not fetch from origin"
+            
+            # Find the latest dev/* branch (by commit date)
+            DEV_BRANCH=$(git branch -r --sort=-committerdate | grep -E 'origin/dev/' | head -n 1 | sed 's|origin/||' | xargs)
+            
+            if [ -z "$DEV_BRANCH" ]; then
+                log_warn "No dev/* branch found on origin. Using current branch."
+                ENV="dev"
+            else
+                log_info "Found latest dev branch on origin: $DEV_BRANCH"
+                git checkout "$DEV_BRANCH" 2>/dev/null || git checkout -b "$DEV_BRANCH" "origin/$DEV_BRANCH" || {
+                    log_warn "Could not checkout $DEV_BRANCH. Using current branch."
+                    ENV="dev"
+                }
+                ENV="dev"
+            fi
+            ;;
+        staging)
+            log_info "Checking out 'staging' branch from origin..."
+            git fetch origin staging:staging 2>/dev/null || log_warn "Could not fetch staging from origin"
+            git checkout staging 2>/dev/null || {
+                log_warn "Could not checkout staging. Using current branch."
+                ENV="staging"
+            }
+            ENV="staging"
+            ;;
+        prod)
+            # Try main first, then master
+            if git ls-remote --heads origin main 2>/dev/null | grep -q main; then
+                log_info "Checking out 'main' branch from origin..."
+                git fetch origin main:main 2>/dev/null || log_warn "Could not fetch main from origin"
+                git checkout main 2>/dev/null || {
+                    log_warn "Could not checkout main. Using current branch."
+                    ENV="prod"
+                }
+            elif git ls-remote --heads origin master 2>/dev/null | grep -q master; then
+                log_info "Checking out 'master' branch from origin..."
+                git fetch origin master:master 2>/dev/null || log_warn "Could not fetch master from origin"
+                git checkout master 2>/dev/null || {
+                    log_warn "Could not checkout master. Using current branch."
+                    ENV="prod"
+                }
+            else
+                log_warn "Neither 'main' nor 'master' branch found on origin. Using current branch."
+                ENV="prod"
+            fi
+            ENV="prod"
+            ;;
+    esac
+    
+    CURRENT_BRANCH=$(get_git_branch)
+    log_info "Now on branch: $CURRENT_BRANCH"
+else
+    # Auto-detect environment from current branch (don't checkout)
     CURRENT_BRANCH=$(get_git_branch)
     if [ -n "$CURRENT_BRANCH" ]; then
         ENV=$(get_env_from_branch "$CURRENT_BRANCH")
-        log_info "Auto-detected environment from branch '$CURRENT_BRANCH': $ENV"
+        log_info "Auto-detected environment from current branch '$CURRENT_BRANCH': $ENV"
     else
         log_warn "Could not determine git branch. Defaulting to 'dev'"
         ENV="dev"
     fi
 fi
 
-log_debug "Building wheel for environment: $ENV"
-
 log_info "Building wheel for environment: $ENV"
-
-# Show branch info if available
-CURRENT_BRANCH=$(get_git_branch)
-if [ -n "$CURRENT_BRANCH" ]; then
-    log_info "Current branch: $CURRENT_BRANCH"
-fi
 
 # Check if setuptools and wheel are installed
 if ! python3 -c "import setuptools" 2>/dev/null; then
