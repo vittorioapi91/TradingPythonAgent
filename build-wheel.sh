@@ -95,8 +95,17 @@ if [ $# -gt 0 ]; then
     fi
 fi
 
+# Track if we need to restore the original branch
+ORIGINAL_BRANCH=""
+RESTORE_BRANCH=false
+
 # If environment is explicitly provided, checkout the corresponding branch from origin
 if [ -n "$EXPLICIT_ENV" ]; then
+    ORIGINAL_BRANCH=$(get_git_branch)
+    if [ -n "$ORIGINAL_BRANCH" ]; then
+        RESTORE_BRANCH=true
+    fi
+    
     log_info "Environment explicitly specified: $EXPLICIT_ENV"
     log_info "Checking out corresponding branch from origin..."
     
@@ -107,50 +116,66 @@ if [ -n "$EXPLICIT_ENV" ]; then
             git fetch origin --prune 2>/dev/null || log_warn "Could not fetch from origin"
             
             # Find the latest dev/* branch (by commit date)
-            DEV_BRANCH=$(git branch -r --sort=-committerdate | grep -E 'origin/dev/' | head -n 1 | sed 's|origin/||' | xargs)
+            DEV_BRANCH=$(git branch -r --sort=-committerdate 2>/dev/null | grep -E 'origin/dev/' | head -n 1 | sed 's|origin/||' | xargs)
             
             if [ -z "$DEV_BRANCH" ]; then
                 log_warn "No dev/* branch found on origin. Using current branch."
                 ENV="dev"
             else
                 log_info "Found latest dev branch on origin: $DEV_BRANCH"
-                git checkout "$DEV_BRANCH" 2>/dev/null || git checkout -b "$DEV_BRANCH" "origin/$DEV_BRANCH" || {
+                if git checkout "$DEV_BRANCH" 2>/dev/null; then
+                    git pull origin "$DEV_BRANCH" 2>/dev/null || true
+                    ENV="dev"
+                elif git checkout -b "$DEV_BRANCH" "origin/$DEV_BRANCH" 2>/dev/null; then
+                    ENV="dev"
+                else
                     log_warn "Could not checkout $DEV_BRANCH. Using current branch."
                     ENV="dev"
-                }
-                ENV="dev"
+                    RESTORE_BRANCH=false
+                fi
             fi
             ;;
         staging)
             log_info "Checking out 'staging' branch from origin..."
-            git fetch origin staging:staging 2>/dev/null || log_warn "Could not fetch staging from origin"
-            git checkout staging 2>/dev/null || {
+            git fetch origin staging 2>/dev/null || log_warn "Could not fetch staging from origin"
+            if git checkout staging 2>/dev/null; then
+                git pull origin staging 2>/dev/null || true
+                ENV="staging"
+            else
                 log_warn "Could not checkout staging. Using current branch."
                 ENV="staging"
-            }
-            ENV="staging"
+                RESTORE_BRANCH=false
+            fi
             ;;
         prod)
             # Try main first, then master
             if git ls-remote --heads origin main 2>/dev/null | grep -q main; then
                 log_info "Checking out 'main' branch from origin..."
-                git fetch origin main:main 2>/dev/null || log_warn "Could not fetch main from origin"
-                git checkout main 2>/dev/null || {
+                git fetch origin main 2>/dev/null || log_warn "Could not fetch main from origin"
+                if git checkout main 2>/dev/null; then
+                    git pull origin main 2>/dev/null || true
+                    ENV="prod"
+                else
                     log_warn "Could not checkout main. Using current branch."
                     ENV="prod"
-                }
+                    RESTORE_BRANCH=false
+                fi
             elif git ls-remote --heads origin master 2>/dev/null | grep -q master; then
                 log_info "Checking out 'master' branch from origin..."
-                git fetch origin master:master 2>/dev/null || log_warn "Could not fetch master from origin"
-                git checkout master 2>/dev/null || {
+                git fetch origin master 2>/dev/null || log_warn "Could not fetch master from origin"
+                if git checkout master 2>/dev/null; then
+                    git pull origin master 2>/dev/null || true
+                    ENV="prod"
+                else
                     log_warn "Could not checkout master. Using current branch."
                     ENV="prod"
-                }
+                    RESTORE_BRANCH=false
+                fi
             else
                 log_warn "Neither 'main' nor 'master' branch found on origin. Using current branch."
                 ENV="prod"
+                RESTORE_BRANCH=false
             fi
-            ENV="prod"
             ;;
     esac
     
@@ -213,3 +238,12 @@ log_info "Wheel contents:"
 unzip -l "${WHEEL_FILE}" | head -n 20
 
 log_info "Build complete!"
+
+# Restore original branch if we checked out a different one
+if [ "$RESTORE_BRANCH" = true ] && [ -n "$ORIGINAL_BRANCH" ]; then
+    CURRENT_BRANCH=$(get_git_branch)
+    if [ "$CURRENT_BRANCH" != "$ORIGINAL_BRANCH" ]; then
+        log_info "Restoring original branch: $ORIGINAL_BRANCH"
+        git checkout "$ORIGINAL_BRANCH" 2>/dev/null || log_warn "Could not restore branch $ORIGINAL_BRANCH"
+    fi
+fi
