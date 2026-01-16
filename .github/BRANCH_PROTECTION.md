@@ -21,21 +21,23 @@ This workflow runs on pull requests targeting `main` or `staging` and:
 
 ### Required: Post Build Status to GitHub
 
-Jenkins must be configured to post build status to GitHub. The `Jenkinsfile` includes code to post status, but you need to:
+Jenkins must be configured to post build status to GitHub. The `Jenkinsfile` includes code to post status via GitHub API.
 
-1. **Install GitHub Plugin in Jenkins**:
-   - Go to Jenkins → Manage Jenkins → Manage Plugins
-   - Install "GitHub Plugin" and "GitHub Branch Source Plugin"
+1. **Create GitHub Personal Access Token**:
+   - Go to GitHub → Settings → Developer settings → Personal access tokens → Tokens (classic)
+   - Create a token with `repo:status` permission
+   - Copy the token
 
-2. **Configure GitHub Credentials**:
-   - Go to Jenkins → Manage Jenkins → Manage Credentials
-   - Add GitHub Personal Access Token with `repo:status` permission
-   - Store it as a credential Jenkins can use
+2. **Configure Jenkins Environment Variable**:
+   - Go to Jenkins → Manage Jenkins → Configure System
+   - Add `GITHUB_TOKEN` as a global environment variable
+   - Or configure it per-job in the job's environment variables
+   - Set the value to your GitHub Personal Access Token
 
-3. **Configure Job to Post Status**:
-   - The `Jenkinsfile` includes `GitHubCommitStatusSetter` steps
-   - Ensure the job has access to GitHub credentials
-   - Jenkins will automatically post status to GitHub after each build
+3. **Verify Status Posting**:
+   - The `Jenkinsfile` automatically posts status after each build
+   - Check GitHub commit status page to verify status is being posted
+   - Status context: `jenkins/pipeline`
 
 ### Alternative: Manual Status Check
 
