@@ -148,6 +148,96 @@ def inject_banner_data():
     g.airflow_db_user = db_user
 
 
+@bp.after_app_request
+def inject_banner_into_dags_page(response):
+    """Inject environment banner into DAGs page HTML response"""
+    # Only modify HTML responses for DAGs page
+    if (response.content_type and 
+        'text/html' in response.content_type and 
+        request.path in ['/home', '/dags', '/']):
+        
+        try:
+            content = response.get_data(as_text=True)
+            
+            # Create banner HTML
+            env_color = "#28a745" if ENV.upper() == "DEV" else "#ffc107" if ENV.upper() == "STAGING" else "#dc3545"
+            env_text_color = "black" if ENV.upper() == "STAGING" else "white"
+            
+            db_host = os.getenv("POSTGRES_HOST", "not set")
+            db_port = os.getenv("POSTGRES_PORT", "not set")
+            db_name = os.getenv("POSTGRES_DB", "not set")
+            db_user = os.getenv("POSTGRES_USER", "not set")
+            
+            if db_host != "not set" and db_port != "not set":
+                db_instance = f"{db_host}:{db_port}/{db_name}"
+            else:
+                db_instance = "not configured"
+            
+            banner_html = f"""
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+            <div>
+                <strong style="font-size: 14px; opacity: 0.9;">Environment:</strong>
+                <span style="background-color: {env_color}; color: {env_text_color}; padding: 4px 12px; border-radius: 4px; font-weight: bold; margin-left: 8px;">
+                    {ENV.upper()}
+                </span>
+            </div>
+            <div>
+                <strong style="font-size: 14px; opacity: 0.9;">Wheel:</strong>
+                <span style="font-family: monospace; margin-left: 8px;">{WHEEL_VERSION}</span>
+            </div>
+            <div>
+                <strong style="font-size: 14px; opacity: 0.9;">Database:</strong>
+                <span style="font-family: monospace; margin-left: 8px;">{db_user}@{db_instance}</span>
+            </div>
+        </div>
+        <div>
+            <a href="/environment-info/" style="color: white; text-decoration: underline; font-size: 13px;">View Details →</a>
+        </div>
+    </div>
+</div>
+"""
+            
+            # Find a good insertion point - look for the DAGs heading or main content area
+            # Try multiple insertion points
+            insertion_points = [
+                '<h1>DAGs</h1>',
+                '<h1 class="',
+                '<div class="container-fluid">',
+                '<div id="dag-table"',
+                '<div class="dag-list-container"',
+            ]
+            
+            inserted = False
+            for point in insertion_points:
+                if point in content:
+                    # Insert banner before the insertion point
+                    content = content.replace(point, banner_html + '\n' + point, 1)
+                    inserted = True
+                    break
+            
+            # Fallback: insert after body tag if no specific point found
+            if not inserted and '<body' in content:
+                # Find the first content div after body
+                body_end = content.find('>', content.find('<body'))
+                if body_end > 0:
+                    # Look for the main container or first div
+                    next_div = content.find('<div', body_end)
+                    if next_div > 0:
+                        content = content[:next_div] + banner_html + '\n' + content[next_div:]
+                        inserted = True
+            
+            if inserted:
+                response.set_data(content)
+                
+        except Exception as e:
+            # Silently fail - don't break the page if banner injection fails
+            pass
+    
+    return response
+
+
 class EnvironmentInfoPlugin(AirflowPlugin):
     """
     Airflow plugin to display environment and wheel information
