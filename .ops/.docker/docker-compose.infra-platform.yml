@@ -136,7 +136,8 @@ services:
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true ;
         airflow webserver --port 8080 &
         airflow scheduler
       "
@@ -210,7 +211,8 @@ services:
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true ;
         airflow webserver --port 8080 &
         airflow scheduler
       "
@@ -284,7 +286,8 @@ services:
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true ;
         airflow webserver --port 8080 &
         airflow scheduler
       "
