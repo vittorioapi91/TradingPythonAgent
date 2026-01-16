@@ -10,12 +10,20 @@ pipeline {
             steps {
                 checkout scm
                 script {
+                    env.GIT_COMMIT = sh(
+                        script: 'git rev-parse HEAD',
+                        returnStdout: true
+                    ).trim()
                     env.GIT_COMMIT_SHORT = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
                     env.GIT_BRANCH = sh(
                         script: 'git rev-parse --abbrev-ref HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_URL = sh(
+                        script: 'git config --get remote.origin.url',
                         returnStdout: true
                     ).trim()
                     
@@ -174,9 +182,35 @@ pipeline {
     post {
         success {
             echo "✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})"
+            
+            // Post success status to GitHub
+            script {
+                try {
+                    step([$class: 'GitHubCommitStatusSetter',
+                        reposSource: [$class: 'ManuallyEnteredRepositorySource', url: "https://github.com/${env.GIT_URL.split('/')[3..4].join('/').replace('.git', '')}"],
+                        contextSource: [$class: 'ManuallyEnteredCommitContextSource', commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: env.GIT_COMMIT]],
+                        errorHandlers: [[$class: 'ChangingBuildStatusErrorHandler', result: 'UNSTABLE']],
+                        statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', message: 'Pipeline passed', state: 'SUCCESS']]]])
+                } catch (Exception e) {
+                    echo "Warning: Could not post status to GitHub: ${e.message}"
+                }
+            }
         }
         failure {
             echo "✗ Pipeline failed. Check logs for details."
+            
+            // Post failure status to GitHub
+            script {
+                try {
+                    step([$class: 'GitHubCommitStatusSetter',
+                        reposSource: [$class: 'ManuallyEnteredRepositorySource', url: "https://github.com/${env.GIT_URL.split('/')[3..4].join('/').replace('.git', '')}"],
+                        contextSource: [$class: 'ManuallyEnteredCommitContextSource', commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: env.GIT_COMMIT]],
+                        errorHandlers: [[$class: 'ChangingBuildStatusErrorHandler', result: 'UNSTABLE']],
+                        statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', message: 'Pipeline failed', state: 'FAILURE']]]])
+                } catch (Exception e) {
+                    echo "Warning: Could not post status to GitHub: ${e.message}"
+                }
+            }
         }
         always {
             // Clean up old images (optional - keep last 10 builds)
