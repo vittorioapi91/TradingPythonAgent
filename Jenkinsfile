@@ -95,7 +95,7 @@ pipeline {
                     
                     // Get JIRA configuration from environment variables
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
-                    def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
+                    def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
                     def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
                     
                     // Ensure JIRA URL doesn't have trailing slash
@@ -191,13 +191,8 @@ pipeline {
                     
                     // Get JIRA configuration from environment variables
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
-                    def jiraUser = env.JIRA_USER
-                    def jiraToken = env.JIRA_API_TOKEN
-                    
-                    if (!jiraUser || !jiraToken) {
-                        echo "⚠️  WARNING: JIRA_USER or JIRA_API_TOKEN not set. Skipping JIRA issue validation."
-                        return
-                    }
+                    def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
+                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
                     
                     // Ensure JIRA URL doesn't have trailing slash
                     jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
