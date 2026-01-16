@@ -64,12 +64,41 @@ check_prerequisites() {
 build_jenkins_image() {
     log_info "Checking Jenkins custom image..."
     
-    if ! docker images | grep -q "jenkins-custom.*lts"; then
-        log_info "Building Jenkins custom image..."
-        docker build -t jenkins-custom:lts -f "${PROJECT_ROOT}/.ops/.docker/Dockerfile.jenkins" "${PROJECT_ROOT}/.ops/.docker"
-        log_info "Jenkins custom image built successfully"
+    # Always rebuild to ensure latest changes (including buildx) are included
+    # Check if image exists and is recent (less than 1 day old)
+    local image_age=$(docker images --format "{{.CreatedAt}}" jenkins-custom:lts 2>/dev/null | head -1)
+    local should_rebuild=true
+    
+    if [ -n "$image_age" ]; then
+        # Check if image was created today (simple check)
+        local today=$(date +%Y-%m-%d)
+        if echo "$image_age" | grep -q "$today"; then
+            log_info "Jenkins custom image exists and was built today"
+            log_info "Rebuilding to ensure buildx and latest dependencies are included..."
+        else
+            log_info "Jenkins custom image exists but is older than today - rebuilding..."
+        fi
     else
-        log_info "Jenkins custom image already exists"
+        log_info "Jenkins custom image not found - building..."
+    fi
+    
+    log_info "Building Jenkins custom image with buildx support..."
+    log_info "This may take 10-20 minutes due to Python dependency installation..."
+    docker build -t jenkins-custom:lts -f "${PROJECT_ROOT}/.ops/.docker/Dockerfile.jenkins" "${PROJECT_ROOT}/.ops/.docker"
+    
+    if [ $? -eq 0 ]; then
+        log_info "✓ Jenkins custom image built successfully"
+        
+        # Verify buildx is installed
+        log_info "Verifying buildx installation..."
+        if docker run --rm jenkins-custom:lts docker buildx version >/dev/null 2>&1; then
+            log_info "✓ buildx verified in Jenkins image"
+        else
+            log_warn "⚠️  buildx verification failed - image may need to be rebuilt"
+        fi
+    else
+        log_error "Failed to build Jenkins custom image"
+        return 1
     fi
 }
 

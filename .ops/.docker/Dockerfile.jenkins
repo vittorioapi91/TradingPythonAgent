@@ -45,14 +45,15 @@ COPY requirements.txt /tmp/requirements.txt
 RUN pip3 install --break-system-packages --no-cache-dir -r /tmp/requirements.txt && \
     rm /tmp/requirements.txt
 
-# Verify installations
+# Verify installations (including buildx)
 RUN docker --version && \
     docker compose version && \
     docker buildx version && \
     kubectl version --client && \
     kind version && \
     python3 --version && \
-    pip3 --version
+    pip3 --version && \
+    echo "✓ All tools verified, including docker buildx"
 
 USER jenkins
 
