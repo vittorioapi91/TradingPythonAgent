@@ -99,9 +99,21 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
 - **URL**: 
   - Direct: http://localhost:8081
   - Via alias: http://jenkins.local.info (requires `/etc/hosts` entry and nginx proxy)
-- **Setup alias**:
-  1. Add to `/etc/hosts`: `127.0.0.1 jenkins.local.info`
-  2. Nginx reverse proxy automatically configured in docker-compose
+- **Setup alias** (REQUIRED):
+  1. Add to `/etc/hosts`: 
+     ```bash
+     sudo sh -c 'echo "127.0.0.1 jenkins.local.info" >> /etc/hosts'
+     ```
+  2. Flush DNS cache (macOS):
+     ```bash
+     sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+     ```
+  3. Start nginx proxy (if not already running):
+     ```bash
+     cd .ops/.docker
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-jenkins
+     ```
+  4. Access: http://jenkins.local.info
 - **Credentials**: Configured in Jenkins UI
 - **Has kubectl/kind tools** for Kubernetes cluster management
 
