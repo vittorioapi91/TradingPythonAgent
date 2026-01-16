@@ -37,6 +37,8 @@ cp requirements.txt .ops/.docker/requirements.txt
 
 This builds a custom Jenkins image named `jenkins-custom:lts` based on `jenkins/jenkins:lts` with:
 - Docker CLI v27.4.1
+- Docker Buildx v0.30.1 (for advanced Docker builds with BuildKit)
+- Docker Compose V2 (as CLI plugin)
 - kubectl v1.28.0
 - kind v0.30.0
 - Python 3 (system Python)
@@ -61,6 +63,8 @@ You can test that all tools are installed:
 
 ```bash
 docker run --rm jenkins-custom:lts docker --version
+docker run --rm jenkins-custom:lts docker buildx version
+docker run --rm jenkins-custom:lts docker compose version
 docker run --rm jenkins-custom:lts kubectl version --client
 docker run --rm jenkins-custom:lts kind version
 docker run --rm jenkins-custom:lts python3 --version
