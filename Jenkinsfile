@@ -93,10 +93,21 @@ pipeline {
                 script {
                     echo "Testing JIRA connection..."
                     
-                    // Get JIRA configuration from environment variables
+                    // Get JIRA configuration from environment variables or credentials
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
                     def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
-                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    def jiraToken = env.JIRA_API_TOKEN
+                    
+                    // Try to get token from Jenkins credentials if not in environment
+                    if (!jiraToken) {
+                        try {
+                            withCredentials([string(credentialsId: 'jira-api-token', variable: 'JIRA_TOKEN')]) {
+                                jiraToken = env.JIRA_TOKEN
+                            }
+                        } catch (Exception e) {
+                            error("JIRA_API_TOKEN not found in environment variables or Jenkins credentials (ID: jira-api-token). Please configure one of them.")
+                        }
+                    }
                     
                     // Ensure JIRA URL doesn't have trailing slash
                     jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
@@ -189,10 +200,21 @@ pipeline {
                 script {
                     echo "Validating JIRA issue: ${env.JIRA_ISSUE}"
                     
-                    // Get JIRA configuration from environment variables
+                    // Get JIRA configuration from environment variables or credentials
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
                     def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
-                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    def jiraToken = env.JIRA_API_TOKEN
+                    
+                    // Try to get token from Jenkins credentials if not in environment
+                    if (!jiraToken) {
+                        try {
+                            withCredentials([string(credentialsId: 'jira-api-token', variable: 'JIRA_TOKEN')]) {
+                                jiraToken = env.JIRA_TOKEN
+                            }
+                        } catch (Exception e) {
+                            error("JIRA_API_TOKEN not found in environment variables or Jenkins credentials (ID: jira-api-token). Please configure one of them.")
+                        }
+                    }
                     
                     // Ensure JIRA URL doesn't have trailing slash
                     jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
