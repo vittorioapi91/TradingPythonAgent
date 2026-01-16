@@ -76,9 +76,9 @@ services:
     container_name: airflow-dev
     ports:
       - "8082:8080"
-    mem_limit: 4g
-    mem_reservation: 1g
-    cpus: 2.0
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 1.0
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -155,9 +155,9 @@ services:
     container_name: airflow-test
     ports:
       - "8083:8080"
-    mem_limit: 4g
-    mem_reservation: 1g
-    cpus: 2.0
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 1.0
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -234,9 +234,9 @@ services:
     container_name: airflow-prod
     ports:
       - "8084:8080"
-    mem_limit: 4g
-    mem_reservation: 1g
-    cpus: 2.0
+    mem_limit: 2g
+    mem_reservation: 512m
+    cpus: 1.0
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
@@ -360,8 +360,11 @@ services:
     ports:
       - "8081:8080"  # Match current port forwarding setup (8081 on host)
       - "50000:50000"
+    mem_limit: 4g
+    mem_reservation: 1g
+    cpus: 2.0
     environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m -Xms1024m -XX:MaxMetaspaceSize=512m
       # JIRA configuration for feature branch validation
       - JIRA_URL=https://vittorioapi91.atlassian.net
       - JIRA_USER=vittorioapi91@gmail.com
