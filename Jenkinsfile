@@ -259,12 +259,7 @@ pipeline {
                             rm -f /tmp/jira_response.json /tmp/jira_curl_debug.log
                         """
                     } else if (responseCode == '404') {
-                        echo "⚠️  WARNING: JIRA issue ${env.JIRA_ISSUE} returned HTTP 404."
-                        echo "⚠️  Since authentication works, this likely means:"
-                        echo "   1. The authenticated user doesn't have permission to view this issue"
-                        echo "   2. The issue is in a project the user doesn't have access to"
-                        echo "   3. Verify the issue exists and is accessible at: ${jiraUrl}/browse/${env.JIRA_ISSUE}"
-                        echo "⚠️  Pipeline will continue."
+                        echo "⚠️  WARNING: JIRA issue ${env.JIRA_ISSUE} does not exist (HTTP 404). Please verify the issue exists at ${jiraUrl}/browse/${env.JIRA_ISSUE}. Pipeline will continue."
                     } else if (responseCode == '401' || responseCode == '403') {
                         echo "⚠️  WARNING: Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN. Pipeline will continue."
                     } else {
@@ -473,18 +468,44 @@ pipeline {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                     sh """
-                        # Ensure buildx is available and create builder if needed
-                        docker buildx version || docker buildx install
-                        docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
+                        # Ensure buildx is available
+                        if ! docker buildx version >/dev/null 2>&1; then
+                            echo "ERROR: docker buildx is not available"
+                            echo "Please ensure the Jenkins container has buildx installed"
+                            echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
+                            exit 1
+                        fi
+                        
+                        echo "✓ Docker buildx version:"
+                        docker buildx version
+                        
+                        # Create and use builder instance
+                        if ! docker buildx inspect builder >/dev/null 2>&1; then
+                            echo "Creating buildx builder instance..."
+                            docker buildx create --name builder --use --driver docker-container || {
+                                echo "Failed to create buildx builder, trying to use existing..."
+                                docker buildx use builder 2>/dev/null || docker buildx use default
+                            }
+                        else
+                            echo "Using existing buildx builder..."
+                            docker buildx use builder
+                        fi
+                        
+                        # Verify builder is ready
+                        docker buildx inspect --bootstrap
                         
                         # Build using buildx with BuildKit
+                        echo "Building Docker image with buildx..."
                         docker buildx build \
                             --platform linux/amd64 \
                             -f .ops/.kubernetes/Dockerfile.model-training \
                             -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
                             -t ${latestTag} \
                             --load \
+                            --progress=plain \
                             .
+                        
+                        echo "✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                     """
                 }
             }
