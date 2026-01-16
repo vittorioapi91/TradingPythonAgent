@@ -78,3 +78,7 @@ dist/
 .ops/.airflow/logs-dev/
 .ops/.airflow/logs-test/
 .ops/.airflow/logs-prod/
+
+# SSL certificates (self-signed for local development)
+.ops/.docker/ssl/*.key
+.ops/.docker/ssl/*.crt
