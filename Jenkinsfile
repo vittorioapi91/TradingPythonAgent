@@ -183,28 +183,36 @@ pipeline {
         success {
             echo "✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})"
             
-            // Post success status to GitHub (requires GitHub plugin)
+            // Post success status to GitHub
             script {
                 try {
-                    // Use GitHub API to post status
+                    // Extract repo owner/name from git URL
                     def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
                     def repoParts = repoUrl.split('/')
-                    def repoOwner = repoParts[0]
-                    def repoName = repoParts[1]
+                    def repoOwner = repoParts.size() >= 1 ? repoParts[0] : 'vittorioapi91'
+                    def repoName = repoParts.size() >= 2 ? repoParts[1] : 'TradingPythonAgent'
                     
-                    // Post status using curl (works without GitHub plugin)
-                    sh """
-                        curl -X POST \\
-                          -H "Authorization: token \${GITHUB_TOKEN}" \\
-                          -H "Accept: application/vnd.github.v3+json" \\
-                          "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/\${GIT_COMMIT}" \\
-                          -d '{
-                            "state": "success",
-                            "target_url": "\${BUILD_URL}",
-                            "description": "Jenkins pipeline passed",
-                            "context": "jenkins/pipeline"
-                          }' || echo "Warning: Could not post status to GitHub"
-                    """
+                    // Get GitHub token from credentials (configure in Jenkins)
+                    def githubToken = env.GITHUB_TOKEN ?: ''
+                    
+                    if (githubToken) {
+                        // Post status using curl (works without GitHub plugin)
+                        sh """
+                            curl -X POST \\
+                              -H "Authorization: token ${githubToken}" \\
+                              -H "Accept: application/vnd.github.v3+json" \\
+                              "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/${env.GIT_COMMIT}" \\
+                              -d '{
+                                "state": "success",
+                                "target_url": "${env.BUILD_URL}",
+                                "description": "Jenkins pipeline passed",
+                                "context": "jenkins/pipeline"
+                              }' || echo "Warning: Could not post status to GitHub"
+                        """
+                    } else {
+                        echo "Warning: GITHUB_TOKEN not set. Cannot post status to GitHub."
+                        echo "Configure GITHUB_TOKEN environment variable in Jenkins job settings"
+                    }
                 } catch (Exception e) {
                     echo "Warning: Could not post status to GitHub: ${e.message}"
                 }
@@ -218,21 +226,27 @@ pipeline {
                 try {
                     def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
                     def repoParts = repoUrl.split('/')
-                    def repoOwner = repoParts[0]
-                    def repoName = repoParts[1]
+                    def repoOwner = repoParts.size() >= 1 ? repoParts[0] : 'vittorioapi91'
+                    def repoName = repoParts.size() >= 2 ? repoParts[1] : 'TradingPythonAgent'
                     
-                    sh """
-                        curl -X POST \\
-                          -H "Authorization: token \${GITHUB_TOKEN}" \\
-                          -H "Accept: application/vnd.github.v3+json" \\
-                          "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/\${GIT_COMMIT}" \\
-                          -d '{
-                            "state": "failure",
-                            "target_url": "\${BUILD_URL}",
-                            "description": "Jenkins pipeline failed",
-                            "context": "jenkins/pipeline"
-                          }' || echo "Warning: Could not post status to GitHub"
-                    """
+                    def githubToken = env.GITHUB_TOKEN ?: ''
+                    
+                    if (githubToken) {
+                        sh """
+                            curl -X POST \\
+                              -H "Authorization: token ${githubToken}" \\
+                              -H "Accept: application/vnd.github.v3+json" \\
+                              "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/${env.GIT_COMMIT}" \\
+                              -d '{
+                                "state": "failure",
+                                "target_url": "${env.BUILD_URL}",
+                                "description": "Jenkins pipeline failed",
+                                "context": "jenkins/pipeline"
+                              }' || echo "Warning: Could not post status to GitHub"
+                        """
+                    } else {
+                        echo "Warning: GITHUB_TOKEN not set. Cannot post status to GitHub."
+                    }
                 } catch (Exception e) {
                     echo "Warning: Could not post status to GitHub: ${e.message}"
                 }

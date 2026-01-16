@@ -46,6 +46,12 @@ ENV/
 
 # OS
 .DS_Store
+
+# Airflow logs
+.ops/.airflow/logs-*/
+
+# EDGAR master index files (generated data)
+src/trading_agent/fundamentals/edgar/master/
 Thumbs.db
 
 # Large data files
