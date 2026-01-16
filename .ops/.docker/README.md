@@ -97,6 +97,7 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
 ### Jenkins
 - **Port**: 8081
 - **URL**: http://localhost:8081
+- **Alias**: http://jenkins.local.info:8081 (add `127.0.0.1 jenkins.local.info` to `/etc/hosts`)
 - **Credentials**: Configured in Jenkins UI
 - **Has kubectl/kind tools** for Kubernetes cluster management
 
