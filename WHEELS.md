@@ -6,36 +6,39 @@ This project uses setuptools to build environment-specific wheels for the `tradi
 
 ### Building Wheels
 
-Build a wheel for a specific environment:
+Build a wheel - environment is automatically detected from git branch:
 
 ```bash
-# Build for dev environment
+# Auto-detect environment from current branch and build
+./build-wheel.sh
+
+# Or explicitly specify environment (overrides auto-detection)
 ./build-wheel.sh dev
-
-# Build for staging environment
 ./build-wheel.sh staging
-
-# Build for prod environment
 ./build-wheel.sh prod
 ```
 
-The wheel will be created in `dist/` directory with the naming pattern:
-- `trading_agent-dev-{version}-py3-none-any.whl`
-- `trading_agent-staging-{version}-py3-none-any.whl`
-- `trading_agent-prod-{version}-py3-none-any.whl`
+**Auto-detection rules:**
+- `dev/*` branches → builds `trading_agent-dev-{version}.whl`
+- `staging` branch → builds `trading_agent-staging-{version}.whl`
+- `main`/`master` branch → builds `trading_agent-prod-{version}.whl`
+
+**Note:** setuptools converts hyphens to underscores in package names, so the actual wheel files are:
+- `trading_agent_dev-{version}-py3-none-any.whl` (for dev)
+- `trading_agent_staging-{version}-py3-none-any.whl` (for staging)
+- `trading_agent_prod-{version}-py3-none-any.whl` (for prod)
 
 ### Installing Wheels for Airflow
 
 After building a wheel, copy it to the Airflow wheels directory:
 
 ```bash
-# Install dev wheel for Airflow
+# Auto-detect environment from current branch and install
+.ops/.airflow/install-wheel.sh
+
+# Or explicitly specify environment
 .ops/.airflow/install-wheel.sh dev
-
-# Install staging wheel for Airflow
 .ops/.airflow/install-wheel.sh staging
-
-# Install prod wheel for Airflow
 .ops/.airflow/install-wheel.sh prod
 ```
 
