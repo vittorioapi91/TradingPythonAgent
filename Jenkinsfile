@@ -221,11 +221,8 @@ pipeline {
                     
                     echo "JIRA Issue: ${env.JIRA_ISSUE}"
                     echo "API Endpoint: ${jiraApiUrl}"
-                    echo "JIRA User: ${jiraUser}"
-                    echo "JIRA Token configured: ${jiraToken ? 'Yes' : 'No'}"
                     
                     // Validate JIRA issue exists using curl
-                    // Try with email first (most common for JIRA Cloud)
                     def responseCode = sh(
                         script: """
                             curl -v -s -o /tmp/jira_response.json -w '%{http_code}' \\
@@ -240,36 +237,16 @@ pipeline {
                     // Extract HTTP status code (last line should be the code)
                     responseCode = responseCode.split('\n')[-1].trim()
                     
-                    // Show detailed debug info for troubleshooting
-                    echo "HTTP Response Code: ${responseCode}"
-                    
+                    // Show debug info for troubleshooting
                     if (responseCode != '200') {
-                        echo "=== Debug Information ==="
+                        echo "Debug information:"
                         sh """
-                            echo "Full curl debug log:"
-                            cat /tmp/jira_curl_debug.log | tail -50 || true
+                            echo "Response code: ${responseCode}"
+                            echo "Curl debug log:"
+                            cat /tmp/jira_curl_debug.log | tail -20 || true
                             echo ""
                             echo "Response body:"
-                            cat /tmp/jira_response.json | head -100 || echo "No response body"
-                            echo ""
-                            echo "Checking authentication..."
-                            # Test if we can authenticate at all
-                            curl -s -o /tmp/jira_auth_test.json -w '%{http_code}' \\
-                                -u '${jiraUser}:${jiraToken}' \\
-                                -X GET \\
-                                -H 'Accept: application/json' \\
-                                '${jiraUrl}/rest/api/3/myself' > /tmp/jira_auth_code.txt 2>&1 || true
-                            AUTH_CODE=\$(cat /tmp/jira_auth_code.txt | tail -1)
-                            echo "Auth test response code: \${AUTH_CODE}"
-                            if [ "\${AUTH_CODE}" = "200" ]; then
-                                echo "✓ Authentication successful - user can access JIRA"
-                                echo "User info:"
-                                cat /tmp/jira_auth_test.json | python3 -m json.tool 2>/dev/null | head -20 || cat /tmp/jira_auth_test.json | head -10
-                            else
-                                echo "✗ Authentication failed - check JIRA_USER and JIRA_API_TOKEN"
-                                echo "Auth test response:"
-                                cat /tmp/jira_auth_test.json | head -20 || echo "No response"
-                            fi
+                            cat /tmp/jira_response.json | head -50 || true
                         """
                     }
                     
@@ -279,26 +256,19 @@ pipeline {
                         sh """
                             echo "Issue details:"
                             cat /tmp/jira_response.json | python3 -m json.tool 2>/dev/null | head -30 || cat /tmp/jira_response.json | head -20
-                            rm -f /tmp/jira_response.json /tmp/jira_curl_debug.log /tmp/jira_auth_test.json /tmp/jira_auth_code.txt
+                            rm -f /tmp/jira_response.json /tmp/jira_curl_debug.log
                         """
                     } else if (responseCode == '404') {
                         echo "⚠️  WARNING: JIRA issue ${env.JIRA_ISSUE} returned HTTP 404."
-                        echo "⚠️  This usually means:"
-                        echo "   1. The issue doesn't exist (but you can verify at ${jiraUrl}/browse/${env.JIRA_ISSUE})"
-                        echo "   2. The authenticated user doesn't have permission to view this issue"
-                        echo "   3. The issue is in a project the user doesn't have access to"
+                        echo "⚠️  Since authentication works, this likely means:"
+                        echo "   1. The authenticated user doesn't have permission to view this issue"
+                        echo "   2. The issue is in a project the user doesn't have access to"
+                        echo "   3. Verify the issue exists and is accessible at: ${jiraUrl}/browse/${env.JIRA_ISSUE}"
                         echo "⚠️  Pipeline will continue."
                     } else if (responseCode == '401' || responseCode == '403') {
-                        echo "⚠️  WARNING: Authentication failed when accessing JIRA (HTTP ${responseCode})."
-                        echo "⚠️  Please check:"
-                        echo "   1. JIRA_API_TOKEN is correct and not expired"
-                        echo "   2. JIRA_USER is your email address (not username) for JIRA Cloud"
-                        echo "   3. The API token has 'Browse Projects' and 'View Issues' permissions"
-                        echo "⚠️  Pipeline will continue."
+                        echo "⚠️  WARNING: Authentication failed when accessing JIRA (HTTP ${responseCode}). Please check JIRA_USER and JIRA_API_TOKEN. Pipeline will continue."
                     } else {
-                        echo "⚠️  WARNING: Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode})."
-                        echo "⚠️  Please check JIRA_URL and network connectivity."
-                        echo "⚠️  Pipeline will continue."
+                        echo "⚠️  WARNING: Failed to validate JIRA issue ${env.JIRA_ISSUE} (HTTP ${responseCode}). Please check JIRA_URL and network connectivity. Pipeline will continue."
                     }
                 }
             }
