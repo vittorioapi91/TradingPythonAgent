@@ -183,14 +183,28 @@ pipeline {
         success {
             echo "✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})"
             
-            // Post success status to GitHub
+            // Post success status to GitHub (requires GitHub plugin)
             script {
                 try {
-                    step([$class: 'GitHubCommitStatusSetter',
-                        reposSource: [$class: 'ManuallyEnteredRepositorySource', url: "https://github.com/${env.GIT_URL.split('/')[3..4].join('/').replace('.git', '')}"],
-                        contextSource: [$class: 'ManuallyEnteredCommitContextSource', commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: env.GIT_COMMIT]],
-                        errorHandlers: [[$class: 'ChangingBuildStatusErrorHandler', result: 'UNSTABLE']],
-                        statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', message: 'Pipeline passed', state: 'SUCCESS']]]])
+                    // Use GitHub API to post status
+                    def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
+                    def repoParts = repoUrl.split('/')
+                    def repoOwner = repoParts[0]
+                    def repoName = repoParts[1]
+                    
+                    // Post status using curl (works without GitHub plugin)
+                    sh """
+                        curl -X POST \\
+                          -H "Authorization: token \${GITHUB_TOKEN}" \\
+                          -H "Accept: application/vnd.github.v3+json" \\
+                          "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/\${GIT_COMMIT}" \\
+                          -d '{
+                            "state": "success",
+                            "target_url": "\${BUILD_URL}",
+                            "description": "Jenkins pipeline passed",
+                            "context": "jenkins/pipeline"
+                          }' || echo "Warning: Could not post status to GitHub"
+                    """
                 } catch (Exception e) {
                     echo "Warning: Could not post status to GitHub: ${e.message}"
                 }
@@ -202,11 +216,23 @@ pipeline {
             // Post failure status to GitHub
             script {
                 try {
-                    step([$class: 'GitHubCommitStatusSetter',
-                        reposSource: [$class: 'ManuallyEnteredRepositorySource', url: "https://github.com/${env.GIT_URL.split('/')[3..4].join('/').replace('.git', '')}"],
-                        contextSource: [$class: 'ManuallyEnteredCommitContextSource', commitShaSource: [$class: 'ManuallyEnteredShaSource', sha: env.GIT_COMMIT]],
-                        errorHandlers: [[$class: 'ChangingBuildStatusErrorHandler', result: 'UNSTABLE']],
-                        statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', message: 'Pipeline failed', state: 'FAILURE']]]])
+                    def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
+                    def repoParts = repoUrl.split('/')
+                    def repoOwner = repoParts[0]
+                    def repoName = repoParts[1]
+                    
+                    sh """
+                        curl -X POST \\
+                          -H "Authorization: token \${GITHUB_TOKEN}" \\
+                          -H "Accept: application/vnd.github.v3+json" \\
+                          "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/\${GIT_COMMIT}" \\
+                          -d '{
+                            "state": "failure",
+                            "target_url": "\${BUILD_URL}",
+                            "description": "Jenkins pipeline failed",
+                            "context": "jenkins/pipeline"
+                          }' || echo "Warning: Could not post status to GitHub"
+                    """
                 } catch (Exception e) {
                     echo "Warning: Could not post status to GitHub: ${e.message}"
                 }
