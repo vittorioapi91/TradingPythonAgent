@@ -5,7 +5,11 @@
 # Usage:
 #   ./build-wheel.sh [dev|staging|prod]
 #
-# If no environment is specified, defaults to 'dev'
+# If no environment is specified, automatically detects from git branch:
+#   - dev/* branches → dev
+#   - staging branch → staging
+#   - main/master branch → prod
+#
 # The wheel will be named: trading_agent-{env}-{version}.whl
 #
 
@@ -17,6 +21,7 @@ PROJECT_ROOT="${SCRIPT_DIR}"
 # Colors for output
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 log_info() {
@@ -27,17 +32,86 @@ log_warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
 }
 
-# Get environment from argument or default to 'dev'
-ENV="${1:-dev}"
-ENV="${ENV,,}"  # Convert to lowercase
+log_debug() {
+    echo -e "${BLUE}[DEBUG]${NC} $1"
+}
 
-# Validate environment
-if [[ ! "$ENV" =~ ^(dev|staging|prod)$ ]]; then
-    log_warn "Invalid environment: $ENV. Defaulting to 'dev'"
-    ENV="dev"
+# Function to get current git branch
+get_git_branch() {
+    local branch
+    if command -v git &> /dev/null; then
+        branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+        if [ -n "$branch" ]; then
+            echo "$branch"
+            return 0
+        fi
+    fi
+    # Fallback to environment variable
+    echo "${GIT_BRANCH:-${BRANCH_NAME:-}}"
+}
+
+# Function to determine environment from branch
+get_env_from_branch() {
+    local branch="$1"
+    local branch_lower="${branch,,}"  # Convert to lowercase
+    
+    # Check for staging branch
+    if [[ "$branch_lower" == "staging" ]]; then
+        echo "staging"
+        return 0
+    fi
+    
+    # Check for main/master branch
+    if [[ "$branch_lower" == "main" || "$branch_lower" == "master" ]]; then
+        echo "prod"
+        return 0
+    fi
+    
+    # Check for dev branches (dev/* or starts with dev)
+    if [[ "$branch_lower" =~ ^dev/ ]] || [[ "$branch_lower" =~ ^dev ]]; then
+        echo "dev"
+        return 0
+    fi
+    
+    # Default to dev for any other branch
+    echo "dev"
+}
+
+# Get environment from argument or auto-detect from branch
+if [ $# -gt 0 ]; then
+    ENV="${1}"
+    ENV="${ENV,,}"  # Convert to lowercase
+    
+    # Validate environment
+    if [[ ! "$ENV" =~ ^(dev|staging|prod)$ ]]; then
+        log_warn "Invalid environment: $ENV. Auto-detecting from branch..."
+        ENV=""
+    fi
+else
+    ENV=""
 fi
 
+# Auto-detect environment from branch if not specified
+if [ -z "$ENV" ]; then
+    CURRENT_BRANCH=$(get_git_branch)
+    if [ -n "$CURRENT_BRANCH" ]; then
+        ENV=$(get_env_from_branch "$CURRENT_BRANCH")
+        log_info "Auto-detected environment from branch '$CURRENT_BRANCH': $ENV"
+    else
+        log_warn "Could not determine git branch. Defaulting to 'dev'"
+        ENV="dev"
+    fi
+fi
+
+log_debug "Building wheel for environment: $ENV"
+
 log_info "Building wheel for environment: $ENV"
+
+# Show branch info if available
+CURRENT_BRANCH=$(get_git_branch)
+if [ -n "$CURRENT_BRANCH" ]; then
+    log_info "Current branch: $CURRENT_BRANCH"
+fi
 
 # Check if setuptools and wheel are installed
 if ! python3 -c "import setuptools" 2>/dev/null; then
