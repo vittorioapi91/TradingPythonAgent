@@ -53,8 +53,14 @@ class EnvironmentInfoView(BaseView):
     Custom view to display environment and wheel information
     """
     route_base = "/environment-info"
+    default_view = "info"
 
     @expose("/")
+    def list(self):
+        """Default list view - redirects to info"""
+        return self.info()
+
+    @expose("/info")
     def info(self):
         """Display environment and wheel information"""
         # Get database connection information
