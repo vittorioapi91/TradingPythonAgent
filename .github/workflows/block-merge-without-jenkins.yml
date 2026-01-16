@@ -1,0 +1,141 @@
+name: Block Merge Without Jenkins Status
+
+on:
+  pull_request:
+    branches:
+      - main
+      - staging
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  block-merge-to-main:
+    if: github.base_ref == 'main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Verify staging branch pipeline passed
+        run: |
+          echo "Checking if staging branch has successful Jenkins pipeline..."
+          
+          # Fetch staging branch
+          git fetch origin staging:staging 2>/dev/null || {
+            echo "::error::Staging branch not found"
+            exit 1
+          }
+          
+          STAGING_SHA=$(git rev-parse origin/staging)
+          echo "Staging branch SHA: $STAGING_SHA"
+          
+          # Check GitHub commit status
+          # Jenkins should post status via GitHub Status API
+          STATUS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${STAGING_SHA}/status")
+          
+          # Extract state from JSON response using jq (available in GitHub Actions)
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
+          
+          # Fallback parsing if jq fails
+          if [ "$STATUS" == "unknown" ] || [ -z "$STATUS" ]; then
+            STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+          fi
+          
+          echo "Staging pipeline status: $STATUS"
+          
+          # Also check individual status checks for jenkins/pipeline context
+          CHECKS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${STAGING_SHA}/check-runs?check_name=jenkins/pipeline" 2>/dev/null || echo '{}')
+          
+          JENKINS_STATUS=$(echo "$CHECKS_RESPONSE" | jq -r '.check_runs[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Jenkins pipeline check status: $JENKINS_STATUS"
+          
+          # Use the more specific check status if available
+          if [ "$JENKINS_STATUS" != "unknown" ] && [ "$JENKINS_STATUS" != "null" ]; then
+            if [ "$JENKINS_STATUS" != "success" ]; then
+              STATUS="failure"
+            else
+              STATUS="success"
+            fi
+          fi
+          
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::Cannot merge to main: Staging branch Jenkins pipeline must pass first"
+            echo "::error::Current status: $STATUS"
+            echo "::error::Please ensure staging branch has a successful Jenkins build before merging to main"
+            exit 1
+          fi
+          
+          echo "✅ Staging pipeline passed - merge to main allowed"
+
+  block-merge-to-staging:
+    if: github.base_ref == 'staging'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Verify dev branch pipeline passed
+        run: |
+          SOURCE_BRANCH="${{ github.head_ref }}"
+          echo "Source branch: $SOURCE_BRANCH"
+          
+          # Verify it's a dev/* branch
+          if [[ ! "$SOURCE_BRANCH" =~ ^dev/ ]]; then
+            echo "::error::Only dev/* branches can be merged to staging"
+            exit 1
+          fi
+          
+          # Fetch source branch
+          git fetch origin "$SOURCE_BRANCH:$SOURCE_BRANCH" 2>/dev/null || {
+            echo "::error::Source branch $SOURCE_BRANCH not found"
+            exit 1
+          }
+          
+          SOURCE_SHA=$(git rev-parse "origin/$SOURCE_BRANCH")
+          echo "Source branch SHA: $SOURCE_SHA"
+          
+          # Check GitHub commit status for the dev branch
+          STATUS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${SOURCE_SHA}/status")
+          
+          # Extract state from JSON response using jq (available in GitHub Actions)
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
+          
+          # Fallback parsing if jq fails
+          if [ "$STATUS" == "unknown" ] || [ -z "$STATUS" ]; then
+            STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+          fi
+          
+          echo "Dev branch pipeline status: $STATUS"
+          
+          # Also check individual status checks for jenkins/pipeline context
+          CHECKS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${SOURCE_SHA}/check-runs?check_name=jenkins/pipeline" 2>/dev/null || echo '{}')
+          
+          JENKINS_STATUS=$(echo "$CHECKS_RESPONSE" | jq -r '.check_runs[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Jenkins pipeline check status: $JENKINS_STATUS"
+          
+          # Use the more specific check status if available
+          if [ "$JENKINS_STATUS" != "unknown" ] && [ "$JENKINS_STATUS" != "null" ]; then
+            if [ "$JENKINS_STATUS" != "success" ]; then
+              STATUS="failure"
+            else
+              STATUS="success"
+            fi
+          fi
+          
+          if [ "$STATUS" != "success" ]; then
+            echo "::error::Cannot merge to staging: Dev branch Jenkins pipeline must pass first"
+            echo "::error::Current status: $STATUS"
+            echo "::error::Please ensure $SOURCE_BRANCH has a successful Jenkins build before merging to staging"
+            exit 1
+          fi
+          
+          echo "✅ Dev branch pipeline passed - merge to staging allowed"
