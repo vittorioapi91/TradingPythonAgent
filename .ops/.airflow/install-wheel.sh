@@ -134,4 +134,4 @@ log_info "  Airflow will install this wheel on startup"
 
 # List all wheels in the directory
 log_info "Available wheels in ${WHEELS_DIR}:"
-ls -lh "${WHEELS_DIR}"/trading_agent-*.whl 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}' || log_warn "  No wheels found"
+ls -lh "${WHEELS_DIR}"/trading_agent_*.whl 2>/dev/null | awk '{print "  " $9 " (" $5 ")"}' || log_warn "  No wheels found"
