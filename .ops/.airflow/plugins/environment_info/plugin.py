@@ -128,28 +128,6 @@ def environment_badge():
     return f"Environment: {ENV} | Wheel: {WHEEL_VERSION}", 200, {"Content-Type": "text/plain"}
 
 
-@bp.app_context_processor
-def inject_environment_info():
-    """Inject environment info into all templates"""
-    db_host = os.getenv("POSTGRES_HOST", "not set")
-    db_port = os.getenv("POSTGRES_PORT", "not set")
-    db_name = os.getenv("POSTGRES_DB", "not set")
-    db_user = os.getenv("POSTGRES_USER", "not set")
-    
-    if db_host != "not set" and db_port != "not set":
-        db_instance = f"{db_host}:{db_port}/{db_name}"
-    else:
-        db_instance = "not configured"
-    
-    return {
-        "airflow_env": ENV.upper(),
-        "airflow_wheel_version": WHEEL_VERSION,
-        "airflow_wheel_file": WHEEL_FILE,
-        "airflow_db_instance": db_instance,
-        "airflow_db_user": db_user,
-    }
-
-
 class EnvironmentInfoPlugin(AirflowPlugin):
     """
     Airflow plugin to display environment and wheel information
