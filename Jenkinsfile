@@ -1,6 +1,16 @@
 pipeline {
     agent any
     
+    // Disable periodic builds - only run on manual trigger or SCM changes (push)
+    // This ensures pipelines run only when:
+    // 1. Manually triggered by user (Build Now)
+    // 2. Code is pushed to the repository (via SCM polling or webhook)
+    triggers {
+        // No cron triggers - periodic builds disabled
+        // SCM polling will trigger on push (configured in Jenkins job settings)
+        // Webhooks from GitHub will also trigger builds (if configured)
+    }
+    
     environment {
         KIND_CLUSTER = 'trading-cluster'
     }
