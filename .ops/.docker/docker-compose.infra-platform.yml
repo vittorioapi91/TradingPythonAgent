@@ -122,15 +122,15 @@ services:
         # Install environment-specific wheel (dev)
         ENV=dev
         # Note: setuptools converts hyphens to underscores, so trading_agent-dev becomes trading_agent_dev
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
-        if [ -n \"\${WHEEL_FILE}\" ]; then
-          echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \${WHEEL_FILE}
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
           # Store wheel info for plugin display
-          export WHEEL_VERSION=\"\$(basename \${WHEEL_FILE})\"
-          export INSTALLED_WHEEL=\$(basename \${WHEEL_FILE})
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
         else
-          echo \"Warning: No wheel found for environment \${ENV}. Looking for trading_agent-\${ENV}-*.whl\"
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
           export WHEEL_VERSION=\"Not installed\"
         fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
@@ -200,15 +200,15 @@ services:
         # Install environment-specific wheel (staging)
         ENV=staging
         # Note: setuptools converts hyphens to underscores, so trading_agent-staging becomes trading_agent_staging
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
-        if [ -n \"\${WHEEL_FILE}\" ]; then
-          echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \${WHEEL_FILE}
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
           # Store wheel info for plugin display
-          export WHEEL_VERSION=\"\$(basename \${WHEEL_FILE})\"
-          export INSTALLED_WHEEL=\$(basename \${WHEEL_FILE})
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
         else
-          echo \"Warning: No wheel found for environment \${ENV}. Looking for trading_agent-\${ENV}-*.whl\"
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
           export WHEEL_VERSION=\"Not installed\"
         fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
@@ -278,15 +278,15 @@ services:
         # Install environment-specific wheel (prod)
         ENV=prod
         # Note: setuptools converts hyphens to underscores, so trading_agent-prod becomes trading_agent_prod
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
-        if [ -n \"\${WHEEL_FILE}\" ]; then
-          echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
-          pip install --quiet --no-cache-dir \${WHEEL_FILE}
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          pip install --quiet --no-cache-dir \$${WHEEL_FILE}
           # Store wheel info for plugin display
-          export WHEEL_VERSION=\"\$(basename \${WHEEL_FILE})\"
-          export INSTALLED_WHEEL=\$(basename \${WHEEL_FILE})
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
         else
-          echo \"Warning: No wheel found for environment \${ENV}. Looking for trading_agent-\${ENV}-*.whl\"
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
           export WHEEL_VERSION=\"Not installed\"
         fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
