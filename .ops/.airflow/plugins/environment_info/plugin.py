@@ -4,7 +4,7 @@ Airflow plugin to display environment and wheel version information
 import os
 import glob
 from airflow.plugins_manager import AirflowPlugin
-from flask import Blueprint, render_template
+from flask import Blueprint, render_template, request, g
 from flask_appbuilder import BaseView, expose
 
 # Get environment from environment variable
@@ -126,6 +126,26 @@ def inject_environment_info():
 def environment_badge():
     """Simple endpoint that returns environment info as text"""
     return f"Environment: {ENV} | Wheel: {WHEEL_VERSION}", 200, {"Content-Type": "text/plain"}
+
+
+@bp.before_app_request
+def inject_banner_data():
+    """Inject banner data into Flask g for use in templates"""
+    db_host = os.getenv("POSTGRES_HOST", "not set")
+    db_port = os.getenv("POSTGRES_PORT", "not set")
+    db_name = os.getenv("POSTGRES_DB", "not set")
+    db_user = os.getenv("POSTGRES_USER", "not set")
+    
+    if db_host != "not set" and db_port != "not set":
+        db_instance = f"{db_host}:{db_port}/{db_name}"
+    else:
+        db_instance = "not configured"
+    
+    g.airflow_env = ENV.upper()
+    g.airflow_wheel_version = WHEEL_VERSION
+    g.airflow_wheel_file = WHEEL_FILE
+    g.airflow_db_instance = db_instance
+    g.airflow_db_user = db_user
 
 
 class EnvironmentInfoPlugin(AirflowPlugin):
