@@ -46,10 +46,15 @@ get_git_branch() {
     echo "${GIT_BRANCH:-${BRANCH_NAME:-}}"
 }
 
+# Function to convert to lowercase (bash 3 compatible)
+to_lower() {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 # Function to determine environment from branch
 get_env_from_branch() {
     local branch="$1"
-    local branch_lower="${branch,,}"  # Convert to lowercase
+    local branch_lower=$(to_lower "$branch")
     
     # Check for staging branch
     if [[ "$branch_lower" == "staging" ]]; then
@@ -104,7 +109,9 @@ WHEELS_DIR="${SCRIPT_DIR}/wheels"
 mkdir -p "${WHEELS_DIR}"
 
 # Find the latest wheel for this environment
-WHEEL_FILE=$(find "${PROJECT_ROOT}/dist" -name "trading_agent-${ENV}-*.whl" 2>/dev/null | sort -V | tail -n 1)
+# Note: setuptools converts hyphens to underscores in package names
+# So trading_agent-dev becomes trading_agent_dev
+WHEEL_FILE=$(find "${PROJECT_ROOT}/dist" -name "trading_agent_${ENV}-*.whl" 2>/dev/null | sort -V | tail -n 1)
 
 if [ -z "${WHEEL_FILE}" ]; then
     log_warn "No wheel found for environment '${ENV}' in ${PROJECT_ROOT}/dist/"

@@ -50,10 +50,15 @@ get_git_branch() {
     echo "${GIT_BRANCH:-${BRANCH_NAME:-}}"
 }
 
+# Function to convert to lowercase (bash 3 compatible)
+to_lower() {
+    echo "$1" | tr '[:upper:]' '[:lower:]'
+}
+
 # Function to determine environment from branch
 get_env_from_branch() {
     local branch="$1"
-    local branch_lower="${branch,,}"  # Convert to lowercase
+    local branch_lower=$(to_lower "$branch")
     
     # Check for staging branch
     if [[ "$branch_lower" == "staging" ]]; then
@@ -138,7 +143,9 @@ cd "${PROJECT_ROOT}"
 ENV="${ENV}" python3 setup.py bdist_wheel
 
 # Find the generated wheel
-WHEEL_FILE=$(find "${PROJECT_ROOT}/dist" -name "trading_agent-${ENV}-*.whl" | head -n 1)
+# Note: setuptools converts hyphens to underscores in package names
+# So trading_agent-dev becomes trading_agent_dev
+WHEEL_FILE=$(find "${PROJECT_ROOT}/dist" -name "trading_agent_${ENV}-*.whl" | head -n 1)
 
 if [ -n "${WHEEL_FILE}" ]; then
     log_info "✓ Wheel built successfully: $(basename "${WHEEL_FILE}")"

@@ -36,15 +36,21 @@ except (ImportError, AttributeError):
         # Last resort: try to detect from wheel files
         wheel_dir = "/opt/airflow/wheels"
         if os.path.exists(wheel_dir):
-            wheel_files = glob.glob(os.path.join(wheel_dir, f"trading_agent-{ENV}-*.whl"))
+            # Note: setuptools converts hyphens to underscores in package names
+            # So trading_agent-dev becomes trading_agent_dev
+            wheel_files = glob.glob(os.path.join(wheel_dir, f"trading_agent_{ENV}-*.whl"))
             if wheel_files:
                 # Sort by version and get the latest
                 wheel_files.sort(reverse=True)
                 wheel_name = os.path.basename(wheel_files[0])
-                # Extract version from filename: trading_agent-{env}-{version}-py3-none-any.whl
+                # Extract version from filename: trading_agent_{env}-{version}-py3-none-any.whl
                 parts = wheel_name.replace(".whl", "").split("-")
-                if len(parts) >= 3:
-                    WHEEL_VERSION = f"{parts[0]}-{parts[1]} {parts[2]}"
+                if len(parts) >= 2:
+                    # Reconstruct readable name: trading_agent_dev -> trading_agent-dev
+                    package_part = parts[0]  # trading_agent_dev
+                    version_part = parts[1] if len(parts) > 1 else "unknown"
+                    readable_name = package_part.replace("_", "-")  # trading_agent-dev
+                    WHEEL_VERSION = f"{readable_name} {version_part}"
                     WHEEL_FILE = wheel_name
 
 

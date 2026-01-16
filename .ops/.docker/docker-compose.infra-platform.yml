@@ -121,7 +121,8 @@ services:
       bash -c "
         # Install environment-specific wheel (dev)
         ENV=dev
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent-\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        # Note: setuptools converts hyphens to underscores, so trading_agent-dev becomes trading_agent_dev
+        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
           pip install --quiet --no-cache-dir \${WHEEL_FILE}
@@ -198,7 +199,8 @@ services:
       bash -c "
         # Install environment-specific wheel (staging)
         ENV=staging
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent-\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        # Note: setuptools converts hyphens to underscores, so trading_agent-staging becomes trading_agent_staging
+        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
           pip install --quiet --no-cache-dir \${WHEEL_FILE}
@@ -275,7 +277,8 @@ services:
       bash -c "
         # Install environment-specific wheel (prod)
         ENV=prod
-        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent-\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        # Note: setuptools converts hyphens to underscores, so trading_agent-prod becomes trading_agent_prod
+        WHEEL_FILE=\$(ls /opt/airflow/wheels/trading_agent_\${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
         if [ -n \"\${WHEEL_FILE}\" ]; then
           echo \"Installing wheel: \$(basename \${WHEEL_FILE})\"
           pip install --quiet --no-cache-dir \${WHEEL_FILE}
