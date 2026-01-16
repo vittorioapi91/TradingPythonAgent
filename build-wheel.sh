@@ -99,8 +99,17 @@ fi
 ORIGINAL_BRANCH=""
 RESTORE_BRANCH=false
 
+# Check if we're in a CI environment (Jenkins, GitHub Actions, etc.)
+# In CI, source is already checked out, so skip checkout
+IS_CI=false
+if [ -n "${CI:-}" ] || [ -n "${JENKINS_HOME:-}" ] || [ -n "${BUILD_NUMBER:-}" ]; then
+    IS_CI=true
+    log_info "CI environment detected. Skipping branch checkout (source already checked out)."
+fi
+
 # If environment is explicitly provided, checkout the corresponding branch from origin
-if [ -n "$EXPLICIT_ENV" ]; then
+# (unless we're in CI, where source is already checked out)
+if [ -n "$EXPLICIT_ENV" ] && [ "$IS_CI" = false ]; then
     ORIGINAL_BRANCH=$(get_git_branch)
     if [ -n "$ORIGINAL_BRANCH" ]; then
         RESTORE_BRANCH=true
@@ -181,6 +190,11 @@ if [ -n "$EXPLICIT_ENV" ]; then
     
     CURRENT_BRANCH=$(get_git_branch)
     log_info "Now on branch: $CURRENT_BRANCH"
+elif [ -n "$EXPLICIT_ENV" ] && [ "$IS_CI" = true ]; then
+    # In CI, use the explicitly provided environment but don't checkout
+    ENV="$EXPLICIT_ENV"
+    CURRENT_BRANCH=$(get_git_branch)
+    log_info "CI environment: Using explicitly specified environment '$ENV' on branch '$CURRENT_BRANCH'"
 else
     # Auto-detect environment from current branch (don't checkout)
     CURRENT_BRANCH=$(get_git_branch)
