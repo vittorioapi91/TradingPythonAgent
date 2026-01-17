@@ -55,12 +55,12 @@
 - `.ops/.airflow/dags/edgar_filings_quarterly_dag.py` - Quarterly automated downloads
 - `.ops/.airflow/dags/README.md` - Comprehensive DAG documentation
 - `.ops/.airflow/verify-wheel-installation.sh` - Wheel verification utility
-- `trading_agent/fundamentals/edgar/filings.py` - Filing download functionality
-- `trading_agent/fundamentals/edgar/filings_postgres.py` - PostgreSQL query builders
+- `src/fundamentals/edgar/filings.py` - Filing download functionality
+- `src/fundamentals/edgar/filings_postgres.py` - PostgreSQL query builders
 - `tests/trading_agent/fundamentals/edgar/test_filings.py` - Comprehensive test suite
 
 #### Files Modified
-- `trading_agent/fundamentals/edgar/edgar.py` - Added `--filings` flag and filter arguments
+- `src/fundamentals/edgar/edgar.py` - Added `--filings` flag and filter arguments
 - `.ops/.airflow/plugins/environment_info/plugin.py` - Improved wheel detection
 - `.vscode/launch.json` - Updated to use `--filings` flag
 - `.vscode/fundamentals/launch.json` - Updated configurations

@@ -44,7 +44,7 @@ TradingPythonAgent is a production-ready system that:
 
 ```
 TradingPythonAgent/
-├── trading_agent/
+├── src/                              # Application source code
 │   ├── config.py                    # Environment configuration
 │   ├── fundamentals/                 # Company fundamentals data
 │   │   ├── edgar/                   # SEC EDGAR filings downloader
@@ -68,7 +68,7 @@ TradingPythonAgent/
 │   ├── kserve.py                    # KServe model serving
 │   ├── kubeflow.py                  # Kubeflow pipelines
 │   └── prometheus.py                # Prometheus metrics
-├── trading_agent/                   # Application code (see above)
+├── src/                             # Application code (see above)
 ├── tests/                          # Test suite
 ├── requirements*.txt               # Python dependencies
 └── README.md                        # This file
@@ -136,7 +136,7 @@ The project includes a complete ML workflow for modeling macro economic cycles:
 - **Tracking**: MLflow experiment tracking
 - **Feature Store**: Feast for online feature serving
 
-See [`trading_agent/model/README.md`](trading_agent/model/README.md) for detailed ML documentation.
+See [`src/model/README.md`](src/model/README.md) for detailed ML documentation.
 
 ## 🚀 Quick Start
 
@@ -170,7 +170,7 @@ See [`trading_agent/model/README.md`](trading_agent/model/README.md) for detaile
    pip install -r requirements-prod.txt     # For main branch
    
    # Or use the config module to get the right file:
-   python -c "from trading_agent.config import get_requirements_file; print(get_requirements_file())"
+   python -c "from src.config import get_requirements_file; print(get_requirements_file())"
    ```
 
 4. **Configure environment**:
@@ -206,7 +206,7 @@ The project uses environment-aware configuration that automatically detects your
 - **`staging` branch** → Loads `.env.staging` → Uses `test.tradingAgent@localhost`
 - **`main` branch** → Loads `.env.prod` → Uses `prod.tradingAgent@localhost`
 
-Environment variables are loaded automatically when the package is imported. See [`trading_agent/config.py`](trading_agent/config.py) for details.
+Environment variables are loaded automatically when the package is imported. See [`src/config.py`](src/config.py) for details.
 
 ## 📖 Usage Examples
 
@@ -214,13 +214,13 @@ Environment variables are loaded automatically when the package is imported. See
 
 ```bash
 # Generate catalog of companies and filings
-python -m trading_agent.fundamentals.edgar \
+python -m src.fundamentals.edgar \
     --generate-catalog \
     --download-companies \
     --start-year 2020
 
 # Download filings from database
-python -m trading_agent.fundamentals.edgar \
+python -m src.fundamentals.edgar \
     --from-db \
     --ticker AAPL,MSFT,NVDA
 ```
@@ -229,12 +229,12 @@ python -m trading_agent.fundamentals.edgar \
 
 ```bash
 # Generate database with all downloadable series
-python -m trading_agent.macro.fred.main \
+python -m src.macro.fred.main \
     --generate-db \
     --api-key YOUR_FRED_API_KEY
 
 # Download specific series
-python -m trading_agent.macro.fred.main \
+python -m src.macro.fred.main \
     --series GDP UNRATE CPIAUCSL \
     --start-date 2000-01-01
 ```
@@ -242,7 +242,7 @@ python -m trading_agent.macro.fred.main \
 ### Download BLS Labor Statistics
 
 ```bash
-python -m trading_agent.macro.bls.main \
+python -m src.macro.bls.main \
     --api-key YOUR_BLS_API_KEY \
     --series CUUR0000SA0 \
     --start-year 2020
@@ -251,7 +251,7 @@ python -m trading_agent.macro.bls.main \
 ### Train HMM Model
 
 ```bash
-cd trading_agent/model
+cd src/model
 python training_script.py \
     --series-ids GDP UNRATE CPIAUCSL \
     --start-date 2000-01-01 \
@@ -262,7 +262,7 @@ python training_script.py \
 ### Download Stock Market Data
 
 ```bash
-python -m trading_agent.markets.equities.main \
+python -m src.markets.equities.main \
     --tickers AAPL,MSFT,GOOGL \
     --start-date 2020-01-01 \
     --end-date 2024-01-01

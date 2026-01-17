@@ -31,8 +31,8 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from trading_agent.fundamentals.download_logger import get_download_logger
-    from trading_agent.fundamentals.edgar.master_idx_postgres import (
+    from src.fundamentals.download_logger import get_download_logger
+    from src.fundamentals.edgar.master_idx_postgres import (
         get_master_idx_download_status, mark_master_idx_download_success,
         mark_master_idx_download_failed, get_quarters_with_data
     )
@@ -46,7 +46,7 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+    from src.fundamentals.edgar.edgar import EDGARDownloader
 
 # Set up logger using download_logger utility with console output
 logger = get_download_logger('edgar_master_idx', log_level=logging.INFO, add_console_handler=True)

@@ -33,7 +33,7 @@ log_debug() {
 }
 
 # Source and destination directories
-SOURCE_DIR="${PROJECT_ROOT}/trading_agent/.airflow-dags"
+SOURCE_DIR="${PROJECT_ROOT}/src/.airflow-dags"
 DEST_DIR="${PROJECT_ROOT}/.ops/.airflow/dags"
 
 # Check if source directory exists

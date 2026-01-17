@@ -14,21 +14,21 @@ except (ImportError, ValueError):
     import sys
     from pathlib import Path
     # Add project root to path for absolute import
-    # File is at: trading_agent/fundamentals/edgar/edgar.py
+    # File is at: src/fundamentals/edgar/edgar.py
     # Need to go up 5 levels to get to project root
     file_path = Path(__file__).resolve()
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
     try:
-        from trading_agent.config import load_environment_config
+        from src.config import load_environment_config
         load_environment_config()
     except ImportError as e:
         # Config module is required - fail if not found
         raise ImportError(
             f"Failed to import config module. This is required for environment configuration. "
             f"Original error: {e}. "
-            f"Please ensure the config module exists at trading_agent/config.py"
+            f"Please ensure the config module exists at src/config.py"
         ) from e
 
 
@@ -73,7 +73,7 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from trading_agent.fundamentals.edgar.edgar_postgres import (
+    from src.fundamentals.edgar.edgar_postgres import (
         get_postgres_connection, init_edgar_postgres_tables
     )
 
@@ -205,7 +205,7 @@ Examples:
                 try:
                     from .master_idx import MasterIdxManager
                 except ImportError:
-                    from trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
+                    from src.fundamentals.edgar.master_idx import MasterIdxManager
                 
                 conn = get_postgres_connection(
                     dbname=args.dbname,
@@ -234,7 +234,7 @@ Examples:
             try:
                 from .filings import FilingDownloader
             except ImportError:
-                from trading_agent.fundamentals.edgar.filings import FilingDownloader
+                from src.fundamentals.edgar.filings import FilingDownloader
             
             print("Downloading filings from database...")
             filing_downloader = FilingDownloader(user_agent=args.user_agent)

@@ -19,7 +19,7 @@ class TestEDGARCLIArguments:
     
     def test_default_arguments(self):
         """Test that default arguments are set correctly"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = []
         
@@ -44,7 +44,7 @@ class TestEDGARCLIArguments:
     
     def test_start_year_argument(self):
         """Test --start-year argument parsing"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog', '--start-year', '2020']
         
@@ -75,7 +75,7 @@ class TestEDGARCLIArguments:
     
     def test_output_dir_argument(self):
         """Test --output-dir argument parsing"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--filings', '--output-dir', '/custom/output/path']
         
@@ -101,7 +101,7 @@ class TestEDGARCLIArguments:
     
     def test_user_agent_argument(self):
         """Test --user-agent argument parsing"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         custom_user_agent = 'Custom User Agent test@example.com'
         test_args = ['--filings', '--user-agent', custom_user_agent]
@@ -126,7 +126,7 @@ class TestEDGARCLIArguments:
     
     def test_generate_catalog_flag(self):
         """Test --generate-catalog flag"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog']
         
@@ -156,7 +156,7 @@ class TestEDGARCLIArguments:
     
     def test_download_companies_flag(self):
         """Test --download-companies flag"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog', '--download-companies']
         
@@ -186,7 +186,7 @@ class TestEDGARCLIArguments:
     
     def test_process_zips_argument(self):
         """Test --process-zips argument"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_dir = '/test/zip/directory'
         test_args = ['--process-zips', test_dir]
@@ -216,7 +216,7 @@ class TestEDGARCLIArguments:
     
     def test_no_recursive_flag(self):
         """Test --no-recursive flag with --process-zips"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_dir = '/test/zip/directory'
         test_args = ['--process-zips', test_dir, '--no-recursive']
@@ -246,7 +246,7 @@ class TestEDGARCLIArguments:
     
     def test_database_arguments(self):
         """Test database connection arguments (--dbname, --dbuser, --dbhost, --dbpassword, --dbport)"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = [
             '--generate-catalog',
@@ -285,7 +285,7 @@ class TestEDGARCLIArguments:
     
     def test_database_defaults(self):
         """Test that database arguments use defaults when not specified"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog']
         
@@ -315,7 +315,7 @@ class TestEDGARCLIArguments:
     
     def test_combined_arguments(self):
         """Test combining multiple arguments together"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = [
             '--generate-catalog',
@@ -362,7 +362,7 @@ class TestEDGARCLIArguments:
     
     def test_invalid_start_year_type(self):
         """Test that invalid start-year type raises error"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--start-year', 'not-a-number']
         
@@ -373,7 +373,7 @@ class TestEDGARCLIArguments:
     
     def test_invalid_dbport_type(self):
         """Test that invalid dbport type raises error"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog', '--dbport', 'not-a-number']
         
@@ -384,7 +384,7 @@ class TestEDGARCLIArguments:
     
     def test_help_flag(self):
         """Test that --help flag works"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--help']
         
@@ -405,7 +405,7 @@ class TestEDGARCLIArgumentGroups:
         # This test verifies the argument parser structure
         # We can't easily test the grouping visually, but we can verify
         # that the arguments exist and work together
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = ['--generate-catalog', '--download-companies']
         
@@ -424,7 +424,7 @@ class TestEDGARCLIArgumentGroups:
     
     def test_database_connection_group(self):
         """Test that database connection arguments are grouped"""
-        from trading_agent.fundamentals.edgar.edgar import main as edgar_main
+        from src.fundamentals.edgar.edgar import main as edgar_main
         
         test_args = [
             '--generate-catalog',

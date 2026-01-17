@@ -3,9 +3,9 @@ Main entry point for TradingPythonAgent
 """
 
 # Load environment configuration early
-import trading_agent.config  # noqa: F401
+import src.config  # noqa: F401
 
-from trading_agent.agent import TradingAgent
+from src.agent import TradingAgent
 
 
 def main():

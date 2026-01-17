@@ -29,10 +29,10 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
-    from trading_agent.fundamentals.download_logger import get_download_logger
-    from trading_agent.fundamentals.edgar.edgar import EDGARDownloader
-    from trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
-    from trading_agent.fundamentals.edgar.filings_postgres import get_filings_filenames
+    from src.fundamentals.download_logger import get_download_logger
+    from src.fundamentals.edgar.edgar import EDGARDownloader
+    from src.fundamentals.edgar.edgar_postgres import get_postgres_connection
+    from src.fundamentals.edgar.filings_postgres import get_filings_filenames
 
 # Set up logger using download_logger utility with console output
 logger = get_download_logger('edgar_filings', log_level=logging.INFO, add_console_handler=True)
