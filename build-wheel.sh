@@ -1,16 +1,25 @@
 #!/bin/bash
 #
-# Build environment-specific wheel for TradingPythonAgent
+# Build environment-specific wheels for TradingPythonAgent
 #
 # Usage:
-#   ./build-wheel.sh [dev|staging|prod]
+#   ./build-wheel.sh [dev|staging|prod] [--linux-x86_64] [--win-x86_64] [--macosx-arm64]
 #
 # If no environment is specified, automatically detects from git branch:
 #   - dev/* branches → dev
 #   - staging branch → staging
 #   - main/master branch → prod
 #
-# The wheel will be named: trading_agent-{env}-{version}.whl
+# Platform flags (at least one must be specified):
+#   --linux-x86_64   Build Linux 64-bit (linux_x86_64) wheel
+#   --win-x86_64     Build Windows 64-bit (win_amd64) wheel
+#   --macosx-arm64   Build macOS ARM64 (macosx_arm64) wheel
+#
+# At least one platform flag must be provided when executing the script.
+#
+# Wheels will be named: trading_agent-{env}-{version}-{platform}.whl
+# All .egg-info directories are moved to dist/ directory (kept with wheels)
+# build/ directory is completely removed after builds (not needed)
 #
 
 set -euo pipefail
@@ -82,17 +91,53 @@ get_env_from_branch() {
     echo "dev"
 }
 
-# Get environment from argument or auto-detect from branch
+# Parse command-line arguments
 EXPLICIT_ENV=""
-if [ $# -gt 0 ]; then
-    EXPLICIT_ENV="${1}"
-    EXPLICIT_ENV=$(to_lower "$EXPLICIT_ENV")
-    
-    # Validate environment
-    if [[ ! "$EXPLICIT_ENV" =~ ^(dev|staging|prod)$ ]]; then
-        log_warn "Invalid environment: $EXPLICIT_ENV. Auto-detecting from branch..."
-        EXPLICIT_ENV=""
-    fi
+BUILD_LINUX_X86_64=false
+BUILD_WIN_X86_64=false
+BUILD_MACOSX_ARM64=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        dev|staging|prod)
+            EXPLICIT_ENV=$(to_lower "$1")
+            shift
+            ;;
+        --linux-x86_64)
+            BUILD_LINUX_X86_64=true
+            shift
+            ;;
+        --win-x86_64)
+            BUILD_WIN_X86_64=true
+            shift
+            ;;
+        --macosx-arm64)
+            BUILD_MACOSX_ARM64=true
+            shift
+            ;;
+        *)
+            log_warn "Unknown argument: $1"
+            shift
+            ;;
+    esac
+done
+
+# Validate environment if explicitly provided
+if [ -n "$EXPLICIT_ENV" ] && [[ ! "$EXPLICIT_ENV" =~ ^(dev|staging|prod)$ ]]; then
+    log_warn "Invalid environment: $EXPLICIT_ENV. Auto-detecting from branch..."
+    EXPLICIT_ENV=""
+fi
+
+# Validate that at least one platform flag is provided
+if [ "$BUILD_LINUX_X86_64" = false ] && [ "$BUILD_WIN_X86_64" = false ] && [ "$BUILD_MACOSX_ARM64" = false ]; then
+    echo "Error: At least one platform flag must be provided."
+    echo "Usage: $0 [dev|staging|prod] [--linux-x86_64] [--win-x86_64] [--macosx-arm64]"
+    echo ""
+    echo "Platform flags:"
+    echo "  --linux-x86_64   Build Linux 64-bit (linux_x86_64) wheel"
+    echo "  --win-x86_64     Build Windows 64-bit (win_amd64) wheel"
+    echo "  --macosx-arm64   Build macOS ARM64 (macosx_arm64) wheel"
+    exit 1
 fi
 
 # Track if we need to restore the original branch
@@ -220,36 +265,110 @@ if ! python3 -c "import wheel" 2>/dev/null; then
     pip install wheel
 fi
 
-# Create dist directory if it doesn't exist
+# Create dist directory if it doesn't exist (wheels go here)
 mkdir -p "${PROJECT_ROOT}/dist"
 
-# Clean previous builds (optional - remove if you want to keep old wheels)
+# Clean previous builds
 log_info "Cleaning previous builds..."
 rm -rf "${PROJECT_ROOT}/build" "${PROJECT_ROOT}/src/*.egg-info"
 find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+# Also clean .egg-info from dist/ (they'll be regenerated)
+find "${PROJECT_ROOT}/dist" -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
 
 # Build wheel with environment-specific name
 log_info "Building wheel: trading_agent-${ENV}-*.whl"
 cd "${PROJECT_ROOT}"
-ENV="${ENV}" python3 setup.py bdist_wheel
 
-# Find the generated wheel
+# Detect current platform
+CURRENT_PLATFORM=$(python3 -c "import platform; print(platform.machine().lower())" 2>/dev/null || echo "unknown")
+CURRENT_SYSTEM=$(python3 -c "import sys; print(sys.platform)" 2>/dev/null || echo "unknown")
+
+log_info "Current platform: ${CURRENT_PLATFORM} (${CURRENT_SYSTEM})"
+
+# Build macOS ARM64 wheel (default)
+if [ "$BUILD_MACOSX_ARM64" = true ]; then
+    log_info "Building macOS ARM64 (macosx_arm64) wheel..."
+    ENV="${ENV}" python3 setup.py bdist_wheel --plat-name=macosx_arm64
+    
+    # Move .egg-info to dist/ directory after build (keep with wheels)
+    if find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" 2>/dev/null | head -1 | grep -q .; then
+        log_info "Moving .egg-info directories to dist/..."
+        find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" -exec mv {} "${PROJECT_ROOT}/dist/" \; 2>/dev/null || true
+    fi
+fi
+
+# Clean up build/ directory completely (setuptools artifacts not needed)
+if [ -d "${PROJECT_ROOT}/build" ]; then
+    log_info "Cleaning up build/ directory..."
+    rm -rf "${PROJECT_ROOT}/build" 2>/dev/null || true
+fi
+
+# Build Linux 64-bit wheel (optional)
+if [ "$BUILD_LINUX_X86_64" = true ]; then
+    log_info "Building Linux 64-bit (linux_x86_64) wheel..."
+    ENV="${ENV}" python3 setup.py bdist_wheel --plat-name=linux_x86_64
+    
+    # Move any additional .egg-info directories to dist/
+    if find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" 2>/dev/null | head -1 | grep -q .; then
+        log_info "Moving additional .egg-info directories to dist/..."
+        find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" -exec mv {} "${PROJECT_ROOT}/dist/" \; 2>/dev/null || true
+    fi
+    
+    # Clean up build/ directory completely after each build
+    rm -rf "${PROJECT_ROOT}/build" 2>/dev/null || true
+fi
+
+# Build Windows 64-bit wheel (optional)
+if [ "$BUILD_WIN_X86_64" = true ]; then
+    log_info "Building Windows 64-bit (win_amd64) wheel..."
+    ENV="${ENV}" python3 setup.py bdist_wheel --plat-name=win_amd64
+    
+    # Move any additional .egg-info directories to dist/
+    if find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" 2>/dev/null | head -1 | grep -q .; then
+        log_info "Moving additional .egg-info directories to dist/..."
+        find "${PROJECT_ROOT}/src" -type d -name "*.egg-info" -exec mv {} "${PROJECT_ROOT}/dist/" \; 2>/dev/null || true
+    fi
+    
+    # Clean up build/ directory completely after each build
+    rm -rf "${PROJECT_ROOT}/build" 2>/dev/null || true
+fi
+
+# Final cleanup: ensure build/ directory is removed (all artifacts in dist/)
+if [ -d "${PROJECT_ROOT}/build" ]; then
+    log_info "Removing build/ directory (all artifacts in dist/)..."
+    rm -rf "${PROJECT_ROOT}/build" 2>/dev/null || true
+fi
+
+# Find all generated wheels
 # Note: setuptools converts hyphens to underscores in package names
 # So trading_agent-dev becomes trading_agent_dev
-WHEEL_FILE=$(find "${PROJECT_ROOT}/dist" -name "trading_agent_${ENV}-*.whl" | head -n 1)
+WHEEL_FILES=$(find "${PROJECT_ROOT}/dist" -name "trading_agent_${ENV}-*.whl" | sort)
 
-if [ -n "${WHEEL_FILE}" ]; then
-    log_info "✓ Wheel built successfully: $(basename "${WHEEL_FILE}")"
-    log_info "  Location: ${WHEEL_FILE}"
-    log_info "  Size: $(du -h "${WHEEL_FILE}" | cut -f1)"
-else
-    log_warn "⚠️  Wheel file not found in dist/ directory"
+if [ -z "${WHEEL_FILES}" ]; then
+    log_warn "⚠️  No wheel files found in dist/ directory"
     exit 1
 fi
 
-# Display wheel contents (optional)
-log_info "Wheel contents:"
-unzip -l "${WHEEL_FILE}" | head -n 20
+# Display all built wheels
+log_info "Built wheels:"
+while IFS= read -r wheel_file; do
+    if [ -n "${wheel_file}" ]; then
+        wheel_name=$(basename "${wheel_file}")
+        wheel_size=$(du -h "${wheel_file}" | cut -f1)
+        log_info "  ✓ ${wheel_name} (${wheel_size})"
+    fi
+done <<< "${WHEEL_FILES}"
+
+# Use the first wheel for contents display (prefer macosx_arm64, otherwise first available)
+SAMPLE_WHEEL=$(echo "${WHEEL_FILES}" | grep "macosx_arm64" | head -n 1)
+if [ -z "${SAMPLE_WHEEL}" ]; then
+    SAMPLE_WHEEL=$(echo "${WHEEL_FILES}" | head -n 1)
+fi
+
+if [ -n "${SAMPLE_WHEEL}" ]; then
+    log_info "Wheel contents (sample from $(basename "${SAMPLE_WHEEL}")):"
+    unzip -l "${SAMPLE_WHEEL}" 2>/dev/null | head -n 20 || log_warn "Could not display wheel contents"
+fi
 
 log_info "Build complete!"
 
