@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+*.db
+*.sqlite
+
+# Data files
+*.parquet
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jenkins workspace (HUGE - 11GB+)
+.ops/.jenkins/data/
+
+# Airflow runtime data (logs, installed wheels, cache)
+.ops/.airflow/logs*/
+.ops/.airflow/wheels/
+.ops/.airflow/__pycache__/
+
+# Python cache in .ops directories
+.ops/.mlflow/__pycache__/
+.ops/.prometheus/__pycache__/
+**/__pycache__/
+
+# Other runtime/generated directories that shouldn't be in Docker images
+.ops/.feast/feast_repo/.feast/
+.ops/.grafana/*.log
+
+# Virtual environments
+.venv-kserve/
+.venv-jenkins/
+
+# Large build artifacts
+node_modules/
+*.min.js
+*.min.css
