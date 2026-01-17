@@ -30,14 +30,16 @@ ENV/
 .venv-jenkins/
 
 # IDE
-# Allow all .vscode configuration files
+# Allow all .vscode configuration files (especially launch.json files)
 .vscode/*
+# Explicitly allow all JSON files (including all launch.json configurations)
 !.vscode/**/*.json
+# Allow markdown and Python files in .vscode
 !.vscode/**/*.md
 !.vscode/**/*.py
-# Explicitly allow fundamentals launch.json
-!.vscode/fundamentals/
-!.vscode/fundamentals/launch.json
+# Ensure all launch.json files are tracked (explicit patterns for clarity)
+!.vscode/launch.json
+!.vscode/**/launch.json
 .idea/
 *.swp
 *.swo
