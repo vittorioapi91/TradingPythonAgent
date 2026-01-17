@@ -481,29 +481,29 @@ pipeline {
                                 exit 1
                             fi
                             
-                            echo "[$(date +%H:%M:%S)] Docker buildx version:"
+                            echo "[\$(date +%H:%M:%S)] Docker buildx version:"
                             docker buildx version
                             
                             # Create and use builder instance
-                            echo "[$(date +%H:%M:%S)] Setting up buildx builder..."
+                            echo "[\$(date +%H:%M:%S)] Setting up buildx builder..."
                             if ! docker buildx inspect builder >/dev/null 2>&1; then
-                                echo "[$(date +%H:%M:%S)] Creating buildx builder instance..."
+                                echo "[\$(date +%H:%M:%S)] Creating buildx builder instance..."
                                 docker buildx create --name builder --use --driver docker-container || {
-                                    echo "[$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
+                                    echo "[\$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
                                     docker buildx use builder 2>/dev/null || docker buildx use default
                                 }
                             else
-                                echo "[$(date +%H:%M:%S)] Using existing buildx builder..."
+                                echo "[\$(date +%H:%M:%S)] Using existing buildx builder..."
                                 docker buildx use builder
                             fi
                             
                             # Verify builder is ready
-                            echo "[$(date +%H:%M:%S)] Verifying buildx builder..."
+                            echo "[\$(date +%H:%M:%S)] Verifying buildx builder..."
                             docker buildx inspect --bootstrap
                             
                             # Check if base image exists (base images are built manually, not in pipeline)
                             if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
-                                echo "[$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
+                                echo "[\$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
                                 echo ""
                                 echo "Base images must be built manually before running pipelines."
                                 echo "To build the base image, run:"
@@ -513,10 +513,10 @@ pipeline {
                                 exit 1
                             fi
                             
-                            echo "[$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
+                            echo "[\$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
                             
                             # Build incremental image (FROM base) - only copies source code
-                            echo "[$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
+                            echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
                             docker buildx build \
                                 --platform linux/amd64 \
                                 -f .ops/.kubernetes/Dockerfile.model-training \
@@ -526,7 +526,7 @@ pipeline {
                                 --progress=plain \
                                 .
                             
-                            echo "[$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                            echo "[\$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
                         """
                     }
                 }
