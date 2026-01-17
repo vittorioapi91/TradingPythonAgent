@@ -378,7 +378,7 @@ pipeline {
             }
             steps {
                 script {
-                    echo "Installing Airflow DAGs from src/.airflow-dags/ to .ops/.airflow/dags/..."
+                    echo "Installing Airflow DAGs from src/.airflow-dags/ to ../infra-platform/airflow/dags/..."
                     sh """
                         # Run install-dags.sh script
                         if [ -f "./install-dags.sh" ]; then

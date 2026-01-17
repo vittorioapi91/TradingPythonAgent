@@ -1,9 +1,9 @@
 #!/bin/bash
 #
-# Install Airflow DAGs from airflow-dags/ to .ops/.airflow/dags/
+# Install Airflow DAGs from src/.airflow-dags/ to ../infra-platform/airflow/dags/
 #
 # This script copies DAG files from the project's airflow-dags directory
-# to the Airflow DAGs directory where they will be loaded by Airflow.
+# to the infra-platform repository's Airflow DAGs directory where they will be loaded by Airflow.
 #
 # Usage:
 #   ./install-dags.sh
@@ -34,7 +34,7 @@ log_debug() {
 
 # Source and destination directories
 SOURCE_DIR="${PROJECT_ROOT}/src/.airflow-dags"
-DEST_DIR="${PROJECT_ROOT}/.ops/.airflow/dags"
+DEST_DIR="${PROJECT_ROOT}/../infra-platform/airflow/dags"
 
 # Check if source directory exists
 if [ ! -d "${SOURCE_DIR}" ]; then
