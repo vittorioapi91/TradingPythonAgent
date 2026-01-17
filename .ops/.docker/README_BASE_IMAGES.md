@@ -22,9 +22,9 @@ This project uses a two-tier Docker image strategy:
 **Tag:** `jenkins-custom:base`
 
 **Built when:**
-- First run of infra-platform pipeline
-- When `.ops/.docker/Dockerfile.jenkins.base` or `requirements.txt` changes
-- Manually: `docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/`
+- **Manually** (not in pipeline): Run `.ops/.docker/build-base-images.sh jenkins`
+- Or manually: `docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/`
+- Rebuild when `.ops/.docker/Dockerfile.jenkins.base` or `requirements.txt` changes
 
 ### 2. Trading Agent Base Image (`hmm-model-training-base:base`)
 
@@ -38,9 +38,9 @@ This project uses a two-tier Docker image strategy:
 **Tag:** `hmm-model-training-base:base`
 
 **Built when:**
-- First run of trading agent pipeline
-- When `.ops/.kubernetes/Dockerfile.model-training.base` or `requirements.txt` changes
-- Manually: `docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base .`
+- **Manually** (not in pipeline): Run `.ops/.docker/build-base-images.sh trading-agent`
+- Or manually: `docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base .`
+- Rebuild when `.ops/.kubernetes/Dockerfile.model-training.base` or `requirements.txt` changes
 
 ## Incremental Images
 
@@ -52,7 +52,7 @@ This project uses a two-tier Docker image strategy:
 
 **Changes:** Currently identical to base (pass-through for future customizations)
 
-**Built:** Every infra-platform pipeline run (fast since base is cached)
+**Built:** Every infra-platform pipeline run (fast since base is pre-built and cached)
 
 ### 2. Trading Agent Incremental (`hmm-model-training:XXX`)
 
@@ -62,7 +62,7 @@ This project uses a two-tier Docker image strategy:
 
 **Changes:** Only copies `src/` code (incremental layer)
 
-**Built:** Every trading agent pipeline run (fast since base is cached)
+**Built:** Every trading agent pipeline run (fast since base is pre-built and cached)
 
 **Tags:** `hmm-model-training-dev:dev-XX-XXX`, `hmm-model-training:XX-XXX`, etc.
 
@@ -80,17 +80,46 @@ Base images tagged with `:base` are **NEVER deleted** by:
 - Jenkins post-build cleanup (explicitly excludes `:base` tagged images)
 - Manual cleanup scripts
 
-## Manual Base Image Management
+## Building Base Images
+
+**Base images must be built manually before running pipelines.** They are NOT built automatically in pipelines.
+
+### Quick Build (Recommended)
 
 ```bash
-# Build base images manually
-docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/
-docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base .
+# Build both base images
+.ops/.docker/build-base-images.sh
 
+# Or build individually
+.ops/.docker/build-base-images.sh jenkins
+.ops/.docker/build-base-images.sh trading-agent
+```
+
+### Manual Build
+
+```bash
+# Build Jenkins base
+docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/
+
+# Build trading agent base
+docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base .
+```
+
+### Verification
+
+```bash
 # List base images
 docker images | grep ':base'
 
-# Rebuild base image if requirements.txt changes
-docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/
-docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base .
+# Check if base images exist (pipelines will fail if missing)
+docker images --format '{{.Repository}}:{{.Tag}}' | grep ':base$'
 ```
+
+### When to Rebuild Base Images
+
+Rebuild base images when:
+- `requirements.txt` changes (Python dependencies updated)
+- Base Dockerfile changes (system packages, tools updated)
+- Switching between different dependency versions
+
+**Note:** After rebuilding base images, incremental builds will automatically use the new base on next pipeline run.

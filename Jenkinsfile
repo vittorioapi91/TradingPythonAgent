@@ -501,26 +501,19 @@ pipeline {
                             echo "[$(date +%H:%M:%S)] Verifying buildx builder..."
                             docker buildx inspect --bootstrap
                             
-                            # Build base trading agent image first (if needed)
-                            if [ -f ".ops/.kubernetes/Dockerfile.model-training.base" ]; then
-                                echo "[$(date +%H:%M:%S)] Checking if base image needs rebuild..."
-                                if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
-                                    echo "[$(date +%H:%M:%S)] Building base trading agent image: hmm-model-training-base:base..."
-                                    docker buildx build \
-                                        --platform linux/amd64 \
-                                        -f .ops/.kubernetes/Dockerfile.model-training.base \
-                                        -t hmm-model-training-base:base \
-                                        --load \
-                                        --progress=plain \
-                                        . || {
-                                        echo "⚠️  Error: Could not build base trading agent image"
-                                        exit 1
-                                    }
-                                    echo "[$(date +%H:%M:%S)] ✓ Base trading agent image built: hmm-model-training-base:base"
-                                else
-                                    echo "[$(date +%H:%M:%S)] ✓ Base trading agent image already exists: hmm-model-training-base:base"
-                                fi
+                            # Check if base image exists (base images are built manually, not in pipeline)
+                            if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
+                                echo "[$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
+                                echo ""
+                                echo "Base images must be built manually before running pipelines."
+                                echo "To build the base image, run:"
+                                echo "  docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base ."
+                                echo ""
+                                echo "See .ops/.docker/README_BASE_IMAGES.md for more information."
+                                exit 1
                             fi
+                            
+                            echo "[$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
                             
                             # Build incremental image (FROM base) - only copies source code
                             echo "[$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
