@@ -13,45 +13,103 @@ ENV = os.getenv("AIRFLOW_ENV", "unknown")
 # Get wheel information
 WHEEL_VERSION = "Not installed"
 WHEEL_FILE = None
+PACKAGE_INSTALLED = False
 
-# Try to find the installed wheel version
+# Try multiple methods to detect installed wheel
+# Method 1: Check if package can be imported (most reliable)
 try:
-    import importlib.metadata
-    # Try to find trading_agent package
-    for dist in importlib.metadata.distributions():
-        if dist.metadata["Name"].startswith("trading_agent-"):
-            WHEEL_VERSION = f"{dist.metadata['Name']} {dist.version}"
-            WHEEL_FILE = dist.metadata["Name"]
-            break
-except (ImportError, AttributeError):
-    # Fallback to older importlib_metadata or manual detection
+    import trading_agent
+    # Try to get version from package
     try:
-        import importlib_metadata
-        for dist in importlib_metadata.distributions():
-            if dist.metadata["Name"].startswith("trading_agent-"):
-                WHEEL_VERSION = f"{dist.metadata['Name']} {dist.version}"
-                WHEEL_FILE = dist.metadata["Name"]
+        version = getattr(trading_agent, '__version__', 'unknown')
+        # Try to get package name from installed distribution
+        import importlib.metadata
+        for dist in importlib.metadata.distributions():
+            # Check if this distribution provides trading_agent
+            if 'trading_agent' in dist.metadata.get('Name', '').lower():
+                package_name = dist.metadata['Name']
+                WHEEL_VERSION = f"{package_name} {dist.version}"
+                WHEEL_FILE = package_name
+                PACKAGE_INSTALLED = True
                 break
-    except ImportError:
-        # Last resort: try to detect from wheel files
-        wheel_dir = "/opt/airflow/wheels"
+    except (AttributeError, ImportError):
+        # Package is importable but can't get version - mark as installed
+        WHEEL_VERSION = "trading_agent (installed, version unknown)"
+        PACKAGE_INSTALLED = True
+except ImportError:
+    # Package not importable, continue to other detection methods
+    pass
+
+# Method 2: Check installed distributions via importlib.metadata
+if not PACKAGE_INSTALLED:
+    try:
+        import importlib.metadata
+        # Try to find trading_agent package (check various name formats)
+        for dist in importlib.metadata.distributions():
+            name = dist.metadata.get("Name", "")
+            # Check for trading_agent-dev, trading_agent_dev, trading-agent-dev, etc.
+            if "trading_agent" in name.lower() or "trading-agent" in name.lower():
+                WHEEL_VERSION = f"{name} {dist.version}"
+                WHEEL_FILE = name
+                PACKAGE_INSTALLED = True
+                break
+    except (ImportError, AttributeError):
+        # Fallback to older importlib_metadata
+        try:
+            import importlib_metadata
+            for dist in importlib_metadata.distributions():
+                name = dist.metadata.get("Name", "")
+                if "trading_agent" in name.lower() or "trading-agent" in name.lower():
+                    WHEEL_VERSION = f"{name} {dist.version}"
+                    WHEEL_FILE = name
+                    PACKAGE_INSTALLED = True
+                    break
+        except ImportError:
+            pass
+
+# Method 3: Check for wheel files in wheels directory (fallback)
+if not PACKAGE_INSTALLED:
+    # Check multiple possible wheel directory locations
+    wheel_dirs = [
+        "/opt/airflow/wheels",  # Docker mount point
+        os.path.join(os.path.dirname(__file__), "..", "..", "wheels"),  # Relative to plugin
+    ]
+    
+    for wheel_dir in wheel_dirs:
         if os.path.exists(wheel_dir):
             # Note: setuptools converts hyphens to underscores in package names
-            # So trading_agent-dev becomes trading_agent_dev
-            wheel_files = glob.glob(os.path.join(wheel_dir, f"trading_agent_{ENV}-*.whl"))
-            if wheel_files:
-                # Sort by version and get the latest
-                wheel_files.sort(reverse=True)
-                wheel_name = os.path.basename(wheel_files[0])
-                # Extract version from filename: trading_agent_{env}-{version}-py3-none-any.whl
-                parts = wheel_name.replace(".whl", "").split("-")
-                if len(parts) >= 2:
-                    # Reconstruct readable name: trading_agent_dev -> trading_agent-dev
-                    package_part = parts[0]  # trading_agent_dev
-                    version_part = parts[1] if len(parts) > 1 else "unknown"
-                    readable_name = package_part.replace("_", "-")  # trading_agent-dev
-                    WHEEL_VERSION = f"{readable_name} {version_part}"
-                    WHEEL_FILE = wheel_name
+            # So trading_agent-dev becomes trading_agent_dev in wheel filename
+            # But the actual package name might be trading_agent-dev
+            wheel_patterns = [
+                f"trading_agent_{ENV}-*.whl",  # trading_agent_dev-0.1.0-py3-none-any.whl
+                f"trading-agent-{ENV}-*.whl",   # trading-agent-dev-0.1.0-py3-none-any.whl
+                "trading_agent_*-*.whl",        # Any trading_agent wheel
+                "trading-agent-*-*.whl",       # Any trading-agent wheel
+            ]
+            
+            for pattern in wheel_patterns:
+                wheel_files = glob.glob(os.path.join(wheel_dir, pattern))
+                if wheel_files:
+                    # Sort by version and get the latest
+                    wheel_files.sort(reverse=True)
+                    wheel_name = os.path.basename(wheel_files[0])
+                    # Extract version from filename
+                    parts = wheel_name.replace(".whl", "").split("-")
+                    if len(parts) >= 2:
+                        # Reconstruct readable name
+                        package_part = parts[0]  # trading_agent_dev or trading_agent
+                        version_part = parts[1] if len(parts) > 1 else "unknown"
+                        # Convert trading_agent_dev to trading_agent-dev
+                        readable_name = package_part.replace("_", "-")
+                        WHEEL_VERSION = f"{readable_name} {version_part} (wheel file available)"
+                        WHEEL_FILE = wheel_name
+                        break
+                
+                if WHEEL_FILE:
+                    break
+            
+            if WHEEL_FILE:
+                break
 
 
 class EnvironmentInfoView(BaseView):

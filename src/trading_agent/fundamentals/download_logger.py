@@ -16,7 +16,8 @@ _loggers: dict[str, logging.Logger] = {}
 def setup_download_logger(
     logger_name: str,
     log_file: str = 'download_errors.log',
-    log_level: int = logging.ERROR
+    log_level: int = logging.ERROR,
+    add_console_handler: bool = False
 ) -> logging.Logger:
     """
     Set up a logger for download errors with full tracebacks.
@@ -25,6 +26,7 @@ def setup_download_logger(
         logger_name: Unique name for the logger (e.g., 'edgar_downloader', 'fred_downloader')
         log_file: Path to the log file (default: 'download_errors.log')
         log_level: Logging level (default: logging.ERROR)
+        add_console_handler: If True, also add a console handler for INFO+ messages
     
     Returns:
         Configured logger instance
@@ -47,13 +49,23 @@ def setup_download_logger(
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
     
+    # Optionally add console handler
+    if add_console_handler:
+        import sys
+        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler.setLevel(logging.INFO)
+        console_formatter = logging.Formatter('%(levelname)s - %(message)s')
+        console_handler.setFormatter(console_formatter)
+        logger.addHandler(console_handler)
+    
     return logger
 
 
 def get_download_logger(
     logger_name: str,
     log_file: Optional[str] = None,
-    log_level: int = logging.ERROR
+    log_level: int = logging.ERROR,
+    add_console_handler: bool = False
 ) -> logging.Logger:
     """
     Get or create a download logger instance.
@@ -65,6 +77,7 @@ def get_download_logger(
         logger_name: Unique name for the logger (e.g., 'edgar_downloader', 'fred_downloader')
         log_file: Path to the log file. If None, uses '{logger_name}_errors.log'
         log_level: Logging level (default: logging.ERROR)
+        add_console_handler: If True, also add a console handler for INFO+ messages
     
     Returns:
         Logger instance (cached per logger_name)
@@ -78,7 +91,7 @@ def get_download_logger(
         return _loggers[logger_name]
     
     # Create and cache new logger
-    logger = setup_download_logger(logger_name, log_file, log_level)
+    logger = setup_download_logger(logger_name, log_file, log_level, add_console_handler=add_console_handler)
     _loggers[logger_name] = logger
     
     return logger

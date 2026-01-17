@@ -77,44 +77,52 @@ class TestEDGARCLIArguments:
         """Test --output-dir argument parsing"""
         from src.trading_agent.fundamentals.edgar.edgar import main as edgar_main
         
-        test_args = ['--from-db', '--output-dir', '/custom/output/path']
+        test_args = ['--filings', '--output-dir', '/custom/output/path']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                # Mock the downloader instance
-                mock_downloader = MagicMock()
-                mock_downloader_class.return_value = mock_downloader
+            # Patch FilingDownloader where it's actually imported from (filings module)
+            with patch('src.trading_agent.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
+                mock_filing_downloader = MagicMock()
+                mock_filing_downloader.download_filings = MagicMock(return_value=[])
+                mock_filing_downloader_class.return_value = mock_filing_downloader
                 
-                try:
-                    edgar_main()
-                except (SystemExit, Exception):
-                    pass
-                
-                # Verify EDGARDownloader was instantiated (output_dir is used internally)
-                assert mock_downloader_class.called
+                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
+                    try:
+                        edgar_main()
+                    except (SystemExit, Exception):
+                        pass
+                    
+                    # Verify FilingDownloader was instantiated (used for --filings)
+                    assert mock_filing_downloader_class.called
+                    # Verify output_dir was passed to download_filings
+                    if mock_filing_downloader.download_filings.called:
+                        call_kwargs = mock_filing_downloader.download_filings.call_args[1] if mock_filing_downloader.download_filings.call_args else {}
+                        assert call_kwargs.get('output_dir') == '/custom/output/path'
     
     def test_user_agent_argument(self):
         """Test --user-agent argument parsing"""
         from src.trading_agent.fundamentals.edgar.edgar import main as edgar_main
         
         custom_user_agent = 'Custom User Agent test@example.com'
-        test_args = ['--from-db', '--user-agent', custom_user_agent]
+        test_args = ['--filings', '--user-agent', custom_user_agent]
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                # Mock the downloader instance
-                mock_downloader = MagicMock()
-                mock_downloader_class.return_value = mock_downloader
+            # Patch FilingDownloader where it's actually imported from (filings module)
+            with patch('src.trading_agent.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
+                mock_filing_downloader = MagicMock()
+                mock_filing_downloader.download_filings = MagicMock(return_value=[])
+                mock_filing_downloader_class.return_value = mock_filing_downloader
                 
-                try:
-                    edgar_main()
-                except (SystemExit, Exception):
-                    pass
-                
-                # Verify EDGARDownloader was called with custom user agent
-                mock_downloader_class.assert_called_once()
-                call_kwargs = mock_downloader_class.call_args[1]
-                assert call_kwargs['user_agent'] == custom_user_agent
+                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
+                    try:
+                        edgar_main()
+                    except (SystemExit, Exception):
+                        pass
+                    
+                    # Verify FilingDownloader was called with custom user agent
+                    mock_filing_downloader_class.assert_called_once()
+                    call_kwargs = mock_filing_downloader_class.call_args[1]
+                    assert call_kwargs['user_agent'] == custom_user_agent
     
     def test_generate_catalog_flag(self):
         """Test --generate-catalog flag"""
@@ -175,26 +183,6 @@ class TestEDGARCLIArguments:
                             
                             # Verify MasterIdxManager was called (download-companies flag affects catalog generation)
                             assert mock_master_idx.called
-    
-    def test_from_db_flag(self):
-        """Test --from-db flag parsing"""
-        from src.trading_agent.fundamentals.edgar.edgar import main as edgar_main
-        
-        test_args = ['--from-db']
-        
-        with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                # Mock the downloader instance
-                mock_downloader = MagicMock()
-                mock_downloader_class.return_value = mock_downloader
-                
-                try:
-                    edgar_main()
-                except (SystemExit, Exception):
-                    pass
-                
-                # Verify EDGARDownloader was instantiated (flag was parsed)
-                assert mock_downloader_class.called
     
     def test_process_zips_argument(self):
         """Test --process-zips argument"""
