@@ -1,6 +1,8 @@
 # Incremental model training image - builds FROM base image
 # This builds on top of hmm-model-training-base:base which has dependencies pre-installed
-# Build base first: docker build -t hmm-model-training-base:base -f Dockerfile.model-training.base .
+# Base image should be pulled from local registry (localhost:5000) before building
+# Build base first and push to registry: .ops/.docker/push-base-images.sh
+# Pipeline will pull base image from registry and tag it locally before building
 FROM hmm-model-training-base:base
 
 # Base image already has WORKDIR /workspace and requirements installed
