@@ -58,7 +58,7 @@ log_info "Installing Airflow DAGs..."
 log_info "  From: ${SOURCE_DIR}"
 log_info "  To:   ${DEST_DIR}"
 
-# Copy all Python files and related files from airflow-dags to .ops/.airflow/dags
+# Copy all Python files and related files from airflow-dags to ../infra-platform/airflow/dags
 # Preserve directory structure
 DAG_FILES=$(find "${SOURCE_DIR}" -type f \( -name "*.py" -o -name "*.md" -o -name "*.yaml" -o -name "*.yml" -o -name "*.json" \) 2>/dev/null)
 
