@@ -302,14 +302,14 @@ pipeline {
         
         stage('Validate Airflow DAGs') {
             when {
-                // Only validate DAGs if .ops/.airflow/dags exists (application code pipeline)
+                // Only validate DAGs if airflow-dags directory exists
                 expression { 
-                    fileExists('.ops/.airflow/dags') 
+                    fileExists('src/trading_agent/airflow-dags') 
                 }
             }
             steps {
                 script {
-                    echo "Validating Airflow DAGs (application code validation only)..."
+                    echo "Validating Airflow DAGs from src/trading_agent/airflow-dags/..."
                     sh """
                         # Create virtual environment if it doesn't exist
                         if [ ! -d "venv" ]; then
@@ -337,14 +337,14 @@ pipeline {
                         
                         # Set environment variables for DAG execution context
                         export AIRFLOW_HOME=/tmp/airflow_home
-                        export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                        export AIRFLOW__CORE__DAGS_FOLDER=src/trading_agent/airflow-dags
                         export AIRFLOW__CORE__LOAD_EXAMPLES=False
                         export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/airflow_home/airflow.db
                         
                         # Create minimal Airflow config
                         mkdir -p \${AIRFLOW_HOME}
                         echo "[core]" > \${AIRFLOW_HOME}/airflow.cfg
-                        echo "dags_folder = .ops/.airflow/dags" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "dags_folder = src/trading_agent/airflow-dags" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "load_examples = False" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "[database]" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "sql_alchemy_conn = sqlite:////tmp/airflow_home/airflow.db" >> \${AIRFLOW_HOME}/airflow.cfg
@@ -356,13 +356,36 @@ pipeline {
                         }
                         
                         # Validate DAGs by listing them (this will parse and validate)
-                        echo "Validating DAG files..."
+                        echo "Validating DAG files from src/trading_agent/airflow-dags/..."
                         \${VENV_PYTHON} -m airflow dags list || {
                             echo "⚠️  DAG validation failed. Check output above for details."
                             exit 1
                         }
                         
                         echo "✓ All DAGs validated successfully"
+                    """
+                }
+            }
+        }
+        
+        stage('Install Airflow DAGs') {
+            when {
+                // Only install DAGs if airflow-dags directory exists
+                expression { 
+                    fileExists('src/trading_agent/airflow-dags') 
+                }
+            }
+            steps {
+                script {
+                    echo "Installing Airflow DAGs from src/trading_agent/airflow-dags/ to .ops/.airflow/dags/..."
+                    sh """
+                        # Run install-dags.sh script
+                        if [ -f "./install-dags.sh" ]; then
+                            chmod +x ./install-dags.sh
+                            ./install-dags.sh
+                        else
+                            echo "⚠️  install-dags.sh not found. Skipping DAG installation."
+                        fi
                     """
                 }
             }
