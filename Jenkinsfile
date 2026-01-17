@@ -71,8 +71,9 @@ pipeline {
                     }
                     
                     // Set module-specific paths (using relative paths from workspace root)
+                    // Note: Structure is now src/{subproject} (no project name in path)
                     if (env.IS_FEATURE_BRANCH == 'true') {
-                        env.MODULE_PATH = "src/${env.PROJECT_NAME}/${env.SUBPROJECT_NAME}"
+                        env.MODULE_PATH = "src/${env.SUBPROJECT_NAME}"
                     } else {
                         env.MODULE_PATH = ''
                     }
@@ -288,8 +289,8 @@ pipeline {
                     sh """
                         if [ ! -d "${env.MODULE_PATH}" ]; then
                             echo "ERROR: Module path does not exist: ${env.MODULE_PATH}"
-                            echo "Available modules in src/${env.PROJECT_NAME}/:"
-                            ls -d src/${env.PROJECT_NAME}/*/ 2>/dev/null | xargs -n 1 basename || echo "No modules found"
+                            echo "Available modules in src/:"
+                            ls -d src/*/ 2>/dev/null | xargs -n 1 basename || echo "No modules found"
                             exit 1
                         fi
                         echo "✓ Module path exists: ${env.MODULE_PATH}"
