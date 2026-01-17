@@ -35,6 +35,9 @@ ENV/
 !.vscode/**/*.json
 !.vscode/**/*.md
 !.vscode/**/*.py
+# Explicitly allow fundamentals launch.json
+!.vscode/fundamentals/
+!.vscode/fundamentals/launch.json
 .idea/
 *.swp
 *.swo
