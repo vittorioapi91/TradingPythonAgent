@@ -333,41 +333,35 @@ services:
       - monitoring
     restart: unless-stopped
 
-  # Nginx reverse proxy for Jenkins and Airflow
+  # Nginx reverse proxy for Airflow only (Jenkins bypassed for performance)
   nginx-proxy:
     image: nginx:alpine
     container_name: nginx-proxy
     ports:
-      - "80:80"
-      - "443:443"  # HTTPS port
+      - "443:443"  # HTTPS port (for Airflow if needed)
     volumes:
-      - ./nginx-jenkins.conf:/etc/nginx/conf.d/jenkins.conf:ro
+      # Removed nginx-jenkins.conf - Jenkins accessed directly on port 80
       - ./nginx-airflow.conf:/etc/nginx/conf.d/airflow.conf:ro
-      - ./ssl:/etc/nginx/ssl:ro  # SSL certificates for HTTPS
     networks:
       - monitoring
     depends_on:
-      - jenkins
       - airflow-dev
       - airflow-test
       - airflow-prod
     restart: unless-stopped
 
-  # Jenkins CI/CD server
+  # Jenkins CI/CD server (direct access, no nginx proxy for performance)
   jenkins:
     image: jenkins-custom:lts  # Custom image with kubectl, kind, and Docker CLI pre-installed
     container_name: jenkins
     ports:
-      - "8081:8080"  # Match current port forwarding setup (8081 on host)
+      - "80:8080"  # Direct access on port 80 (jenkins.local.info without port)
       - "50000:50000"
     mem_limit: 4g
     mem_reservation: 1g
     cpus: 2.0
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m -Xms1024m -XX:MaxMetaspaceSize=512m -Djenkins.model.Jenkins.slaveAgentPort=50000 -Dhudson.model.AbstractCIBase.timeout=1800 -Dhudson.remoting.Launcher.pingIntervalSec=300
-      # Reverse proxy configuration (for nginx HTTPS proxy)
-      - JENKINS_OPTS=--prefix=/ --httpPort=8080
-      - JENKINS_ARGS=--prefix=/ --httpPort=8080
       # JIRA configuration for feature branch validation
       - JIRA_URL=https://vittorioapi91.atlassian.net
       - JIRA_USER=vittorioapi91@gmail.com
