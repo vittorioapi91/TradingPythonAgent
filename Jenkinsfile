@@ -561,7 +561,7 @@ pipeline {
                                 if ! docker buildx version >/dev/null 2>&1; then
                                     echo "ERROR: docker buildx is not available"
                                     echo "Please ensure the Jenkins container has buildx installed"
-                                    echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
+                                    echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f ../infra-platform/docker/Dockerfile.jenkins ../infra-platform/docker"
                                     exit 1
                                 fi
                                 
@@ -601,7 +601,7 @@ pipeline {
                                     echo ""
                                     echo "Base images must be built and pushed to registry before running pipelines."
                                     echo "To build and push the base image, run:"
-                                    echo "  .ops/.docker/push-base-images.sh"
+                                    echo "  ../infra-platform/docker/build-base-images.sh"
                                     echo ""
                                     exit 1
                                 fi
@@ -617,7 +617,7 @@ pipeline {
                                 echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
                                 docker buildx build \
                                     --platform linux/amd64 \
-                                    -f .ops/.kubernetes/Dockerfile.model-training \
+                                    -f ../infra-platform/kubernetes/Dockerfile.model-training \
                                     -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
                                     -t ${latestTag} \
                                     -t \${REGISTRY_IMAGE} \
@@ -686,7 +686,7 @@ pipeline {
                     sh """
                         # Create a temporary YAML file with namespace updated
                         sed "s/namespace: trading-monitoring/namespace: ${env.NAMESPACE}/g; s/trading-monitoring\\.svc\\.cluster\\.local/${env.NAMESPACE}.svc.cluster.local/g" \
-                            .ops/.kubernetes/hmm-model-training-job.yaml > /tmp/hmm-model-training-job-${env.NAMESPACE}.yaml
+                            ../infra-platform/kubernetes/hmm-model-training-job.yaml > /tmp/hmm-model-training-job-${env.NAMESPACE}.yaml
                         
                         # Set the image in the job (if it exists)
                         kubectl set image job/${env.JOB_NAME} \
@@ -744,7 +744,7 @@ pipeline {
                         }
                         
                         # Install wheel to Airflow wheels directory
-                        .ops/.airflow/install-wheel.sh ${wheelEnv} || {
+                        ../infra-platform/airflow/install-wheel.sh ${wheelEnv} || {
                             echo "⚠️  Wheel installation failed. Check output above for details."
                             exit 1
                         }
