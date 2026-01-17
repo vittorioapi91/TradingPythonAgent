@@ -1,0 +1,61 @@
+# Base Jenkins image with all tools and dependencies pre-installed
+# This is a persistent base image that incremental builds will use
+# Tag: jenkins-custom:base
+
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Install system dependencies (curl for downloads, Python, build tools for Python packages)
+RUN apt-get update && \
+    apt-get install -y \
+        curl \
+        python3 \
+        python3-pip \
+        python3-venv \
+        gcc \
+        g++ \
+        postgresql-client \
+        && apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    ln -s /usr/bin/python3 /usr/bin/python
+
+# Install Docker CLI (compatible with Docker Desktop)
+RUN curl -fsSL https://download.docker.com/linux/static/stable/x86_64/docker-27.4.1.tgz -o /tmp/docker.tgz && \
+    tar -xz -C /tmp -f /tmp/docker.tgz && \
+    mv /tmp/docker/docker /usr/local/bin/ && \
+    chmod +x /usr/local/bin/docker && \
+    rm -rf /tmp/docker /tmp/docker.tgz
+
+# Install Docker CLI plugins (Compose V2 and Buildx)
+RUN mkdir -p /usr/local/lib/docker/cli-plugins && \
+    curl -fsSL https://github.com/docker/compose/releases/latest/download/docker-compose-linux-x86_64 -o /usr/local/lib/docker/cli-plugins/docker-compose && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose && \
+    curl -fsSL https://github.com/docker/buildx/releases/download/v0.30.1/buildx-v0.30.1.linux-amd64 -o /usr/local/lib/docker/cli-plugins/docker-buildx && \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-buildx
+
+# Install kubectl
+RUN curl -fsSL https://dl.k8s.io/release/v1.28.0/bin/linux/amd64/kubectl -o /usr/local/bin/kubectl && \
+    chmod +x /usr/local/bin/kubectl
+
+# Install kind (match host version 0.30.0)
+RUN curl -fsSL https://kind.sigs.k8s.io/dl/v0.30.0/kind-linux-amd64 -o /usr/local/bin/kind && \
+    chmod +x /usr/local/bin/kind
+
+# Copy requirements and install Python dependencies
+# Note: Using --break-system-packages is safe in Docker containers
+COPY requirements.txt /tmp/requirements.txt
+RUN pip3 install --break-system-packages --no-cache-dir -r /tmp/requirements.txt && \
+    rm /tmp/requirements.txt
+
+# Verify installations (including buildx)
+RUN docker --version && \
+    docker compose version && \
+    docker buildx version && \
+    kubectl version --client && \
+    kind version && \
+    python3 --version && \
+    pip3 --version && \
+    echo "✓ Base image: All tools verified, including docker buildx"
+
+USER jenkins

@@ -1,17 +1,10 @@
-FROM python:3.11-slim
+# Incremental model training image - builds FROM base image
+# This builds on top of hmm-model-training-base:base which has dependencies pre-installed
+# Build base first: docker build -t hmm-model-training-base:base -f Dockerfile.model-training.base .
+FROM hmm-model-training-base:base
 
-WORKDIR /workspace
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
-    postgresql-client \
-    && rm -rf /var/lib/apt/lists/*
-
-# Copy requirements and install Python dependencies
-COPY requirements.txt /workspace/
-RUN pip install --no-cache-dir -r requirements.txt
+# Base image already has WORKDIR /workspace and requirements installed
+# Only copy source code here (incremental layer)
 
 # Copy source code
 COPY src/ /workspace/src/

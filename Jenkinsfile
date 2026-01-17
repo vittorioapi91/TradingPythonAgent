@@ -467,46 +467,75 @@ pipeline {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    sh """
-                        # Ensure buildx is available
-                        if ! docker buildx version >/dev/null 2>&1; then
-                            echo "ERROR: docker buildx is not available"
-                            echo "Please ensure the Jenkins container has buildx installed"
-                            echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
-                            exit 1
-                        fi
-                        
-                        echo "✓ Docker buildx version:"
-                        docker buildx version
-                        
-                        # Create and use builder instance
-                        if ! docker buildx inspect builder >/dev/null 2>&1; then
-                            echo "Creating buildx builder instance..."
-                            docker buildx create --name builder --use --driver docker-container || {
-                                echo "Failed to create buildx builder, trying to use existing..."
-                                docker buildx use builder 2>/dev/null || docker buildx use default
-                            }
-                        else
-                            echo "Using existing buildx builder..."
-                            docker buildx use builder
-                        fi
-                        
-                        # Verify builder is ready
-                        docker buildx inspect --bootstrap
-                        
-                        # Build using buildx with BuildKit
-                        echo "Building Docker image with buildx..."
-                        docker buildx build \
-                            --platform linux/amd64 \
-                            -f .ops/.kubernetes/Dockerfile.model-training \
-                            -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
-                            -t ${latestTag} \
-                            --load \
-                            --progress=plain \
-                            .
-                        
-                        echo "✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    """
+                    // Use timeout wrapper to prevent Jenkins from thinking the script is hung
+                    // activity: true extends timeout based on activity (output), unit: 'MINUTES'
+                    timeout(time: 60, unit: 'MINUTES', activity: true) {
+                        sh """
+                            set -x  # Enable command tracing for better visibility
+                            
+                            # Ensure buildx is available
+                            if ! docker buildx version >/dev/null 2>&1; then
+                                echo "ERROR: docker buildx is not available"
+                                echo "Please ensure the Jenkins container has buildx installed"
+                                echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
+                                exit 1
+                            fi
+                            
+                            echo "[$(date +%H:%M:%S)] Docker buildx version:"
+                            docker buildx version
+                            
+                            # Create and use builder instance
+                            echo "[$(date +%H:%M:%S)] Setting up buildx builder..."
+                            if ! docker buildx inspect builder >/dev/null 2>&1; then
+                                echo "[$(date +%H:%M:%S)] Creating buildx builder instance..."
+                                docker buildx create --name builder --use --driver docker-container || {
+                                    echo "[$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
+                                    docker buildx use builder 2>/dev/null || docker buildx use default
+                                }
+                            else
+                                echo "[$(date +%H:%M:%S)] Using existing buildx builder..."
+                                docker buildx use builder
+                            fi
+                            
+                            # Verify builder is ready
+                            echo "[$(date +%H:%M:%S)] Verifying buildx builder..."
+                            docker buildx inspect --bootstrap
+                            
+                            # Build base trading agent image first (if needed)
+                            if [ -f ".ops/.kubernetes/Dockerfile.model-training.base" ]; then
+                                echo "[$(date +%H:%M:%S)] Checking if base image needs rebuild..."
+                                if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
+                                    echo "[$(date +%H:%M:%S)] Building base trading agent image: hmm-model-training-base:base..."
+                                    docker buildx build \
+                                        --platform linux/amd64 \
+                                        -f .ops/.kubernetes/Dockerfile.model-training.base \
+                                        -t hmm-model-training-base:base \
+                                        --load \
+                                        --progress=plain \
+                                        . || {
+                                        echo "⚠️  Error: Could not build base trading agent image"
+                                        exit 1
+                                    }
+                                    echo "[$(date +%H:%M:%S)] ✓ Base trading agent image built: hmm-model-training-base:base"
+                                else
+                                    echo "[$(date +%H:%M:%S)] ✓ Base trading agent image already exists: hmm-model-training-base:base"
+                                fi
+                            fi
+                            
+                            # Build incremental image (FROM base) - only copies source code
+                            echo "[$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
+                            docker buildx build \
+                                --platform linux/amd64 \
+                                -f .ops/.kubernetes/Dockerfile.model-training \
+                                -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                                -t ${latestTag} \
+                                --load \
+                                --progress=plain \
+                                .
+                            
+                            echo "[$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                        """
+                    }
                 }
             }
         }
@@ -593,7 +622,8 @@ pipeline {
                         
                         # Build wheel (Jenkins already checked out the source)
                         # Pass environment explicitly to build-wheel.sh
-                        ./build-wheel.sh ${wheelEnv} || {
+                        # Note: build-wheel.sh now requires at least one platform flag (e.g., --macosx-arm64)
+                        ./build-wheel.sh ${wheelEnv} --macosx-arm64 || {
                             echo "⚠️  Wheel build failed. Check output above for details."
                             exit 1
                         }
@@ -620,13 +650,17 @@ pipeline {
         }
         always {
             // Clean up old images (optional - keep last 10 builds)
+            // Note: Base images (tagged with :base) are NEVER deleted
             script {
                 def pattern = env.ENV_SUFFIX ? "^${env.ENV_SUFFIX}-[0-9]+-" : "^[0-9]+-"
             sh """
-                    docker images ${env.IMAGE_NAME} --format '{{.Tag}}' | \\
+                    # Clean up old incremental images, but preserve base images
+                    docker images ${env.IMAGE_NAME} --format '{{.Repository}}:{{.Tag}}' | \\
+                        grep -v ':base\$' | \\
+                        sed 's/.*://' | \\
                         grep -E '${pattern}' | \\
                         sort -t- -k${env.ENV_SUFFIX ? '2' : '1'} -nr | \\
-                    tail -n +11 | \\
+                        tail -n +11 | \\
                         xargs -r -I {} docker rmi ${env.IMAGE_NAME}:{} || true
             """
             }

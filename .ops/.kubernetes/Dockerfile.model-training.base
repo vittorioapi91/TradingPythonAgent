@@ -1,0 +1,24 @@
+# Base trading agent model training image with dependencies pre-installed
+# This is a persistent base image that incremental builds will use
+# Tag: hmm-model-training-base:base
+
+FROM python:3.11-slim
+
+WORKDIR /workspace
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    g++ \
+    postgresql-client \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements and install Python dependencies (base layer - changes rarely)
+COPY requirements.txt /workspace/
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Set Python path
+ENV PYTHONPATH=/workspace
+
+# Note: src/ code is NOT copied here - that goes in incremental builds
+# This base image only contains system dependencies and Python packages
