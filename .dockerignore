@@ -1,4 +1,18 @@
-# Python
+# Optimized .dockerignore for trading agent builds (from project root)
+# Goal: Only include src/ and tests/, exclude everything else
+
+# Exclude ALL .ops/ directories (infrastructure only)
+.ops/
+
+# Virtual environments (all of them)
+.venv/
+venv/
+.venv-kserve/
+.venv-jenkins/
+env/
+ENV/
+
+# Python artifacts
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,61 +22,109 @@ __pycache__/
 *.egg
 dist/
 build/
-.venv/
-venv/
-env/
-.env
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.installed.cfg
 
-# IDE
+# IDE and editor files
 .idea/
 .vscode/
 *.swp
 *.swo
+*~
 
-# Testing
+# Testing artifacts (not needed in image)
 .pytest_cache/
 .coverage
 htmlcov/
 .mypy_cache/
+.coverage.*
 
-# Git
+# Git (not needed in image)
 .git/
 .gitignore
+.gitattributes
 
-# Logs
+# Environment files
+.env
+.env.local
+.env.*
+!.env.example
+
+# Logs and databases
 *.log
 *.db
 *.sqlite
+*.sqlite3
 
-# Data files
+# Data files (large, not needed in image)
 *.parquet
+*.parquet.*
+*.csv
+*.idx
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!pytest.ini
 
-# OS
+# OS files
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
 
-# Jenkins workspace (HUGE - 11GB+)
-.ops/.jenkins/data/
+# Documentation (not needed in image)
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
 
-# Airflow runtime data (logs, installed wheels, cache)
-.ops/.airflow/logs*/
-.ops/.airflow/wheels/
-.ops/.airflow/__pycache__/
+# CI/CD files (not needed in image)
+.github/
+Jenkinsfile
+.gitlab-ci.yml
+.circleci/
 
-# Python cache in .ops directories
-.ops/.mlflow/__pycache__/
-.ops/.prometheus/__pycache__/
-**/__pycache__/
+# Build scripts and configs (not needed in image)
+setup.py
+setup.cfg
+pyproject.toml
+MANIFEST.in
+build-wheel.sh
 
-# Other runtime/generated directories that shouldn't be in Docker images
-.ops/.feast/feast_repo/.feast/
-.ops/.grafana/*.log
+# Kubernetes configs (not needed in image)
+kubeconfig*.yaml
+*.yaml
+!pytest.ini
 
-# Virtual environments
-.venv-kserve/
-.venv-jenkins/
+# Version files (not needed in image)
+.python-version
 
-# Large build artifacts
-node_modules/
-*.min.js
-*.min.css
+# Extra requirements files (only base requirements.txt needed)
+requirements-dev.txt
+requirements-staging.txt
+requirements-prod.txt
+
+# Main entry point (not needed in image, only src/ is copied)
+main.py
+
+# Exclude source data directories (large files)
+src/trading_agent/fundamentals/edgar/master/
+src/trading_agent/fundamentals/edgar/*/data/
+src/trading_agent/*/data/
+src/trading_agent/*/cache/
+
+# Keep only what's needed:
+# - src/ (source code)
+# - tests/ (if needed for image, otherwise exclude)
+# - requirements.txt (for base image build)
