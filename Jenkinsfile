@@ -543,6 +543,8 @@ pipeline {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Loading image into kind cluster: ${env.KIND_CLUSTER}"
+                    // TODO: Optimize kind load performance - currently slow for large images
+                    // Consider: kind load using tar pipes, or using registry for faster image distribution
                     sh """
                         kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER}
                         kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER}
