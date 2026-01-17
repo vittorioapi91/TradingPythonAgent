@@ -80,9 +80,29 @@ docker-compose -f docker-compose.yml down
 ### Airflow
 - **Port**: 8080 (dev: 8082, test: 8083, prod: 8084)
 - **URL**: 
-  - DEV: http://localhost:8082 (admin/2014)
-  - TEST: http://localhost:8083 (admin/2014)
-  - PROD: http://localhost:8084 (admin/2014)
+  - DEV: 
+    - Direct: http://localhost:8082 (admin/2014)
+    - Via alias: http://airflow.local.dev.info (requires `/etc/hosts` entry)
+  - TEST: 
+    - Direct: http://localhost:8083 (admin/2014)
+    - Via alias: http://airflow.local.test.info (requires `/etc/hosts` entry)
+  - PROD: 
+    - Direct: http://localhost:8084 (admin/2014)
+    - Via alias: http://airflow.local.prod.info (requires `/etc/hosts` entry)
+- **Setup aliases** (REQUIRED):
+  1. Add to `/etc/hosts`: 
+     ```bash
+     sudo sh -c 'echo "127.0.0.1 airflow.local.dev.info airflow.local.test.info airflow.local.prod.info" >> /etc/hosts'
+     ```
+  2. Flush DNS cache (macOS):
+     ```bash
+     sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+     ```
+  3. Start nginx proxy (if not already running):
+     ```bash
+     cd .ops/.docker
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
+     ```
 - **Home (in container)**: `/opt/airflow`
 - **DAGs folder (in container)**: `/opt/airflow/dags` (mapped from `.ops/.airflow/dags`)
 
@@ -95,8 +115,25 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
 - **Documentation**: See `.ops/.kubernetes/DASHBOARD_ACCESS.md` for access details
 
 ### Jenkins
-- **Port**: 8081
-- **URL**: http://localhost:8081
+- **Port**: 8081 (direct access)
+- **URL**: 
+  - Direct: http://localhost:8081
+  - Via alias: http://jenkins.local.info (requires `/etc/hosts` entry and nginx proxy)
+- **Setup alias** (REQUIRED):
+  1. Add to `/etc/hosts`: 
+     ```bash
+     sudo sh -c 'echo "127.0.0.1 jenkins.local.info" >> /etc/hosts'
+     ```
+  2. Flush DNS cache (macOS):
+     ```bash
+     sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+     ```
+  3. Start nginx proxy (if not already running):
+     ```bash
+     cd .ops/.docker
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
+     ```
+  4. Access: http://jenkins.local.info
 - **Credentials**: Configured in Jenkins UI
 - **Has kubectl/kind tools** for Kubernetes cluster management
 

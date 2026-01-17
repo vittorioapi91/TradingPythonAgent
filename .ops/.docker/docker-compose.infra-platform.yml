@@ -93,9 +93,11 @@ services:
       - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
       - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=300
       - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=180
-      # Make host project package and custom operators available inside the container
-      - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
-      # Set environment for config.py (since git commands may not work in container)
+      # Display environment badge in Airflow UI title
+      - AIRFLOW__WEBSERVER__INSTANCE_NAME=Airflow (DEV)
+      # Make custom operators available inside the container
+      - PYTHONPATH=/opt/airflow/operators
+      # Set environment for config.py and wheel selection
       - AIRFLOW_ENV=dev
       - GIT_BRANCH=${GIT_BRANCH:-dev}
       # PostgreSQL connection (use container name, not localhost)
@@ -110,20 +112,36 @@ services:
       - ../.airflow/plugins:/opt/airflow/plugins
       # Mount custom operators package
       - ../.airflow/operators:/opt/airflow/operators
-      # Mount project source (contains the trading_agent package) into the container
-      - ../../src:/opt/airflow/src
-      # Mount requirements.txt so we can install dependencies
-      - ../../requirements.txt:/opt/airflow/requirements.txt:ro
+      # Mount wheels directory (contains environment-specific wheels)
+      - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount airflow_local_settings for UI alerts/banner
+      - ../.airflow/airflow_local_settings.py:/opt/airflow/airflow_local_settings.py:ro
       - airflow-db-dev:/opt/airflow
     command: >
       bash -c "
+        # Install environment-specific wheel (dev)
+        ENV=dev
+        # Note: setuptools converts hyphens to underscores, so trading_agent-dev becomes trading_agent_dev
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
+          # Store wheel info for plugin display
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
+        else
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
+          export WHEEL_VERSION=\"Not installed\"
+        fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
         python3 -m pip install --quiet tqdm pandas psycopg2-binary requests python-dotenv > /tmp/pip_install.log 2>&1 &
         # Start Airflow services immediately (dependencies will install in background)
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true
         airflow webserver --port 8080 &
         airflow scheduler
       "
@@ -154,9 +172,11 @@ services:
       - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
       - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=300
       - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=180
-      # Make host project package and custom operators available inside the container
-      - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
-      # Set environment for config.py (since git commands may not work in container)
+      # Display environment badge in Airflow UI title
+      - AIRFLOW__WEBSERVER__INSTANCE_NAME=Airflow (STAGING)
+      # Make custom operators available inside the container
+      - PYTHONPATH=/opt/airflow/operators
+      # Set environment for config.py and wheel selection
       - AIRFLOW_ENV=staging
       - GIT_BRANCH=${GIT_BRANCH:-staging}
       # PostgreSQL connection (use container name, not localhost)
@@ -171,20 +191,36 @@ services:
       - ../.airflow/plugins:/opt/airflow/plugins
       # Mount custom operators package
       - ../.airflow/operators:/opt/airflow/operators
-      # Mount project source (contains the trading_agent package) into the container
-      - ../../src:/opt/airflow/src
-      # Mount requirements.txt so we can install dependencies
-      - ../../requirements.txt:/opt/airflow/requirements.txt:ro
+      # Mount wheels directory (contains environment-specific wheels)
+      - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount airflow_local_settings for UI alerts/banner
+      - ../.airflow/airflow_local_settings.py:/opt/airflow/airflow_local_settings.py:ro
       - airflow-db-test:/opt/airflow
     command: >
       bash -c "
+        # Install environment-specific wheel (staging)
+        ENV=staging
+        # Note: setuptools converts hyphens to underscores, so trading_agent-staging becomes trading_agent_staging
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
+          # Store wheel info for plugin display
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
+        else
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
+          export WHEEL_VERSION=\"Not installed\"
+        fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
         python3 -m pip install --quiet tqdm pandas psycopg2-binary requests python-dotenv > /tmp/pip_install.log 2>&1 &
         # Start Airflow services immediately (dependencies will install in background)
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true
         airflow webserver --port 8080 &
         airflow scheduler
       "
@@ -215,9 +251,11 @@ services:
       - AIRFLOW__SCHEDULER__SCHEDULER_HEARTBEAT_SEC=5
       - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=300
       - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=180
-      # Make host project package and custom operators available inside the container
-      - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
-      # Set environment for config.py (since git commands may not work in container)
+      # Display environment badge in Airflow UI title
+      - AIRFLOW__WEBSERVER__INSTANCE_NAME=Airflow (PROD)
+      # Make custom operators available inside the container
+      - PYTHONPATH=/opt/airflow/operators
+      # Set environment for config.py and wheel selection
       - AIRFLOW_ENV=prod
       - GIT_BRANCH=${GIT_BRANCH:-main}
       # PostgreSQL connection (use container name, not localhost)
@@ -232,20 +270,36 @@ services:
       - ../.airflow/plugins:/opt/airflow/plugins
       # Mount custom operators package
       - ../.airflow/operators:/opt/airflow/operators
-      # Mount project source (contains the trading_agent package) into the container
-      - ../../src:/opt/airflow/src
-      # Mount requirements.txt so we can install dependencies
-      - ../../requirements.txt:/opt/airflow/requirements.txt:ro
+      # Mount wheels directory (contains environment-specific wheels)
+      - ../.airflow/wheels:/opt/airflow/wheels:ro
+      # Mount airflow_local_settings for UI alerts/banner
+      - ../.airflow/airflow_local_settings.py:/opt/airflow/airflow_local_settings.py:ro
       - airflow-db-prod:/opt/airflow
     command: >
       bash -c "
+        # Install environment-specific wheel (prod)
+        ENV=prod
+        # Note: setuptools converts hyphens to underscores, so trading_agent-prod becomes trading_agent_prod
+        WHEEL_FILE=\$$(ls /opt/airflow/wheels/trading_agent_\$${ENV}-*.whl 2>/dev/null | sort -V | tail -n 1)
+        if [ -n \"\$${WHEEL_FILE}\" ]; then
+          echo \"Installing wheel: \$$(basename \$${WHEEL_FILE})\"
+          # Install wheel in background with timeout to avoid blocking
+          (timeout 30 pip install --quiet --no-cache-dir \$${WHEEL_FILE} || echo \"Wheel install completed or timed out\") &
+          # Store wheel info for plugin display
+          export WHEEL_VERSION=\"\$$(basename \$${WHEEL_FILE})\"
+          export INSTALLED_WHEEL=\$$(basename \$${WHEEL_FILE})
+        else
+          echo \"Warning: No wheel found for environment \$${ENV}. Looking for trading_agent-\$${ENV}-*.whl\"
+          export WHEEL_VERSION=\"Not installed\"
+        fi
         # Install critical project dependencies needed for DAGs (run in background, don't block)
         python3 -m pip install --quiet tqdm pandas psycopg2-binary requests python-dotenv > /tmp/pip_install.log 2>&1 &
         # Start Airflow services immediately (dependencies will install in background)
         # Remove stale PID files if they exist
         rm -f /opt/airflow/airflow-webserver.pid /opt/airflow/airflow-scheduler.pid
         airflow db migrate &&
-        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || echo 'Admin user may already exist' ;
+        # Only create admin user if it doesn't exist (check first to avoid resetting)
+        airflow users list | grep -q 'admin' || airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password 2014 || true
         airflow webserver --port 8080 &
         airflow scheduler
       "
@@ -279,15 +333,35 @@ services:
       - monitoring
     restart: unless-stopped
 
-  # Jenkins CI/CD server
+  # Nginx reverse proxy for Airflow only (Jenkins bypassed for performance)
+  nginx-proxy:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    ports:
+      - "443:443"  # HTTPS port (for Airflow if needed)
+    volumes:
+      # Removed nginx-jenkins.conf - Jenkins accessed directly on port 80
+      - ./nginx-airflow.conf:/etc/nginx/conf.d/airflow.conf:ro
+    networks:
+      - monitoring
+    depends_on:
+      - airflow-dev
+      - airflow-test
+      - airflow-prod
+    restart: unless-stopped
+
+  # Jenkins CI/CD server (direct access, no nginx proxy for performance)
   jenkins:
     image: jenkins-custom:lts  # Custom image with kubectl, kind, and Docker CLI pre-installed
     container_name: jenkins
     ports:
-      - "8081:8080"  # Match current port forwarding setup (8081 on host)
+      - "80:8080"  # Direct access on port 80 (jenkins.local.info without port)
       - "50000:50000"
+    mem_limit: 4g
+    mem_reservation: 1g
+    cpus: 2.0
     environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false -Xmx2048m -Xms1024m -XX:MaxMetaspaceSize=512m -Djenkins.model.Jenkins.slaveAgentPort=50000 -Dhudson.model.AbstractCIBase.timeout=1800 -Dhudson.remoting.Launcher.pingIntervalSec=300
       # JIRA configuration for feature branch validation
       - JIRA_URL=https://vittorioapi91.atlassian.net
       - JIRA_USER=vittorioapi91@gmail.com

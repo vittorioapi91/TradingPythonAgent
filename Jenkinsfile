@@ -1,6 +1,13 @@
 pipeline {
     agent any
     
+    // Disable periodic builds - only run on manual trigger or SCM changes (push)
+    // This ensures pipelines run only when:
+    // 1. Manually triggered by user (Build Now)
+    // 2. Code is pushed to the repository (via SCM polling or webhook)
+    // Note: triggers block removed - periodic builds disabled via Jenkins job configuration
+    // Empty triggers block causes compilation error, so we rely on job-level configuration
+    
     environment {
         KIND_CLUSTER = 'trading-cluster'
     }
@@ -83,10 +90,21 @@ pipeline {
                 script {
                     echo "Testing JIRA connection..."
                     
-                    // Get JIRA configuration from environment variables
+                    // Get JIRA configuration from environment variables or credentials
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
-                    def jiraUser = env.JIRA_USER ?: error("JIRA_USER environment variable is required")
-                    def jiraToken = env.JIRA_API_TOKEN ?: error("JIRA_API_TOKEN environment variable is required")
+                    def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
+                    def jiraToken = env.JIRA_API_TOKEN
+                    
+                    // Try to get token from Jenkins credentials if not in environment
+                    if (!jiraToken) {
+                        try {
+                            withCredentials([string(credentialsId: 'jira-api-token', variable: 'JIRA_TOKEN')]) {
+                                jiraToken = env.JIRA_TOKEN
+                            }
+                        } catch (Exception e) {
+                            error("JIRA_API_TOKEN not found in environment variables or Jenkins credentials (ID: jira-api-token). Please configure one of them.")
+                        }
+                    }
                     
                     // Ensure JIRA URL doesn't have trailing slash
                     jiraUrl = jiraUrl.replaceAll(/\/+$/, '')
@@ -179,14 +197,20 @@ pipeline {
                 script {
                     echo "Validating JIRA issue: ${env.JIRA_ISSUE}"
                     
-                    // Get JIRA configuration from environment variables
+                    // Get JIRA configuration from environment variables or credentials
                     def jiraUrl = env.JIRA_URL ?: 'https://vittorioapi91.atlassian.net'
-                    def jiraUser = env.JIRA_USER
+                    def jiraUser = env.JIRA_USER ?: 'vittorioapi91'
                     def jiraToken = env.JIRA_API_TOKEN
                     
-                    if (!jiraUser || !jiraToken) {
-                        echo "⚠️  WARNING: JIRA_USER or JIRA_API_TOKEN not set. Skipping JIRA issue validation."
-                        return
+                    // Try to get token from Jenkins credentials if not in environment
+                    if (!jiraToken) {
+                        try {
+                            withCredentials([string(credentialsId: 'jira-api-token', variable: 'JIRA_TOKEN')]) {
+                                jiraToken = env.JIRA_TOKEN
+                            }
+                        } catch (Exception e) {
+                            error("JIRA_API_TOKEN not found in environment variables or Jenkins credentials (ID: jira-api-token). Please configure one of them.")
+                        }
                     }
                     
                     // Ensure JIRA URL doesn't have trailing slash
@@ -443,20 +467,73 @@ pipeline {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    sh """
-                        # Ensure buildx is available and create builder if needed
-                        docker buildx version || docker buildx install
-                        docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
-                        
-                        # Build using buildx with BuildKit
-                        docker buildx build \
-                            --platform linux/amd64 \
-                            -f .ops/.kubernetes/Dockerfile.model-training \
-                            -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
-                            -t ${latestTag} \
-                            --load \
-                            .
-                    """
+                    // Use timeout wrapper to prevent Jenkins from thinking the script is hung
+                    // activity: true extends timeout based on activity (output), unit: 'MINUTES'
+                    timeout(time: 60, unit: 'MINUTES', activity: true) {
+                        sh """
+                            set -x  # Enable command tracing for better visibility
+                            
+                            # Ensure buildx is available
+                            if ! docker buildx version >/dev/null 2>&1; then
+                                echo "ERROR: docker buildx is not available"
+                                echo "Please ensure the Jenkins container has buildx installed"
+                                echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
+                                exit 1
+                            fi
+                            
+                            echo "[\$(date +%H:%M:%S)] Docker buildx version:"
+                            docker buildx version
+                            
+                            # Create and use builder instance
+                            echo "[\$(date +%H:%M:%S)] Setting up buildx builder..."
+                            if ! docker buildx inspect builder >/dev/null 2>&1; then
+                                echo "[\$(date +%H:%M:%S)] Creating buildx builder instance..."
+                                docker buildx create --name builder --use --driver docker-container || {
+                                    echo "[\$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
+                                    docker buildx use builder 2>/dev/null || docker buildx use default
+                                }
+                            else
+                                echo "[\$(date +%H:%M:%S)] Using existing buildx builder..."
+                                docker buildx use builder
+                            fi
+                            
+                            # Verify builder is ready
+                            echo "[\$(date +%H:%M:%S)] Verifying buildx builder..."
+                            docker buildx inspect --bootstrap
+                            
+                            # Check if base image exists (base images are built manually, not in pipeline)
+                            if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
+                                echo "[\$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
+                                echo ""
+                                echo "Base images must be built manually before running pipelines."
+                                echo "To build the base image, run:"
+                                echo "  docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base ."
+                                echo ""
+                                echo "See .ops/.docker/README_BASE_IMAGES.md for more information."
+                                exit 1
+                            fi
+                            
+                            echo "[\$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
+                            
+                            # Switch to default builder for local base images (container builder can't see host images)
+                            # The default builder has access to local images, container builder doesn't
+                            echo "[\$(date +%H:%M:%S)] Switching to default builder for local base image access..."
+                            docker buildx use default || docker buildx use builder
+                            
+                            # Build incremental image (FROM base) - only copies source code
+                            echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
+                            docker buildx build \
+                                --platform linux/amd64 \
+                                -f .ops/.kubernetes/Dockerfile.model-training \
+                                -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                                -t ${latestTag} \
+                                --load \
+                                --progress=plain \
+                                .
+                            
+                            echo "[\$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                        """
+                    }
                 }
             }
         }
@@ -466,6 +543,8 @@ pipeline {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
                     echo "Loading image into kind cluster: ${env.KIND_CLUSTER}"
+                    // TODO: Optimize kind load performance - currently slow for large images
+                    // Consider: kind load using tar pipes, or using registry for faster image distribution
                     sh """
                         kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER}
                         kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER}
@@ -522,6 +601,44 @@ pipeline {
                 }
             }
         }
+        
+        stage('Build Wheel') {
+            steps {
+                script {
+                    echo "Building environment-specific wheel..."
+                    
+                    // Determine environment from branch (same logic as earlier in pipeline)
+                    def wheelEnv = 'dev'
+                    if (env.GIT_BRANCH == 'staging') {
+                        wheelEnv = 'staging'
+                    } else if (env.GIT_BRANCH == 'main' || env.GIT_BRANCH == 'master') {
+                        wheelEnv = 'prod'
+                    }
+                    
+                    echo "Building wheel for environment: ${wheelEnv}"
+                    sh """
+                        # Ensure setuptools and wheel are installed
+                        python3 -m pip install --quiet --upgrade setuptools wheel || true
+                        
+                        # Build wheel (Jenkins already checked out the source)
+                        # Pass environment explicitly to build-wheel.sh
+                        # Note: build-wheel.sh now requires at least one platform flag (e.g., --macosx-arm64)
+                        ./build-wheel.sh ${wheelEnv} --macosx-arm64 || {
+                            echo "⚠️  Wheel build failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        # Install wheel to Airflow wheels directory
+                        .ops/.airflow/install-wheel.sh ${wheelEnv} || {
+                            echo "⚠️  Wheel installation failed. Check output above for details."
+                            exit 1
+                        }
+                        
+                        echo "✓ Wheel built and installed successfully for ${wheelEnv} environment"
+                    """
+                }
+            }
+        }
     }
     
     post {
@@ -533,13 +650,17 @@ pipeline {
         }
         always {
             // Clean up old images (optional - keep last 10 builds)
+            // Note: Base images (tagged with :base) are NEVER deleted
             script {
                 def pattern = env.ENV_SUFFIX ? "^${env.ENV_SUFFIX}-[0-9]+-" : "^[0-9]+-"
             sh """
-                    docker images ${env.IMAGE_NAME} --format '{{.Tag}}' | \\
+                    # Clean up old incremental images, but preserve base images
+                    docker images ${env.IMAGE_NAME} --format '{{.Repository}}:{{.Tag}}' | \\
+                        grep -v ':base\$' | \\
+                        sed 's/.*://' | \\
                         grep -E '${pattern}' | \\
                         sort -t- -k${env.ENV_SUFFIX ? '2' : '1'} -nr | \\
-                    tail -n +11 | \\
+                        tail -n +11 | \\
                         xargs -r -I {} docker rmi ${env.IMAGE_NAME}:{} || true
             """
             }

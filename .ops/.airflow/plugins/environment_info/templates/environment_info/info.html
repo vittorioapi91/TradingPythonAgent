@@ -1,0 +1,117 @@
+{% extends "airflow/main.html" %}
+
+{% block head_css %}
+{{ super() }}
+<style>
+    .env-info-container {
+        padding: 20px;
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        margin: 20px 0;
+    }
+    .env-info-badge {
+        display: inline-block;
+        padding: 8px 16px;
+        border-radius: 4px;
+        font-weight: bold;
+        margin: 10px 5px;
+        color: white;
+    }
+    .env-dev {
+        background-color: #28a745;
+    }
+    .env-staging {
+        background-color: #ffc107;
+        color: #000;
+    }
+    .env-prod {
+        background-color: #dc3545;
+    }
+    .info-item {
+        margin: 15px 0;
+        padding: 10px;
+        background-color: white;
+        border-left: 4px solid #007bff;
+        border-radius: 4px;
+    }
+    .info-label {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    .info-value {
+        color: #212529;
+        font-family: monospace;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1>Environment Information</h1>
+    
+    <div class="env-info-container">
+        <h2>
+            <span class="env-info-badge env-{{ env }}">
+                {{ env|upper }}
+            </span>
+            Environment
+        </h2>
+        
+        <div class="info-item">
+            <div class="info-label">Environment:</div>
+            <div class="info-value">{{ env|upper }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">Wheel Version:</div>
+            <div class="info-value">{{ wheel_version }}</div>
+        </div>
+        
+        {% if wheel_file %}
+        <div class="info-item">
+            <div class="info-label">Wheel File:</div>
+            <div class="info-value">{{ wheel_file }}</div>
+        </div>
+        {% endif %}
+        
+        <div class="info-item">
+            <div class="info-label">AIRFLOW_ENV:</div>
+            <div class="info-value">{{ airflow_env }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">GIT_BRANCH:</div>
+            <div class="info-value">{{ git_branch }}</div>
+        </div>
+        
+        <h3 style="margin-top: 30px; margin-bottom: 15px;">Database Connection</h3>
+        
+        <div class="info-item">
+            <div class="info-label">Database Instance:</div>
+            <div class="info-value">{{ db_instance }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">Database Host:</div>
+            <div class="info-value">{{ db_host }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">Database Port:</div>
+            <div class="info-value">{{ db_port }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">Database Name:</div>
+            <div class="info-value">{{ db_name }}</div>
+        </div>
+        
+        <div class="info-item">
+            <div class="info-label">Database User:</div>
+            <div class="info-value">{{ db_user }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

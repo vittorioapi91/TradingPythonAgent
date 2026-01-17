@@ -100,20 +100,41 @@ pipeline {
                         docker buildx version || docker buildx install
                         docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
                         
-                        # Build Jenkins custom image if Dockerfile exists
+                        # Check if base image exists (base images are built manually, not in pipeline)
+                        if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^jenkins-custom:base\$'; then
+                            echo "❌ ERROR: Base Jenkins image 'jenkins-custom:base' not found!"
+                            echo ""
+                            echo "Base images must be built manually before running pipelines."
+                            echo "To build the base image, run:"
+                            echo "  docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/"
+                            echo ""
+                            echo "See .ops/.docker/README_BASE_IMAGES.md for more information."
+                            exit 1
+                        fi
+                        
+                        echo "✓ Base Jenkins image found: jenkins-custom:base"
+                        
+                        # Switch to default builder for local base images (container builder can't see host images)
+                        # The default builder has access to local images, container builder doesn't
+                        echo "Switching to default builder for local base image access..."
+                        docker buildx use default || docker buildx use builder
+                        
+                        # Build incremental Jenkins image (FROM base)
                         if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
-                            echo "Building jenkins-custom:lts image..."
+                            echo "Building incremental Jenkins image: jenkins-custom:lts (FROM base)..."
                             docker buildx build \
                                 --platform linux/amd64 \
                                 -f .ops/.docker/Dockerfile.jenkins \
                                 -t jenkins-custom:lts \
                                 --load \
                                 .ops/.docker/ || {
-                                echo "⚠️  Warning: Could not build Jenkins image"
+                                echo "❌ Error: Could not build incremental Jenkins image"
+                                exit 1
                             }
+                            echo "✓ Incremental Jenkins image built: jenkins-custom:lts"
                         fi
                         
-                        echo "✓ Infra-platform images built (or using pre-built images)"
+                        echo "✓ Infra-platform images built successfully"
                     """
                 }
             }
