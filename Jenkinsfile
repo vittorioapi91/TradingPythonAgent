@@ -515,6 +515,11 @@ pipeline {
                             
                             echo "[\$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
                             
+                            # Switch to default builder for local base images (container builder can't see host images)
+                            # The default builder has access to local images, container builder doesn't
+                            echo "[\$(date +%H:%M:%S)] Switching to default builder for local base image access..."
+                            docker buildx use default || docker buildx use builder
+                            
                             # Build incremental image (FROM base) - only copies source code
                             echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
                             docker buildx build \
