@@ -120,8 +120,8 @@ Examples:
   # Generate catalog using existing companies (no company download):
   python -m trading_agent.fundamentals.edgar --generate-catalog
   
-  # Download filings from database:
-  python -m trading_agent.fundamentals.edgar --from-db
+  # Download filings from database with filters:
+  python -m trading_agent.fundamentals.edgar --year 2005 --quarter QTR2 --form-type 10-K --output-dir ./filings
         """
     )
     parser.add_argument('--start-year', type=int, default=None,
@@ -132,6 +132,22 @@ Examples:
                        default='VittorioApicella apicellavittorio@hotmail.it',
                        help='User-Agent string for SEC EDGAR requests (required by SEC). '
                             'Default: VittorioApicella apicellavittorio@hotmail.it')
+    
+    # Filing download filter arguments
+    download_group = parser.add_argument_group('Filing Download Filters',
+                                              'Filter options for downloading filings from database')
+    download_group.add_argument('--year', type=int, default=None,
+                                help='Year filter for filings (e.g., 2005)')
+    download_group.add_argument('--quarter', type=str, default=None,
+                               help='Quarter filter for filings (e.g., QTR1, QTR2, QTR3, QTR4)')
+    download_group.add_argument('--form-type', type=str, default=None,
+                               help='Form type filter for filings (e.g., 10-K, 10-Q)')
+    download_group.add_argument('--cik', type=str, default=None,
+                               help='CIK (Central Index Key) filter for filings')
+    download_group.add_argument('--company-name', type=str, default=None,
+                               help='Company name filter (partial match, case-insensitive)')
+    download_group.add_argument('--limit', type=int, default=None,
+                               help='Limit number of filings to download')
     
     # Catalog generation arguments
     catalog_group = parser.add_argument_group('Catalog Generation',
@@ -160,9 +176,9 @@ Examples:
                          help='PostgreSQL database port. If not provided, uses POSTGRES_PORT environment variable or defaults to 5432.')
     
     # Other modes
-    parser.add_argument('--from-db', action='store_true',
-                       help='Download actual filing files from companies already in PostgreSQL database. '
-                            'Use this after generating the catalog to download the filing documents themselves.')
+    parser.add_argument('--filings', action='store_true',
+                       help='Download actual filing files from companies in PostgreSQL database. '
+                            'Use this with filter arguments (--year, --quarter, --form-type, etc.) to download specific filings.')
     parser.add_argument('--process-zips', type=str,
                        help='Process existing ZIP files in a directory. Specify directory path. '
                             'Processes recursively by default. Extracts and processes filing documents from ZIP archives.')
@@ -211,6 +227,41 @@ Examples:
             except Exception as e:
                 print(f"  Error: Failed to process master.idx files: {e}")
                 raise
+        
+        # Download filings from database (only if --filings is specified)
+        if args.filings:
+            # Import FilingDownloader
+            try:
+                from .filings import FilingDownloader
+            except ImportError:
+                from src.trading_agent.fundamentals.edgar.filings import FilingDownloader
+            
+            print("Downloading filings from database...")
+            filing_downloader = FilingDownloader(user_agent=args.user_agent)
+            
+            # Build filter dictionary
+            filters = {}
+            if args.year is not None:
+                filters['year'] = args.year
+            if args.quarter is not None:
+                filters['quarter'] = args.quarter
+            if args.form_type is not None:
+                filters['form_type'] = args.form_type
+            if args.cik is not None:
+                filters['cik'] = args.cik
+            if args.company_name is not None:
+                filters['company_name'] = args.company_name
+            
+            # Download filings
+            downloaded_files = filing_downloader.download_filings(
+                dbname=args.dbname,
+                output_dir=args.output_dir,
+                limit=args.limit,
+                **filters
+            )
+            
+            print(f"Successfully downloaded {len(downloaded_files)} filing(s)")
+            return 0
             
         
     except Exception as e:
