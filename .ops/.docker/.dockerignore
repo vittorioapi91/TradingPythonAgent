@@ -25,3 +25,19 @@ htmlcov
 .git
 .gitignore
 
+# Documentation and example files (not needed in Docker build)
+*.md
+README*
+*.example
+*.example.*
+
+# Shell scripts (not copied by Dockerfile, but exclude from context anyway)
+*.sh
+
+# Docker Compose files (not needed in Jenkins image, only Dockerfile is needed)
+docker-compose*.yml
+docker-compose*.yaml
+
+# SSL certificates (generated at runtime, not needed in image)
+ssl/
+
