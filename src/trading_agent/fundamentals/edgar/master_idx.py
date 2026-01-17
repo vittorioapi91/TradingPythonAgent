@@ -35,8 +35,20 @@ except ImportError:
         mark_master_idx_download_failed, get_quarters_with_data
     )
 
+# Handle EDGARDownloader import for both module import and direct script execution
+try:
+    from .edgar import EDGARDownloader
+except ImportError:
+    # Handle direct script execution - use absolute imports
+    import sys
+    file_path = Path(__file__).resolve()
+    project_root = file_path.parent.parent.parent.parent.parent
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
+    from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
 
-class MasterIdxManager:
+
+class MasterIdxManager(EDGARDownloader):
     """Class to manage SEC EDGAR master.idx file downloads and processing"""
     
     def __init__(self, user_agent: str = "VittorioApicella apicellavittorio@hotmail.it", master_dir: Optional[Path] = None):
@@ -47,19 +59,8 @@ class MasterIdxManager:
             user_agent: User-Agent string for SEC EDGAR requests (required by SEC)
             master_dir: Optional directory for storing master.idx files (default: edgar/master/)
         """
-        self.user_agent = user_agent
-        self.base_url = "https://www.sec.gov"
-        self.data_base_url = "https://data.sec.gov"
-        self.headers = {
-            'User-Agent': user_agent,
-            'Accept-Encoding': 'gzip, deflate',
-            'Host': 'www.sec.gov'
-        }
-        self.data_headers = {
-            'User-Agent': user_agent,
-            'Accept-Encoding': 'gzip, deflate',
-            'Host': 'data.sec.gov'
-        }
+        # Initialize parent class (EDGARDownloader) to get headers and base URLs
+        super().__init__(user_agent=user_agent)
         
         # Set up master.idx storage directory
         if master_dir is None:
