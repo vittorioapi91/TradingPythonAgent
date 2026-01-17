@@ -410,10 +410,10 @@ pipeline {
                         \${VENV_PIP} install --quiet --upgrade pip
                         
                         # Install project dependencies (environment-specific)
-                        # Determine environment from branch
-                        if [[ "\${GIT_BRANCH}" == "staging" ]]; then
+                        # Determine environment from branch (using POSIX-compatible [ instead of [[)
+                        if [ "\${GIT_BRANCH}" = "staging" ]; then
                             REQ_FILE="requirements-staging.txt"
-                        elif [[ "\${GIT_BRANCH}" == "main" ]]; then
+                        elif [ "\${GIT_BRANCH}" = "main" ]; then
                             REQ_FILE="requirements-prod.txt"
                         else
                             # dev/* branches
@@ -426,8 +426,26 @@ pipeline {
                             REQ_FILE="requirements.txt"
                         fi
                         
-                        echo "Installing dependencies from \${REQ_FILE}..."
-                        \${VENV_PIP} install --quiet -r \${REQ_FILE}
+                        # Check if requirements need to be installed/updated
+                        # Compare requirements file modification time with venv's pip cache or installed packages
+                        REQ_MTIME=\$(stat -c %Y "\${REQ_FILE}" 2>/dev/null || stat -f %m "\${REQ_FILE}" 2>/dev/null || echo "0")
+                        REQ_CACHE_FILE="venv/.requirements-\$(basename \${REQ_FILE}).mtime"
+                        
+                        if [ -f "\${REQ_CACHE_FILE}" ]; then
+                            CACHED_MTIME=\$(cat "\${REQ_CACHE_FILE}")
+                            if [ "\${REQ_MTIME}" = "\${CACHED_MTIME}" ]; then
+                                echo "✓ Requirements already installed (no changes detected)"
+                                echo "  Skipping installation from \${REQ_FILE}"
+                            else
+                                echo "Requirements file changed, reinstalling from \${REQ_FILE}..."
+                                \${VENV_PIP} install --quiet -r \${REQ_FILE}
+                                echo "\${REQ_MTIME}" > "\${REQ_CACHE_FILE}"
+                            fi
+                        else
+                            echo "Installing dependencies from \${REQ_FILE}..."
+                            \${VENV_PIP} install --quiet -r \${REQ_FILE}
+                            echo "\${REQ_MTIME}" > "\${REQ_CACHE_FILE}"
+                        fi
                         
                         # Create test results directory
                         mkdir -p test-results
