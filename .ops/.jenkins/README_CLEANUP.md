@@ -40,7 +40,24 @@ Use `cleanup-workspace.sh` to regularly clean up old workspaces and build artifa
 2. **Old workspace versions**: For each job, only keeps the last `--keep-workspaces` versions
 3. **Virtual environments**: All `venv`, `.venv`, `.venv-jenkins` directories (recreated on next build)
 4. **Build artifacts**: `build/`, `dist/`, `*.egg-info` directories
-5. **Python cache**: `__pycache__/`, `*.pyc`, `*.pyo` files
+5. **Python cache**: `__pycache__/`, `*.pyc`, `*.pyo` files (but NOT pip caches)
+
+### Protected Resources (Never Deleted)
+
+The cleanup script **explicitly protects** these resources to ensure fast rebuilds:
+
+1. **Docker images** (all images):
+   - Base images (tagged with `:base`) - **NEVER deleted** by any cleanup
+   - Incremental build images - protected by workspace cleanup
+   - Image cleanup in Jenkinsfiles uses `grep -v ':base$'` to preserve base images
+   - Example: `jenkins-custom:base`, `hmm-model-training-base:base`
+
+2. **Pip caches**:
+   - Docker BuildKit pip cache (`--mount=type=cache,target=/root/.cache/pip`)
+   - Host pip caches (`~/.cache/pip`, `/root/.cache/pip`)
+   - These are preserved to speed up dependency installation on rebuilds
+
+**Note:** Only Jenkins workspace data is cleaned. Docker images and pip caches are managed separately and are never touched by this cleanup script.
 
 ### Automatic Daily Cleanup (2 AM)
 

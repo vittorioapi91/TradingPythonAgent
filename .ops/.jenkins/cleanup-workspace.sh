@@ -4,6 +4,10 @@
 # Removes old build workspaces, virtual environments, and build artifacts
 # to free up disk space in Jenkins data directory.
 #
+# PROTECTED RESOURCES (never deleted):
+#   - Docker images (especially :base images and all build images)
+#   - Pip caches (both Docker BuildKit cache and host pip caches)
+#
 # Usage:
 #   ./cleanup-workspace.sh [--dry-run] [--keep-days=N] [--keep-workspaces=N]
 #
@@ -51,6 +55,10 @@ echo "Workspace directory: ${WORKSPACE_DIR}"
 echo "Keep workspaces from last ${KEEP_DAYS} days"
 echo "Keep last ${KEEP_WORKSPACES} workspaces per job"
 echo "Dry run: ${DRY_RUN}"
+echo ""
+echo "⚠️  PROTECTED (will NOT be deleted):"
+echo "   - Docker images (all images, including :base images)"
+echo "   - Pip caches (Docker BuildKit cache and host pip caches)"
 echo ""
 
 if [ ! -d "${WORKSPACE_DIR}" ]; then
@@ -171,19 +179,37 @@ find "${WORKSPACE_DIR}" -type d \( -name "build" -o -name "dist" -o -name "*.egg
     fi
 done
 
-# Clean Python cache files
+# Clean Python cache files (but NOT pip caches)
 echo ""
-echo "Cleaning Python cache files..."
+echo "Cleaning Python cache files (excluding pip caches)..."
 if [ "${DRY_RUN}" = "true" ]; then
-    find "${WORKSPACE_DIR}" -type d -name "__pycache__" 2>/dev/null | while read -r cache; do
+    find "${WORKSPACE_DIR}" -type d -name "__pycache__" ! -path "*/.cache/pip/*" 2>/dev/null | while read -r cache; do
         echo "  [DRY-RUN] Would delete: ${cache}"
     done
-    find "${WORKSPACE_DIR}" -type f -name "*.pyc" -o -name "*.pyo" 2>/dev/null | while read -r cache; do
+    find "${WORKSPACE_DIR}" -type f -name "*.pyc" -o -name "*.pyo" ! -path "*/.cache/pip/*" 2>/dev/null | while read -r cache; do
         echo "  [DRY-RUN] Would delete: ${cache}"
     done
 else
-    find "${WORKSPACE_DIR}" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-    find "${WORKSPACE_DIR}" -type f -name "*.pyc" -o -name "*.pyo" -delete 2>/dev/null || true
+    # Exclude pip caches from deletion
+    find "${WORKSPACE_DIR}" -type d -name "__pycache__" ! -path "*/.cache/pip/*" -exec rm -rf {} + 2>/dev/null || true
+    find "${WORKSPACE_DIR}" -type f \( -name "*.pyc" -o -name "*.pyo" \) ! -path "*/.cache/pip/*" -delete 2>/dev/null || true
+fi
+
+# Explicitly protect pip caches (both Docker BuildKit cache and host pip caches)
+echo ""
+echo "Protecting pip caches..."
+if [ -d "${HOME}/.cache/pip" ] || [ -d "/root/.cache/pip" ]; then
+    echo "  ✓ Pip caches are protected (not deleted)"
+fi
+
+# Explicitly protect Docker images (reminder)
+echo ""
+echo "Protecting Docker images..."
+if command -v docker &> /dev/null; then
+    base_image_count=$(docker images --format '{{.Repository}}:{{.Tag}}' | grep -c ':base$' || echo "0")
+    total_image_count=$(docker images -q | wc -l | tr -d ' ')
+    echo "  ✓ Docker images are protected (${total_image_count} total, ${base_image_count} base images)"
+    echo "  ✓ Images are never deleted by this cleanup script"
 fi
 
 echo ""
@@ -191,3 +217,5 @@ TOTAL_SIZE_AFTER=$(du -sh "${WORKSPACE_DIR}" 2>/dev/null | cut -f1)
 echo "Total workspace size after cleanup: ${TOTAL_SIZE_AFTER}"
 echo ""
 echo "Cleanup completed!"
+echo ""
+echo "Note: Docker images and pip caches remain untouched and available for future builds."
