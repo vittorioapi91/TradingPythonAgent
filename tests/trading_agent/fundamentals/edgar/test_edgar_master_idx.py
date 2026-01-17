@@ -12,6 +12,7 @@ from datetime import datetime
 import gzip
 import sys
 import os
+import logging
 
 # Add project root to path for imports
 project_root = Path(__file__).parent.parent.parent.parent.parent
@@ -267,7 +268,7 @@ class TestEDGARMasterIdxDownload:
     @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
     @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
-        self, mock_get_status, mock_get_quarters, mock_conn, manager
+        self, mock_get_status, mock_get_quarters, mock_conn, manager, caplog
     ):
         """Test that successful quarters are skipped"""
         # Mock get_quarters_with_data to return all quarters (all have data)
@@ -276,11 +277,11 @@ class TestEDGARMasterIdxDownload:
         mock_get_status.return_value = {'status': 'success'}
         
         # Should return early without downloading
-        with patch('builtins.print') as mock_print:
+        with caplog.at_level(logging.INFO):
             # Use a past year to avoid current year logic
             manager.save_master_idx_to_disk(mock_conn, start_year=2020)
-            # Should print "No new or failed quarters to download."
-            assert any("No new or failed quarters" in str(call) for call in mock_print.call_args_list)
+            # Should log "No new or failed quarters to download."
+            assert any("No new or failed quarters" in record.message for record in caplog.records)
 
 
 class TestEDGARMasterIdxDatabase:
