@@ -33,16 +33,16 @@ class MacroDataLoader:
             user: Database user (optional, can use POSTGRES_USER env var, default: 'tradingAgent')
             host: Database host (optional, can use POSTGRES_HOST env var, default: 'localhost')
             password: Database password (optional, can use POSTGRES_PASSWORD env var)
-            port: Database port (optional, can use POSTGRES_PORT env var, default: 55432 for Docker Compose)
+            port: Database port (optional, can use POSTGRES_PORT env var, default: 5432)
         """
         self.dbname = dbname
         # Use env vars with fallbacks
         self.user = user or os.getenv('POSTGRES_USER', 'tradingAgent')
         self.host = host or os.getenv('POSTGRES_HOST', 'localhost')
         self.password = password or os.getenv('POSTGRES_PASSWORD', '')
-        # Support port from env var for Docker setups (e.g., 55432)
+        # Support port from env var (default: 5432)
         if port is None:
-            port_str = os.getenv('POSTGRES_PORT', '55432')
+            port_str = os.getenv('POSTGRES_PORT', '5432')
             self.port = int(port_str)
         else:
             self.port = port

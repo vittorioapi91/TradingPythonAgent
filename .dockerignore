@@ -1,0 +1,130 @@
+# Optimized .dockerignore for trading agent builds (from project root)
+# Goal: Only include src/ and tests/, exclude everything else
+
+# Exclude ALL .ops/ directories (infrastructure only)
+.ops/
+
+# Virtual environments (all of them)
+.venv/
+venv/
+.venv-kserve/
+.venv-jenkins/
+env/
+ENV/
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+*.egg
+dist/
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.installed.cfg
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing artifacts (not needed in image)
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.coverage.*
+
+# Git (not needed in image)
+.git/
+.gitignore
+.gitattributes
+
+# Environment files
+.env
+.env.local
+.env.*
+!.env.example
+
+# Logs and databases
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
+# Data files (large, not needed in image)
+*.parquet
+*.parquet.*
+*.csv
+*.idx
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!pytest.ini
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Documentation (not needed in image)
+*.md
+README*
+CHANGELOG*
+LICENSE*
+docs/
+
+# CI/CD files (not needed in image)
+.github/
+Jenkinsfile
+.gitlab-ci.yml
+.circleci/
+
+# Build scripts and configs (not needed in image)
+setup.py
+setup.cfg
+pyproject.toml
+MANIFEST.in
+build-wheel.sh
+
+# Kubernetes configs (not needed in image)
+kubeconfig*.yaml
+*.yaml
+!pytest.ini
+
+# Version files (not needed in image)
+.python-version
+
+# Extra requirements files (only base requirements.txt needed)
+requirements-dev.txt
+requirements-staging.txt
+requirements-prod.txt
+
+# Main entry point (not needed in image, only src/ is copied)
+main.py
+
+# Exclude source data directories (large files)
+src/trading_agent/fundamentals/edgar/master/
+src/trading_agent/fundamentals/edgar/*/data/
+src/trading_agent/*/data/
+src/trading_agent/*/cache/
+
+# Keep only what's needed:
+# - src/ (source code)
+# - tests/ (if needed for image, otherwise exclude)
+# - requirements.txt (for base image build)

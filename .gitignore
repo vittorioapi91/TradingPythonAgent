@@ -26,9 +26,15 @@ env/
 ENV/
 .venv
 .venv-kserve
+# Jenkins venv (created during CI/CD)
+.venv-jenkins/
 
 # IDE
-.vscode/
+# Allow all .vscode configuration files
+.vscode/*
+!.vscode/**/*.json
+!.vscode/**/*.md
+!.vscode/**/*.py
 .idea/
 *.swp
 *.swo
@@ -46,19 +52,33 @@ ENV/
 
 # OS
 .DS_Store
-
-# Airflow logs
-.ops/.airflow/logs-*/
-
-# EDGAR master index files (generated data)
-src/trading_agent/fundamentals/edgar/master/
 Thumbs.db
+
+# Jenkins data (runtime/operational data - should not be versioned)
+# Exclude entire data directory - all runtime Jenkins data
+.ops/.jenkins/data/
 
 # Large data files
 *.parquet
 **/backup_parquet/
 **/edgar_companies/
+src/trading_agent/fundamentals/edgar/master/
+company_tickers.json
 
-# Jenkins data (runtime/operational data - should not be versioned)
-# Exclude entire data directory - all runtime Jenkins data
-.ops/.jenkins/data/
+# Python build artifacts (keep directory, ignore contents)
+build/
+dist/
+*.egg-info/
+
+# Airflow wheels (wheels are built and copied here, but not versioned)
+.ops/.airflow/wheels/*.whl
+
+# Airflow log directories
+.ops/.airflow/logs-*/
+.ops/.airflow/logs-dev/
+.ops/.airflow/logs-test/
+.ops/.airflow/logs-prod/
+
+# SSL certificates (self-signed for local development)
+.ops/.docker/ssl/*.key
+.ops/.docker/ssl/*.crt

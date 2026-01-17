@@ -1,0 +1,282 @@
+pipeline {
+    agent any
+    
+    // This pipeline runs when .ops directory changes
+    // It validates and builds infra-platform components (Airflow, Grafana, etc.)
+    
+    stages {
+        stage('Check if .ops Changed') {
+            steps {
+                script {
+                    // Check if .ops/ directory has changes
+                    def changedFiles = sh(
+                        script: 'git diff --name-only HEAD~1 HEAD 2>/dev/null || git diff --name-only origin/${GIT_BRANCH} 2>/dev/null || echo ""',
+                        returnStdout: true
+                    ).trim()
+                    
+                    def hasOpsChanges = false
+                    if (changedFiles) {
+                        changedFiles.split('\n').each { file ->
+                            if (file.startsWith('.ops/')) {
+                                hasOpsChanges = true
+                            }
+                        }
+                    }
+                    
+                    if (!hasOpsChanges) {
+                        echo "⚠️  No .ops/ directory changes detected. Skipping infra-platform pipeline."
+                        currentBuild.result = 'ABORTED'
+                        error("Pipeline aborted: No infrastructure changes detected")
+                    }
+                    
+                    echo "✓ .ops/ directory changes detected. Proceeding with infra-platform validation."
+                }
+            }
+        }
+        
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Validate Infra-Platform Configuration') {
+            steps {
+                script {
+                    echo "Validating infra-platform configuration..."
+                    sh """
+                        # Validate docker-compose files (using 'docker compose' plugin, not 'docker-compose' binary)
+                        if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
+                            echo "Validating docker-compose.infra-platform.yml..."
+                            docker compose -f .ops/.docker/docker-compose.infra-platform.yml config > /dev/null || {
+                                echo "❌ docker-compose.infra-platform.yml is invalid"
+                                exit 1
+                            }
+                            echo "✓ docker-compose.infra-platform.yml is valid"
+                        fi
+                        
+                        if [ -f ".ops/.docker/docker-compose.yml" ]; then
+                            echo "Validating docker-compose.yml..."
+                            docker compose -f .ops/.docker/docker-compose.yml config > /dev/null || {
+                                echo "❌ docker-compose.yml is invalid"
+                                exit 1
+                            }
+                            echo "✓ docker-compose.yml is valid"
+                        fi
+                        
+                        # Validate Airflow DAGs (if they exist)
+                        if [ -d ".ops/.airflow/dags" ]; then
+                            echo "Validating Airflow DAGs..."
+                            # Create minimal venv for DAG validation
+                            python3 -m venv /tmp/infra_venv || true
+                            /tmp/infra_venv/bin/pip install --quiet apache-airflow tqdm pandas psycopg2-binary requests python-dotenv || true
+                            
+                            export AIRFLOW_HOME=/tmp/airflow_infra_home
+                            export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                            export AIRFLOW__CORE__LOAD_EXAMPLES=False
+                            export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/airflow_infra_home/airflow.db
+                            
+                            mkdir -p \${AIRFLOW_HOME}
+                            /tmp/infra_venv/bin/python -m airflow db migrate 2>/dev/null || true
+                            /tmp/infra_venv/bin/python -m airflow dags list > /dev/null 2>&1 && {
+                                echo "✓ Airflow DAGs are valid"
+                            } || {
+                                echo "⚠️  Warning: Could not validate Airflow DAGs (may need full Airflow setup)"
+                            }
+                        fi
+                        
+                        echo "✓ Infra-platform configuration validated"
+                    """
+                }
+            }
+        }
+        
+        stage('Build Infra-Platform Images') {
+            steps {
+                script {
+                    echo "Building infra-platform Docker images..."
+                    sh """
+                        # Ensure buildx is available and create builder if needed
+                        docker buildx version || docker buildx install
+                        docker buildx create --use --name builder 2>/dev/null || docker buildx use builder
+                        
+                        # Check if base image exists (base images are built manually, not in pipeline)
+                        if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^jenkins-custom:base\$'; then
+                            echo "❌ ERROR: Base Jenkins image 'jenkins-custom:base' not found!"
+                            echo ""
+                            echo "Base images must be built manually before running pipelines."
+                            echo "To build the base image, run:"
+                            echo "  docker build -t jenkins-custom:base -f .ops/.docker/Dockerfile.jenkins.base .ops/.docker/"
+                            echo ""
+                            echo "See .ops/.docker/README_BASE_IMAGES.md for more information."
+                            exit 1
+                        fi
+                        
+                        echo "✓ Base Jenkins image found: jenkins-custom:base"
+                        
+                        # Switch to default builder for local base images (container builder can't see host images)
+                        # The default builder has access to local images, container builder doesn't
+                        echo "Switching to default builder for local base image access..."
+                        docker buildx use default || docker buildx use builder
+                        
+                        # Build incremental Jenkins image (FROM base)
+                        if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
+                            echo "Building incremental Jenkins image: jenkins-custom:lts (FROM base)..."
+                            docker buildx build \
+                                --platform linux/amd64 \
+                                -f .ops/.docker/Dockerfile.jenkins \
+                                -t jenkins-custom:lts \
+                                --load \
+                                .ops/.docker/ || {
+                                echo "❌ Error: Could not build incremental Jenkins image"
+                                exit 1
+                            }
+                            echo "✓ Incremental Jenkins image built: jenkins-custom:lts"
+                        fi
+                        
+                        echo "✓ Infra-platform images built successfully"
+                    """
+                }
+            }
+        }
+        
+        stage('Validate Infra-Platform Services') {
+            steps {
+                script {
+                    echo "Validating infra-platform services can start..."
+                    sh """
+                        # Test that docker-compose files are valid and services can be checked
+                        if [ -f ".ops/.docker/docker-compose.infra-platform.yml" ]; then
+                            echo "Checking infra-platform services..."
+                            docker compose -f .ops/.docker/docker-compose.infra-platform.yml config --services | head -10
+                            echo "✓ Infra-platform services configuration is valid"
+                        fi
+                    """
+                }
+            }
+        }
+        
+        stage('Validate Kubernetes/Kind Cluster') {
+            steps {
+                script {
+                    echo "Validating Kubernetes/kind cluster configuration..."
+                    sh """
+                        # Check if kind is available
+                        if ! command -v kind &> /dev/null; then
+                            echo "⚠️  Warning: kind command not found. Kubernetes validation skipped."
+                            exit 0
+                        fi
+                        
+                        # Check if kubectl is available
+                        if ! command -v kubectl &> /dev/null; then
+                            echo "⚠️  Warning: kubectl command not found. Kubernetes validation skipped."
+                            exit 0
+                        fi
+                        
+                        # Validate Kubernetes manifests
+                        if [ -d ".ops/.kubernetes" ]; then
+                            echo "Validating Kubernetes manifests..."
+                            
+                            # Check for required manifest files
+                            if [ -f ".ops/.kubernetes/hmm-model-training-job.yaml" ]; then
+                                echo "Validating hmm-model-training-job.yaml..."
+                                kubectl --dry-run=client -f .ops/.kubernetes/hmm-model-training-job.yaml validate 2>/dev/null || {
+                                    # Try alternative validation
+                                    kubectl apply --dry-run=client -f .ops/.kubernetes/hmm-model-training-job.yaml > /dev/null 2>&1 && {
+                                        echo "✓ hmm-model-training-job.yaml is valid"
+                                    } || {
+                                        echo "⚠️  Warning: Could not validate hmm-model-training-job.yaml (may need cluster context)"
+                                    }
+                                }
+                            fi
+                            
+                            if [ -f ".ops/.kubernetes/monitoring-stack.yaml" ]; then
+                                echo "Validating monitoring-stack.yaml..."
+                                kubectl apply --dry-run=client -f .ops/.kubernetes/monitoring-stack.yaml > /dev/null 2>&1 && {
+                                    echo "✓ monitoring-stack.yaml is valid"
+                                } || {
+                                    echo "⚠️  Warning: Could not validate monitoring-stack.yaml (may need cluster context)"
+                                }
+                            fi
+                            
+                            # Check if kind cluster exists (if kind is available)
+                            CLUSTER_NAME="trading-cluster"
+                            if kind get clusters 2>/dev/null | grep -q "^\${CLUSTER_NAME}\$"; then
+                                echo "✓ Kind cluster '\${CLUSTER_NAME}' exists"
+                                
+                                # Validate cluster is accessible
+                                kubectl config use-context "kind-\${CLUSTER_NAME}" > /dev/null 2>&1 && {
+                                    if kubectl cluster-info > /dev/null 2>&1; then
+                                        echo "✓ Kind cluster is accessible"
+                                        kubectl get nodes 2>/dev/null | head -3
+                                        
+                                        # Check Kubernetes Dashboard
+                                        echo ""
+                                        echo "Checking Kubernetes Dashboard..."
+                                        if kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard > /dev/null 2>&1; then
+                                            echo "✓ Kubernetes Dashboard deployment exists"
+                                            
+                                            # Check if dashboard is running
+                                            DASHBOARD_READY=\$(kubectl get deployment kubernetes-dashboard -n kubernetes-dashboard -o jsonpath='{.status.readyReplicas}' 2>/dev/null || echo "0")
+                                            if [ "\$DASHBOARD_READY" -gt 0 ]; then
+                                                echo "✓ Kubernetes Dashboard is running (\${DASHBOARD_READY} replica(s) ready)"
+                                            else
+                                                echo "⚠️  Warning: Kubernetes Dashboard deployment exists but no replicas are ready"
+                                            fi
+                                            
+                                            # Check dashboard service
+                                            if kubectl get service kubernetes-dashboard -n kubernetes-dashboard > /dev/null 2>&1; then
+                                                echo "✓ Kubernetes Dashboard service exists"
+                                            else
+                                                echo "⚠️  Warning: Kubernetes Dashboard service not found"
+                                            fi
+                                            
+                                            # Check admin user service account
+                                            if kubectl get serviceaccount admin-user -n kubernetes-dashboard > /dev/null 2>&1; then
+                                                echo "✓ Dashboard admin-user service account exists"
+                                            else
+                                                echo "⚠️  Warning: Dashboard admin-user service account not found"
+                                            fi
+                                        else
+                                            echo "ℹ️  Kubernetes Dashboard not installed (will be installed by start-kubernetes.sh when needed)"
+                                        fi
+                                    else
+                                        echo "⚠️  Warning: Kind cluster exists but is not accessible"
+                                    }
+                                } || {
+                                    echo "⚠️  Warning: Could not switch to kind cluster context"
+                                }
+                            else
+                                echo "ℹ️  Kind cluster '\${CLUSTER_NAME}' does not exist (will be created by start-kubernetes.sh when needed)"
+                            fi
+                            
+                            # Validate start-kubernetes.sh script exists and is executable
+                            if [ -f ".ops/.kubernetes/start-kubernetes.sh" ]; then
+                                if [ -x ".ops/.kubernetes/start-kubernetes.sh" ]; then
+                                    echo "✓ start-kubernetes.sh exists and is executable"
+                                else
+                                    echo "⚠️  Warning: start-kubernetes.sh exists but is not executable"
+                                fi
+                            else
+                                echo "⚠️  Warning: start-kubernetes.sh not found"
+                            fi
+                        else
+                            echo "ℹ️  .ops/.kubernetes directory not found (Kubernetes manifests optional)"
+                        fi
+                        
+                        echo "✓ Kubernetes/kind cluster validation completed"
+                    """
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            echo "✓ Infra-platform pipeline succeeded!"
+        }
+        failure {
+            echo "✗ Infra-platform pipeline failed. Check logs for details."
+        }
+    }
+}

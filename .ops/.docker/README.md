@@ -1,13 +1,19 @@
 # Docker Configuration
 
-This folder contains all Docker-related files for running the ML workflow monitoring services (Grafana, Prometheus, MLflow, and Airflow).
+This folder contains Docker Compose configurations for infrastructure and application services.
 
 ## Files
 
-- **`docker-compose.yml`**: Main Docker Compose configuration
-  - Defines services: Grafana, Prometheus, MLflow, Airflow
+- **`docker-compose.infra-platform.yml`**: Infrastructure services Docker Compose configuration
+  - Defines all infrastructure services: Grafana, Prometheus, MLflow, Airflow (dev/test/prod), PostgreSQL, Redis, Jenkins
   - Configures networking and volumes
   - Sets up service dependencies
+  - **Use this for infrastructure deployment**
+
+- **`docker-compose.yml`**: Application services Docker Compose configuration
+  - For application-specific services (future use)
+  - Currently minimal, ready for application services
+  - **Use this for application-specific services**
 
 - **`docker-compose.override.yml.example`**: Example override file
   - Template for custom configurations
@@ -28,21 +34,25 @@ This folder contains all Docker-related files for running the ML workflow monito
 ### Start Services
 
 ```bash
-# From .ops/.docker directory
+# From .ops/.docker directory (recommended - starts both infra and app services)
 ./start-docker-monitoring.sh
 
-# Or manually
-docker-compose up -d
+# Or manually start infrastructure services
+docker-compose -f docker-compose.infra-platform.yml up -d
+
+# Start application services (if any)
+docker-compose -f docker-compose.yml up -d
 ```
 
 ### Stop Services
 
 ```bash
-# From .ops/.docker directory
+# From .ops/.docker directory (stops both infra and app services)
 ./stop-docker-monitoring.sh
 
-# Or manually
-docker-compose down
+# Or manually stop services
+docker-compose -f docker-compose.infra-platform.yml down
+docker-compose -f docker-compose.yml down
 ```
 
 ## Services
@@ -68,13 +78,64 @@ docker-compose down
 - **Data**: Stored in Docker volume `mlflow-data`
 
 ### Airflow
-- **Port**: 8080
-- **URL**: http://localhost:8080
+- **Port**: 8080 (dev: 8082, test: 8083, prod: 8084)
+- **URL**: 
+  - DEV: 
+    - Direct: http://localhost:8082 (admin/2014)
+    - Via alias: http://airflow.local.dev.info (requires `/etc/hosts` entry)
+  - TEST: 
+    - Direct: http://localhost:8083 (admin/2014)
+    - Via alias: http://airflow.local.test.info (requires `/etc/hosts` entry)
+  - PROD: 
+    - Direct: http://localhost:8084 (admin/2014)
+    - Via alias: http://airflow.local.prod.info (requires `/etc/hosts` entry)
+- **Setup aliases** (REQUIRED):
+  1. Add to `/etc/hosts`: 
+     ```bash
+     sudo sh -c 'echo "127.0.0.1 airflow.local.dev.info airflow.local.test.info airflow.local.prod.info" >> /etc/hosts'
+     ```
+  2. Flush DNS cache (macOS):
+     ```bash
+     sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+     ```
+  3. Start nginx proxy (if not already running):
+     ```bash
+     cd .ops/.docker
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
+     ```
 - **Home (in container)**: `/opt/airflow`
 - **DAGs folder (in container)**: `/opt/airflow/dags` (mapped from `.ops/.airflow/dags`)
-- **Command**: `airflow db migrate && airflow standalone`
 
 See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user, and authentication details.
+
+### Kubernetes Dashboard
+- **Part of infra-platform infrastructure** (managed via kind cluster)
+- **Access**: Via `kubectl proxy` (typically http://localhost:8001)
+- **Setup**: Run `.ops/.kubernetes/start-kubernetes.sh` to create kind cluster and install dashboard
+- **Documentation**: See `.ops/.kubernetes/DASHBOARD_ACCESS.md` for access details
+
+### Jenkins
+- **Port**: 8081 (direct access)
+- **URL**: 
+  - Direct: http://localhost:8081
+  - Via alias: http://jenkins.local.info (requires `/etc/hosts` entry and nginx proxy)
+- **Setup alias** (REQUIRED):
+  1. Add to `/etc/hosts`: 
+     ```bash
+     sudo sh -c 'echo "127.0.0.1 jenkins.local.info" >> /etc/hosts'
+     ```
+  2. Flush DNS cache (macOS):
+     ```bash
+     sudo dscacheutil -flushcache; sudo killall -HUP mDNSResponder
+     ```
+  3. Start nginx proxy (if not already running):
+     ```bash
+     cd .ops/.docker
+     docker-compose -f docker-compose.infra-platform.yml up -d nginx-proxy
+     ```
+  4. Access: http://jenkins.local.info
+- **Credentials**: Configured in Jenkins UI
+- **Has kubectl/kind tools** for Kubernetes cluster management
 
 ## Custom Configuration
 
@@ -97,6 +158,7 @@ See `.ops/.airflow/QUICK_START.md` for Airflow environment variables, admin user
 
 **Change Grafana password:**
 ```yaml
+# In docker-compose.infra-platform.yml
 services:
   grafana:
     environment:
@@ -105,6 +167,7 @@ services:
 
 **Use PostgreSQL for MLflow:**
 ```yaml
+# In docker-compose.infra-platform.yml
 services:
   mlflow:
     environment:
@@ -124,35 +187,36 @@ services:
 
 ## Path References
 
-All paths in `docker-compose.yml` are relative to the `.ops/.docker/` folder:
+All paths in `docker-compose.infra-platform.yml` are relative to the `.ops/.docker/` folder:
 - `../.prometheus/` → Points to `.ops/.prometheus/`
 - `../.grafana/` → Points to `.ops/.grafana/`
 - `../.grafana/dashboards/` → Points to `.ops/.grafana/dashboards/`
+- `../../src` → Points to project `src/` directory (mounted in Airflow containers)
 
 ## Commands
 
-All commands should be run from the `.docker/` directory:
+All commands should be run from the `.ops/.docker/` directory:
 
 ```bash
-cd docker
+cd .ops/.docker
 
-# Start services
-docker-compose up -d
+# Start infrastructure services
+docker-compose -f docker-compose.infra-platform.yml up -d
 
-# Stop services
-docker-compose down
+# Stop infrastructure services
+docker-compose -f docker-compose.infra-platform.yml down
 
 # View logs
-docker-compose logs -f
+docker-compose -f docker-compose.infra-platform.yml logs -f
 
 # Restart a service
-docker-compose restart grafana
+docker-compose -f docker-compose.infra-platform.yml restart grafana
 
 # View service status
-docker-compose ps
+docker-compose -f docker-compose.infra-platform.yml ps
 
 # Remove all data (fresh start)
-docker-compose down -v
+docker-compose -f docker-compose.infra-platform.yml down -v
 ```
 
 ## Troubleshooting
@@ -160,7 +224,27 @@ docker-compose down -v
 See `DOCKER_SETUP.md` for detailed troubleshooting guide.
 
 Common issues:
-- Port conflicts: Change ports in `docker-compose.yml`
+- Port conflicts: Change ports in `docker-compose.infra-platform.yml`
 - Permission errors: Check Docker Desktop is running
-- Volume mount errors: Verify paths are correct relative to `docker/` folder
+- Volume mount errors: Verify paths are correct relative to `.ops/.docker/` folder
+
+## Infrastructure vs Application Services
+
+This directory contains two separate Docker Compose files:
+
+1. **`docker-compose.infra-platform.yml`**: All infrastructure services
+   - Airflow (dev, test, prod instances)
+   - Grafana, Prometheus
+   - PostgreSQL, Redis
+   - Jenkins, MLflow, Feast
+   - Managed by infrastructure pipeline (`Jenkinsfile.infra-platform`)
+
+2. **`docker-compose.yml`**: Application services
+   - For application-specific containers (future use)
+   - Managed by application pipeline (`Jenkinsfile`)
+
+This separation allows:
+- Independent deployment of infrastructure and application
+- Separate CI/CD pipelines
+- Future migration of `.ops/` to a separate repository
 

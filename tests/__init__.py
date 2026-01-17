@@ -1,3 +1,3 @@
 """
-Tests for TradingPythonAgent
+Test package for TradingPythonAgent
 """

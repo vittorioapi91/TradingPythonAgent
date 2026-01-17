@@ -36,15 +36,31 @@ jobs:
           STATUS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${STAGING_SHA}/status")
           
-          # Extract state from JSON response (fallback if jq not available)
-          STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+          # Extract state from JSON response using jq (available in GitHub Actions)
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
           
-          # If jq is available, use it for more reliable parsing
-          if command -v jq &> /dev/null; then
-            STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
+          # Fallback parsing if jq fails
+          if [ "$STATUS" == "unknown" ] || [ -z "$STATUS" ]; then
+            STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
           fi
           
           echo "Staging pipeline status: $STATUS"
+          
+          # Also check individual status checks for jenkins/pipeline context
+          CHECKS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${STAGING_SHA}/check-runs?check_name=jenkins/pipeline" 2>/dev/null || echo '{}')
+          
+          JENKINS_STATUS=$(echo "$CHECKS_RESPONSE" | jq -r '.check_runs[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Jenkins pipeline check status: $JENKINS_STATUS"
+          
+          # Use the more specific check status if available
+          if [ "$JENKINS_STATUS" != "unknown" ] && [ "$JENKINS_STATUS" != "null" ]; then
+            if [ "$JENKINS_STATUS" != "success" ]; then
+              STATUS="failure"
+            else
+              STATUS="success"
+            fi
+          fi
           
           if [ "$STATUS" != "success" ]; then
             echo "::error::Cannot merge to main: Staging branch Jenkins pipeline must pass first"
@@ -89,15 +105,31 @@ jobs:
           STATUS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             "https://api.github.com/repos/${{ github.repository }}/commits/${SOURCE_SHA}/status")
           
-          # Extract state from JSON response (fallback if jq not available)
-          STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
+          # Extract state from JSON response using jq (available in GitHub Actions)
+          STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
           
-          # If jq is available, use it for more reliable parsing
-          if command -v jq &> /dev/null; then
-            STATUS=$(echo "$STATUS_RESPONSE" | jq -r '.state' 2>/dev/null || echo "unknown")
+          # Fallback parsing if jq fails
+          if [ "$STATUS" == "unknown" ] || [ -z "$STATUS" ]; then
+            STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"state":"[^"]*"' | head -1 | cut -d'"' -f4 || echo "unknown")
           fi
           
           echo "Dev branch pipeline status: $STATUS"
+          
+          # Also check individual status checks for jenkins/pipeline context
+          CHECKS_RESPONSE=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/commits/${SOURCE_SHA}/check-runs?check_name=jenkins/pipeline" 2>/dev/null || echo '{}')
+          
+          JENKINS_STATUS=$(echo "$CHECKS_RESPONSE" | jq -r '.check_runs[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+          echo "Jenkins pipeline check status: $JENKINS_STATUS"
+          
+          # Use the more specific check status if available
+          if [ "$JENKINS_STATUS" != "unknown" ] && [ "$JENKINS_STATUS" != "null" ]; then
+            if [ "$JENKINS_STATUS" != "success" ]; then
+              STATUS="failure"
+            else
+              STATUS="success"
+            fi
+          fi
           
           if [ "$STATUS" != "success" ]; then
             echo "::error::Cannot merge to staging: Dev branch Jenkins pipeline must pass first"

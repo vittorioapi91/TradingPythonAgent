@@ -1,188 +1,21 @@
+# Application-specific services
+# This file is for trading_agent application services only
+# Infrastructure services (Airflow, Grafana, Prometheus, etc.) are in docker-compose.infra-platform.yml
+
+version: '3.8'
+
 services:
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    ports:
-      - "9090:9090"
-    volumes:
-      - ../.prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-      - prometheus-data:/prometheus
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
-      - '--web.console.templates=/usr/share/prometheus/consoles'
-      - '--web.enable-lifecycle'
-    networks:
-      - monitoring
-    restart: unless-stopped
+  # Add application-specific services here if needed in the future
+  # For now, this file is kept minimal as infrastructure is separated
+  # Placeholder service to make the file valid (never runs)
+  _placeholder:
+    image: alpine:latest
+    command: echo "Application services placeholder"
+    profiles:
+      - never  # This service will never run, it's just to make the file valid
 
-  grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=2014
-      - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_SERVER_ROOT_URL=http://localhost:3000
-      - GF_INSTALL_PLUGINS=
-    volumes:
-      - grafana-data:/var/lib/grafana
-      - ../.grafana/provisioning:/etc/grafana/provisioning
-      - ../.grafana/dashboards:/var/lib/grafana/dashboards
-    networks:
-      - monitoring
-    depends_on:
-      - prometheus
-    restart: unless-stopped
+volumes: {}
+  # Application-specific volumes can be added here
 
-  # Optional: MLflow tracking server
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.8.1
-    container_name: mlflow
-    ports:
-      - "55000:5000"
-    environment:
-      - MLFLOW_BACKEND_STORE_URI=sqlite:///mlflow.db
-      - MLFLOW_DEFAULT_ARTIFACT_ROOT=/mlflow/artifacts
-    volumes:
-      - mlflow-data:/mlflow
-    command: mlflow server --host 0.0.0.0 --port 5000
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  # Optional: Feast CLI / feature store
-  feast:
-    image: python:3.11-slim
-    container_name: feast
-    working_dir: /workspace
-    volumes:
-      - ../..:/workspace
-    environment:
-      - FEAST_REPO_PATH=/workspace/.ops/.feast/feast_repo
-    command: >
-      bash -c "pip install 'feast[local]>=0.36.0' && cd $$FEAST_REPO_PATH && feast apply && tail -f /dev/null"
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  # Optional: Airflow (web UI + scheduler)
-  airflow:
-    image: apache/airflow:2.9.3
-    container_name: airflow
-    ports:
-      - "8080:8080"
-    environment:
-      - AIRFLOW_HOME=/opt/airflow
-      - AIRFLOW__CORE__DAGS_FOLDER=/opt/airflow/dags
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////opt/airflow/airflow.db
-      # Use FAB auth manager so 'airflow users create' controls login
-      - AIRFLOW__CORE__AUTH_MANAGER=airflow.auth.managers.fab.fab_auth_manager.FabAuthManager
-      - AIRFLOW__WEBSERVER__RATELIMIT_STORAGE_URI=redis://redis:6379/0
-      # Make host project package and custom operators available inside the container
-      - PYTHONPATH=/opt/airflow/src:/opt/airflow/operators
-    volumes:
-      - ../.airflow/dags:/opt/airflow/dags
-      - ../.airflow/logs:/opt/airflow/logs
-      - ../.airflow/plugins:/opt/airflow/plugins
-      # Mount custom operators package
-      - ../.airflow/operators:/opt/airflow/operators
-      # Mount project source (contains the trading_agent package) into the container
-      # .ops/.docker/.. = .ops, .ops/.. = project root, so ../../src is correct here
-      - ../../src:/opt/airflow/src
-      - airflow-db:/opt/airflow
-    command: >
-      bash -c "
-        airflow db migrate &&
-        airflow users create
-          --username admin
-          --firstname Admin
-          --lastname User
-          --role Admin
-          --email admin@example.com
-          --password 2014 || echo 'Admin user may already exist' ;
-        airflow webserver --port 8080 &
-        airflow scheduler
-      "
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  # PostgreSQL for macro databases (fred, bis, bls, eurostat, imf, etc.)
-  postgres:
-    image: postgres:15
-    container_name: postgres
-    ports:
-      - "55432:5432"
-    environment:
-      - POSTGRES_USER=tradingAgent
-      # Use host env POSTGRES_PASSWORD if set, otherwise default
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tradingAgent}
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  # Redis for Airflow rate limiting backend
-  redis:
-    image: redis:7-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-    networks:
-      - monitoring
-    restart: unless-stopped
-
-  # Jenkins CI/CD server
-  jenkins:
-    image: jenkins-custom:lts  # Custom image with kubectl, kind, and Docker CLI pre-installed
-    container_name: jenkins
-    ports:
-      - "8081:8080"  # Match current port forwarding setup (8081 on host)
-      - "50000:50000"
-    environment:
-      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
-    volumes:
-      - ../.jenkins/data:/var/jenkins_home  # Mount extracted Jenkins data
-      - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for docker build
-      - ${HOME}/.kube:/root/.kube  # Kubernetes config for kubectl access
-    networks:
-      - monitoring
-    restart: unless-stopped
-    user: root  # Needed for Docker socket access
-    entrypoint: >
-      bash -c "
-        # Update kubeconfig to use host.docker.internal for localhost connections (Mac Docker Desktop)
-        # Tools (docker, kubectl, kind) are already pre-installed in the custom image
-        if [ -f /root/.kube/config ] && command -v kubectl &> /dev/null; then
-          # Backup original config
-          cp /root/.kube/config /root/.kube/config.bak
-          # Replace 127.0.0.1 and localhost with host.docker.internal
-          # Use perl for better regex support (escape backslashes properly)
-          perl -pi -e 's|https://127\.0\.0\.1:(\d+)|https://host.docker.internal:$1|g' /root/.kube/config || true
-          perl -pi -e 's|https://localhost:(\d+)|https://host.docker.internal:$1|g' /root/.kube/config || true
-          # Add insecure-skip-tls-verify for kind-trading-cluster (cert doesn't include host.docker.internal)
-          # This is safe for local development only
-          kubectl config set-cluster kind-trading-cluster --insecure-skip-tls-verify=true 2>/dev/null || true
-        fi
-        # Start Jenkins with original entrypoint
-        exec /usr/local/bin/jenkins.sh
-      "
-
-volumes:
-  prometheus-data:
-  grafana-data:
-  mlflow-data:
-  postgres-data:
-  airflow-db:
-  redis-data:
-
-networks:
-  monitoring:
-    driver: bridge
-
+networks: {}
+  # Application-specific networks can be added here

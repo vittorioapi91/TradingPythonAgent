@@ -70,6 +70,8 @@ TradingPythonAgent/
 │   └── prometheus.py                # Prometheus metrics
 ├── .ops/                            # Operations and infrastructure
 │   ├── .docker/                     # Docker Compose configurations
+│   │   ├── docker-compose.infra-platform.yml  # Infrastructure services (Airflow, Grafana, etc.)
+│   │   └── docker-compose.yml      # Application services (future use)
 │   ├── .jenkins/                    # Jenkins configuration
 │   ├── .kubernetes/                 # Kubernetes manifests
 │   └── .mlflow/                     # MLflow configuration
@@ -77,7 +79,10 @@ TradingPythonAgent/
 ├── .env.staging                     # Staging environment config
 ├── .env.prod                        # Production environment config
 ├── Jenkinsfile                      # CI/CD pipeline
-├── requirements.txt                 # Python dependencies
+├── requirements.txt                 # Base Python dependencies (shared)
+├── requirements-dev.txt             # Development dependencies (dev/* branches)
+├── requirements-staging.txt         # Staging dependencies (staging branch)
+├── requirements-prod.txt            # Production dependencies (main branch)
 └── README.md                        # This file
 ```
 
@@ -157,9 +162,16 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
    source venv/bin/activate  # On Windows: venv\Scripts\activate
    ```
 
-3. **Install dependencies**:
+3. **Install dependencies** (environment-specific):
    ```bash
-   pip install -r requirements.txt
+   # The system automatically detects your environment based on git branch
+   # For manual installation, use the appropriate file:
+   pip install -r requirements-dev.txt      # For dev/* branches
+   pip install -r requirements-staging.txt  # For staging branch
+   pip install -r requirements-prod.txt     # For main branch
+   
+   # Or use the config module to get the right file:
+   python -c "from src.trading_agent.config import get_requirements_file; print(get_requirements_file())"
    ```
 
 4. **Configure environment**:
@@ -173,13 +185,15 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
 5. **Start PostgreSQL** (if using Docker):
    ```bash
    cd .ops/.docker
-   docker-compose up -d postgres
+   docker-compose -f docker-compose.infra-platform.yml up -d postgres
    ```
 
 6. **Start monitoring services** (optional):
    ```bash
    cd .ops/.docker
-   docker-compose up -d grafana prometheus mlflow
+   ./start-docker-monitoring.sh
+   # Or manually:
+   docker-compose -f docker-compose.infra-platform.yml up -d grafana prometheus mlflow
    ```
 
 ### Environment Configuration
@@ -279,8 +293,28 @@ The system automatically creates database schemas when first connecting. Ensure 
 
 ## 🏭 CI/CD Pipeline
 
-The project includes a Jenkins CI/CD pipeline with branch-aware deployments:
+The project includes separate Jenkins CI/CD pipelines for application code and infrastructure:
 
+### Application Pipeline (`Jenkinsfile`)
+- **Purpose**: Builds and validates trading_agent application code
+- **Triggers**: On all code changes (except `.ops/` only changes)
+- **Stages**:
+  - JIRA validation (for feature branches)
+  - Module validation
+  - Airflow DAG validation (syntax/imports)
+  - Unit tests
+  - Docker image builds
+  - Kubernetes deployments
+
+### Infrastructure Pipeline (`Jenkinsfile.infra-platform`)
+- **Purpose**: Validates and builds infrastructure components
+- **Triggers**: Only when `.ops/` directory changes
+- **Stages**:
+  - Infrastructure configuration validation
+  - Docker image builds (e.g., jenkins-custom)
+  - Service validation
+
+**Branch-aware deployments:**
 - **Feature branches** (`dev/{jira_issue}/{project}-{subproject}`): Deploy to dev environment
 - **Staging branch**: Deploy to staging environment
 - **Main branch**: Deploy to production
@@ -298,6 +332,25 @@ Examples:
 - `dev/DEV-4/trading_agent-fundamentals`
 - `dev/PROJ-123/trading_agent-macro`
 - `dev/BUG-789/trading_agent-model`
+
+**Important**: The Jenkins pipeline automatically validates branch names and JIRA issues:
+
+- **Branch Name Validation**: The pipeline extracts the JIRA issue key (e.g., `DEV-4`) from the branch name using the pattern `dev/{JIRA_KEY-NUMBER}/{project}-{subproject}`
+- **JIRA Issue Validation**: For feature branches, the pipeline:
+  - Tests JIRA connection and authentication
+  - Validates that the JIRA issue exists and is accessible
+  - If validation fails, the pipeline continues with a warning (non-blocking)
+
+### Commit Message Requirements
+
+**All commit messages must include the JIRA issue key** in the format `[JIRA_ISSUE]` at the beginning of the commit message.
+
+Examples:
+- `[DEV-4] Add EDGAR download functionality`
+- `[PROJ-123] Fix database connection issue`
+- `[DEV-4] Update README with JIRA validation info`
+
+The JIRA issue key in the commit message should match the one in the branch name. This ensures proper tracking and linking between commits and JIRA issues.
 
 ## 📊 Monitoring
 
