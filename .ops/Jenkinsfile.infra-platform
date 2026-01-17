@@ -114,6 +114,11 @@ pipeline {
                         
                         echo "✓ Base Jenkins image found: jenkins-custom:base"
                         
+                        # Switch to default builder for local base images (container builder can't see host images)
+                        # The default builder has access to local images, container builder doesn't
+                        echo "Switching to default builder for local base image access..."
+                        docker buildx use default || docker buildx use builder
+                        
                         # Build incremental Jenkins image (FROM base)
                         if [ -f ".ops/.docker/Dockerfile.jenkins" ]; then
                             echo "Building incremental Jenkins image: jenkins-custom:lts (FROM base)..."
