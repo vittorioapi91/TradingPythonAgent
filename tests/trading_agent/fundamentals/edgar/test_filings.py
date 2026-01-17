@@ -92,9 +92,22 @@ class TestFilingDownloader:
             )
             
             # Verify LIMIT was included in query
-            execute_calls = [call[0][0] for call in mock_cur.execute.call_args_list]
-            limit_query = [q for q in execute_calls if "LIMIT" in q.upper() and "100" in q]
-            assert len(limit_query) > 0, "Query should include LIMIT 100"
+            execute_calls = mock_cur.execute.call_args_list
+            # Check if any query includes LIMIT clause
+            limit_found = False
+            limit_value = None
+            for call in execute_calls:
+                query = call[0][0] if call[0] else ""
+                params = call[0][1] if len(call[0]) > 1 else []
+                if "LIMIT" in query.upper():
+                    limit_found = True
+                    # Check if 100 is in the params (parameterized query) or in the query string
+                    if 100 in params or "100" in query:
+                        limit_value = 100
+                        break
+            
+            assert limit_found, "Query should include LIMIT clause"
+            assert limit_value == 100, f"Query should include LIMIT 100, but found {limit_value}"
             
             # Verify exactly 100 files were downloaded
             assert len(downloaded_files) == 100
@@ -216,7 +229,7 @@ class TestFilingDownloader:
     
     @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_no_results(self, mock_get_conn, downloader, temp_dir):
-        """Test handling when no filings are found"""
+        """Test handling when no filings are found - should raise ValueError"""
         # Mock database connection
         mock_conn = Mock()
         mock_cur = Mock()
@@ -226,16 +239,15 @@ class TestFilingDownloader:
         mock_cur.fetchall.return_value = []
         mock_get_conn.return_value = mock_conn
         
-        downloaded_files = downloader.download_filings(
-            year=2005,
-            quarter="QTR1",
-            form_type="10-K",
-            limit=100,
-            output_dir=str(temp_dir)
-        )
-        
-        # Should return empty list
-        assert downloaded_files == []
+        # Should raise ValueError when no filings are found
+        with pytest.raises(ValueError, match="No filings found for filters"):
+            downloader.download_filings(
+                year=2005,
+                quarter="QTR1",
+                form_type="10-K",
+                limit=100,
+                output_dir=str(temp_dir)
+            )
     
     @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_handles_download_errors(self, mock_get_conn, downloader, temp_dir):
