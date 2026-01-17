@@ -212,10 +212,10 @@ def main():
         epilog="""
 Examples:
   # Download a filing by full path:
-  python -m trading_agent.fundamentals.edgar.filings edgar/data/315293/0001179110-05-003398.txt
+  python -m src.fundamentals.edgar.filings edgar/data/315293/0001179110-05-003398.txt
   
   # Download to custom directory:
-  python -m trading_agent.fundamentals.edgar.filings edgar/data/315293/0001179110-05-003398.txt --output-dir /path/to/filings
+  python -m src.fundamentals.edgar.filings edgar/data/315293/0001179110-05-003398.txt --output-dir /path/to/filings
         """
     )
     parser.add_argument(

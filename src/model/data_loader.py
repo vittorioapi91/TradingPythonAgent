@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 import logging
 import os
 
-from trading_agent.macro.fred.fred_postgres import (
+from src.macro.fred.fred_postgres import (
     get_postgres_connection,
     load_time_series_from_postgres
 )

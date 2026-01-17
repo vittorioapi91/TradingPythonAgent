@@ -202,10 +202,10 @@ class TestEDGARMasterIdxDownload:
         """Create MasterIdxManager"""
         return MasterIdxManager()
     
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.mark_master_idx_download_success')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.requests.get')
+    @patch('src.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.fundamentals.edgar.master_idx.get_master_idx_download_status')
+    @patch('src.fundamentals.edgar.master_idx.mark_master_idx_download_success')
+    @patch('src.fundamentals.edgar.master_idx.requests.get')
     def test_save_master_idx_to_disk_success_uncompressed(
         self, mock_get, mock_mark_success, mock_get_status, mock_get_quarters, mock_conn, manager, tmp_path
     ):
@@ -233,10 +233,10 @@ class TestEDGARMasterIdxDownload:
         # Verify success was marked (at least one call)
         assert mock_mark_success.called
     
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.mark_master_idx_download_failed')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.requests.get')
+    @patch('src.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.fundamentals.edgar.master_idx.get_master_idx_download_status')
+    @patch('src.fundamentals.edgar.master_idx.mark_master_idx_download_failed')
+    @patch('src.fundamentals.edgar.master_idx.requests.get')
     def test_save_master_idx_to_disk_failure(
         self, mock_get, mock_mark_failed, mock_get_status, mock_get_quarters, mock_conn, manager, tmp_path
     ):
@@ -265,8 +265,8 @@ class TestEDGARMasterIdxDownload:
         # The code marks failure in the else block when compressed download also fails
         assert mock_mark_failed.called, "mark_master_idx_download_failed should be called when download fails"
     
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_master_idx_download_status')
+    @patch('src.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.fundamentals.edgar.master_idx.get_master_idx_download_status')
     def test_save_master_idx_to_disk_skips_successful_quarters(
         self, mock_get_status, mock_get_quarters, mock_conn, manager, caplog
     ):
@@ -301,8 +301,8 @@ class TestEDGARMasterIdxDatabase:
         manager = MasterIdxManager(master_dir=tmp_path / "master")
         return manager
     
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.execute_values')
+    @patch('src.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.fundamentals.edgar.master_idx.execute_values')
     def test_save_master_idx_to_db_loads_csv_files(self, mock_execute_values, mock_get_quarters, manager, mock_conn, tmp_path):
         """Test that save_master_idx_to_db loads CSV files correctly"""
         # Mock get_quarters_with_data to return empty (no existing data)
@@ -333,7 +333,7 @@ class TestEDGARMasterIdxDatabase:
         # Verify commit was called
         assert mock_conn.commit.called
     
-    @patch('src.trading_agent.fundamentals.edgar.master_idx.get_quarters_with_data')
+    @patch('src.fundamentals.edgar.master_idx.get_quarters_with_data')
     def test_save_master_idx_to_db_skips_non_csv_files(self, mock_get_quarters, manager, mock_conn, tmp_path):
         """Test that non-CSV files are skipped"""
         # Mock get_quarters_with_data to return empty (no existing data)

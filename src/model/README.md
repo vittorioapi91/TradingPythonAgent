@@ -128,7 +128,7 @@ python trading_agent/model/training_script.py \
 ### Kubeflow Pipeline
 
 ```python
-from trading_agent.kubeflow import macro_cycle_hmm_pipeline
+from src.kubeflow import macro_cycle_hmm_pipeline
 
 # Compile pipeline
 from kfp import compiler
@@ -152,7 +152,7 @@ client.create_run_from_pipeline_package(
 ### Feast Feature Store
 
 ```python
-from trading_agent.feast import create_feast_repo, define_macro_entities_and_features
+from src.feast import create_feast_repo, define_macro_entities_and_features
 
 # Create repository
 create_feast_repo('../../../.ops/.feast/feast_repo')
@@ -169,7 +169,7 @@ features = fs.get_online_features(...)
 ### KServe Deployment
 
 ```python
-from trading_agent.kserve import KServeDeployment
+from src.kserve import KServeDeployment
 
 deployment = KServeDeployment(namespace='default')
 

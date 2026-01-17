@@ -18,10 +18,10 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
-from trading_agent.model.data_loader import MacroDataLoader
-from trading_agent.model.hmm_model import MacroCycleHMM
-from trading_agent.mlflow import MLflowTracker
-from trading_agent.prometheus import ModelMetrics
+from src.model.data_loader import MacroDataLoader
+from src.model.hmm_model import MacroCycleHMM
+from src.mlflow import MLflowTracker
+from src.prometheus import ModelMetrics
 
 logging.basicConfig(
     level=logging.INFO,

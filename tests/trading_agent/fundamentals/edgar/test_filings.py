@@ -42,7 +42,7 @@ class TestFilingDownloader:
         mock_response.content = b"Test filing content"
         mock_response.raise_for_status = Mock()
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             output_file = downloader.download_filing_by_path(
                 filing_path="edgar/data/315293/0001179110-05-003398.txt",
                 output_dir=str(temp_dir)
@@ -58,14 +58,14 @@ class TestFilingDownloader:
         mock_response.status_code = 404
         mock_response.raise_for_status.side_effect = requests.exceptions.HTTPError(response=mock_response)
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             with pytest.raises(FileNotFoundError):
                 downloader.download_filing_by_path(
                     filing_path="edgar/data/315293/nonexistent.txt",
                     output_dir=str(temp_dir)
                 )
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_by_year_only(self, mock_get_conn, downloader, temp_dir):
         """Test downloading filings by year only (2005, LIMIT 100)"""
         # Mock database connection
@@ -84,7 +84,7 @@ class TestFilingDownloader:
         mock_response.content = b"Test filing content"
         mock_response.raise_for_status = Mock()
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             downloaded_files = downloader.download_filings(
                 year=2005,
                 limit=100,
@@ -112,7 +112,7 @@ class TestFilingDownloader:
             # Verify exactly 100 files were downloaded
             assert len(downloaded_files) == 100
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_by_year_quarter_form_type(self, mock_get_conn, downloader, temp_dir):
         """Test downloading filings by year, quarter, and form_type"""
         # Mock database connection
@@ -134,7 +134,7 @@ class TestFilingDownloader:
         mock_response.content = b"Test filing content"
         mock_response.raise_for_status = Mock()
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             downloaded_files = downloader.download_filings(
                 year=2005,
                 quarter="QTR1",
@@ -152,7 +152,7 @@ class TestFilingDownloader:
             
             assert len(downloaded_files) == 2
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_by_cik(self, mock_get_conn, downloader, temp_dir):
         """Test downloading filings by CIK only"""
         # Mock database connection
@@ -173,7 +173,7 @@ class TestFilingDownloader:
         mock_response.content = b"Test filing content"
         mock_response.raise_for_status = Mock()
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             downloaded_files = downloader.download_filings(
                 cik='315293',
                 output_dir=str(temp_dir)
@@ -186,7 +186,7 @@ class TestFilingDownloader:
             
             assert len(downloaded_files) == 1
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_by_filename(self, mock_get_conn, downloader, temp_dir):
         """Test downloading filings by filename only"""
         # Mock database connection
@@ -207,7 +207,7 @@ class TestFilingDownloader:
         mock_response.content = b"Test filing content"
         mock_response.raise_for_status = Mock()
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', return_value=mock_response):
+        with patch('src.fundamentals.edgar.filings.requests.get', return_value=mock_response):
             downloaded_files = downloader.download_filings(
                 filename='edgar/data/315293/0001179110-05-003398.txt',
                 output_dir=str(temp_dir)
@@ -215,19 +215,19 @@ class TestFilingDownloader:
             
             assert len(downloaded_files) == 1
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_no_filters_raises_error(self, mock_get_conn, downloader, temp_dir):
         """Test that providing no filters raises an error"""
         with pytest.raises(ValueError, match="At least one filter must be provided"):
             downloader.download_filings(output_dir=str(temp_dir))
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_invalid_filter_raises_error(self, mock_get_conn, downloader, temp_dir):
         """Test that invalid filter names raise an error"""
         with pytest.raises(ValueError, match="Unknown filter"):
             downloader.download_filings(invalid_filter='value', output_dir=str(temp_dir))
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_no_results(self, mock_get_conn, downloader, temp_dir):
         """Test handling when no filings are found - should raise ValueError"""
         # Mock database connection
@@ -249,7 +249,7 @@ class TestFilingDownloader:
                 output_dir=str(temp_dir)
             )
     
-    @patch('src.trading_agent.fundamentals.edgar.filings.get_postgres_connection')
+    @patch('src.fundamentals.edgar.filings.get_postgres_connection')
     def test_download_filings_handles_download_errors(self, mock_get_conn, downloader, temp_dir):
         """Test that download errors don't stop the entire process"""
         # Mock database connection
@@ -273,7 +273,7 @@ class TestFilingDownloader:
             Mock(status_code=200, content=b"Success 3", raise_for_status=Mock()),
         ]
         
-        with patch('src.trading_agent.fundamentals.edgar.filings.requests.get', side_effect=responses):
+        with patch('src.fundamentals.edgar.filings.requests.get', side_effect=responses):
             with patch('builtins.print'):  # Suppress print output
                 downloaded_files = downloader.download_filings(
                     year=2005,

@@ -144,9 +144,9 @@ python training_script.py \
 ### Example 3: Using Python API
 
 ```python
-from trading_agent.model.data_loader import MacroDataLoader
-from trading_agent.model.hmm_model import MacroCycleHMM
-from trading_agent.mlflow import MLflowTracker
+from src.model.data_loader import MacroDataLoader
+from src.model.hmm_model import MacroCycleHMM
+from src.mlflow import MLflowTracker
 import numpy as np
 
 # Load data

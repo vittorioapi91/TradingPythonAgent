@@ -115,13 +115,13 @@ def main():
         epilog="""
 Examples:
   # Generate catalog with companies and filings:
-  python -m trading_agent.fundamentals.edgar --generate-catalog --download-companies
+  python -m src.fundamentals.edgar --generate-catalog --download-companies
   
   # Generate catalog using existing companies (no company download):
-  python -m trading_agent.fundamentals.edgar --generate-catalog
+  python -m src.fundamentals.edgar --generate-catalog
   
   # Download filings from database with filters:
-  python -m trading_agent.fundamentals.edgar --year 2005 --quarter QTR2 --form-type 10-K --output-dir ./filings
+  python -m src.fundamentals.edgar --year 2005 --quarter QTR2 --form-type 10-K --output-dir ./filings
         """
     )
     parser.add_argument('--start-year', type=int, default=None,

@@ -72,7 +72,7 @@
 #### Download filings via CLI
 ```bash
 # Download 10-K filings for Q2 2005
-python -m trading_agent.fundamentals.edgar.edgar \
+python -m src.fundamentals.edgar.edgar \
     --filings \
     --year 2005 \
     --quarter QTR2 \
@@ -80,7 +80,7 @@ python -m trading_agent.fundamentals.edgar.edgar \
     --output-dir ./filings
 
 # Download filings for a specific company
-python -m trading_agent.fundamentals.edgar.edgar \
+python -m src.fundamentals.edgar.edgar \
     --filings \
     --company-name "NVIDIA" \
     --form-type 10-K \

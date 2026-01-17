@@ -24,7 +24,7 @@ class TestEDGARCLIArguments:
         test_args = []
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
                 # Mock the downloader instance
                 mock_downloader = MagicMock()
                 mock_downloader_class.return_value = mock_downloader
@@ -49,10 +49,10 @@ class TestEDGARCLIArguments:
         test_args = ['--generate-catalog', '--start-year', '2020']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
                             # Mock the downloader instance
                             mock_downloader = MagicMock()
                             mock_downloader_class.return_value = mock_downloader
@@ -81,12 +81,12 @@ class TestEDGARCLIArguments:
         
         with patch('sys.argv', ['edgar.py'] + test_args):
             # Patch FilingDownloader where it's actually imported from (filings module)
-            with patch('src.trading_agent.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
+            with patch('src.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
                 mock_filing_downloader = MagicMock()
                 mock_filing_downloader.download_filings = MagicMock(return_value=[])
                 mock_filing_downloader_class.return_value = mock_filing_downloader
                 
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection'):
                     try:
                         edgar_main()
                     except (SystemExit, Exception):
@@ -108,12 +108,12 @@ class TestEDGARCLIArguments:
         
         with patch('sys.argv', ['edgar.py'] + test_args):
             # Patch FilingDownloader where it's actually imported from (filings module)
-            with patch('src.trading_agent.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
+            with patch('src.fundamentals.edgar.filings.FilingDownloader') as mock_filing_downloader_class:
                 mock_filing_downloader = MagicMock()
                 mock_filing_downloader.download_filings = MagicMock(return_value=[])
                 mock_filing_downloader_class.return_value = mock_filing_downloader
                 
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection'):
                     try:
                         edgar_main()
                     except (SystemExit, Exception):
@@ -131,10 +131,10 @@ class TestEDGARCLIArguments:
         test_args = ['--generate-catalog']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
                             # Mock the downloader instance
                             mock_downloader = MagicMock()
                             mock_downloader_class.return_value = mock_downloader
@@ -161,10 +161,10 @@ class TestEDGARCLIArguments:
         test_args = ['--generate-catalog', '--download-companies']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
                             # Mock the downloader instance
                             mock_downloader = MagicMock()
                             mock_downloader_class.return_value = mock_downloader
@@ -192,7 +192,7 @@ class TestEDGARCLIArguments:
         test_args = ['--process-zips', test_dir]
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
                 # Mock the downloader instance
                 mock_downloader = MagicMock()
                 mock_downloader_class.return_value = mock_downloader
@@ -222,7 +222,7 @@ class TestEDGARCLIArguments:
         test_args = ['--process-zips', test_dir, '--no-recursive']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
                 # Mock the downloader instance
                 mock_downloader = MagicMock()
                 mock_downloader_class.return_value = mock_downloader
@@ -258,10 +258,10 @@ class TestEDGARCLIArguments:
         ]
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager'):
                             # Mock the downloader instance
                             mock_downloader = MagicMock()
                             mock_downloader_class.return_value = mock_downloader
@@ -290,10 +290,10 @@ class TestEDGARCLIArguments:
         test_args = ['--generate-catalog']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager'):
                             # Mock the downloader instance
                             mock_downloader = MagicMock()
                             mock_downloader_class.return_value = mock_downloader
@@ -328,10 +328,10 @@ class TestEDGARCLIArguments:
         ]
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader') as mock_downloader_class:
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager') as mock_master_idx:
                                 # Mock the downloader instance
                                 mock_downloader = MagicMock()
                                 mock_downloader_class.return_value = mock_downloader
@@ -410,10 +410,10 @@ class TestEDGARCLIArgumentGroups:
         test_args = ['--generate-catalog', '--download-companies']
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader'):
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection'):
-                        with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                            with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader'):
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection'):
+                        with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                            with patch('src.fundamentals.edgar.master_idx.MasterIdxManager'):
                                 try:
                                     edgar_main()
                                 except (SystemExit, Exception):
@@ -436,10 +436,10 @@ class TestEDGARCLIArgumentGroups:
         ]
         
         with patch('sys.argv', ['edgar.py'] + test_args):
-            with patch('src.trading_agent.fundamentals.edgar.edgar.EDGARDownloader'):
-                with patch('src.trading_agent.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
-                    with patch('src.trading_agent.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
-                        with patch('src.trading_agent.fundamentals.edgar.master_idx.MasterIdxManager'):
+            with patch('src.fundamentals.edgar.edgar.EDGARDownloader'):
+                with patch('src.fundamentals.edgar.edgar.get_postgres_connection') as mock_conn:
+                    with patch('src.fundamentals.edgar.edgar.init_edgar_postgres_tables'):
+                        with patch('src.fundamentals.edgar.master_idx.MasterIdxManager'):
                             mock_conn.return_value = MagicMock()
                             
                             try:
