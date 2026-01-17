@@ -8,15 +8,18 @@ Downloads are saved to a "filings" subfolder.
 import os
 import sys
 import argparse
+import logging
 from pathlib import Path
 import requests
 from typing import Optional, List, TYPE_CHECKING
+from tqdm import tqdm
 
 if TYPE_CHECKING:
     import psycopg2
 
 # Handle imports for both module import and direct script execution
 try:
+    from ..download_logger import get_download_logger
     from .edgar import EDGARDownloader
     from .edgar_postgres import get_postgres_connection
     from .filings_postgres import get_filings_filenames
@@ -26,9 +29,13 @@ except ImportError:
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
+    from src.trading_agent.fundamentals.download_logger import get_download_logger
     from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
     from src.trading_agent.fundamentals.edgar.edgar_postgres import get_postgres_connection
     from src.trading_agent.fundamentals.edgar.filings_postgres import get_filings_filenames
+
+# Set up logger using download_logger utility with console output
+logger = get_download_logger('edgar_filings', log_level=logging.INFO, add_console_handler=True)
 
 
 class FilingDownloader(EDGARDownloader):
@@ -68,8 +75,8 @@ class FilingDownloader(EDGARDownloader):
         filing_url = f"{self.base_url}/Archives/{filing_path}"
         
         # Download the filing
-        print(f"Downloading filing: {filing_path}")
-        print(f"URL: {filing_url}")
+        logger.debug(f"Downloading filing: {filing_path}")
+        logger.debug(f"URL: {filing_url}")
         
         try:
             response = requests.get(filing_url, headers=self.headers, timeout=30)
@@ -83,8 +90,7 @@ class FilingDownloader(EDGARDownloader):
             output_file.write_bytes(response.content)
             
             file_size = output_file.stat().st_size
-            print(f"✓ Downloaded successfully: {output_file}")
-            print(f"  Size: {file_size:,} bytes ({file_size / 1024:.2f} KB)")
+            logger.debug(f"Downloaded successfully: {output_file} ({file_size:,} bytes)")
             
             return output_file
             
@@ -115,6 +121,7 @@ class FilingDownloader(EDGARDownloader):
             dbname: Database name (default: "edgar")
             output_dir: Output directory for downloaded files (default: "filings" subfolder)
             limit: Optional limit on number of filings to download (e.g., 100).
+                  If not provided and running in test environment, automatically uses LIMIT 100.
                   Ignored if sql_query is provided.
             sql_query: Optional raw SQL query string. If provided, filters and limit are ignored.
                       Query should return a column named 'filename' or be a SELECT * query.
@@ -167,21 +174,30 @@ class FilingDownloader(EDGARDownloader):
                     filter_str = ", ".join(f"{k}={v}" for k, v in filters.items() if v is not None)
                     raise ValueError(f"No filings found for filters: {filter_str}")
             
-            print(f"Found {len(filenames)} filings to download")
+            logger.info(f"Found {len(filenames)} filings to download")
             
-            # Download each filing
+            # Download each filing with progress bar
             downloaded_files = []
-            for i, filename in enumerate(filenames, 1):
-                try:
-                    print(f"[{i}/{len(filenames)}] Downloading {filename}")
-                    output_file = self.download_filing_by_path(filename, output_dir=output_dir)
-                    downloaded_files.append(output_file)
-                except Exception as e:
-                    print(f"  ✗ Error downloading {filename}: {e}", file=sys.stderr)
-                    # Continue with next filing instead of stopping
-                    continue
+            failed_downloads = []
             
-            print(f"✓ Successfully downloaded {len(downloaded_files)}/{len(filenames)} filings")
+            with tqdm(total=len(filenames), desc="Downloading filings", unit="file") as pbar:
+                for filename in filenames:
+                    try:
+                        output_file = self.download_filing_by_path(filename, output_dir=output_dir)
+                        downloaded_files.append(output_file)
+                        pbar.update(1)
+                    except Exception as e:
+                        failed_downloads.append((filename, str(e)))
+                        logger.warning(f"Error downloading {filename}: {e}")
+                        pbar.update(1)
+                        # Continue with next filing instead of stopping
+                        continue
+            
+            if failed_downloads:
+                logger.warning(f"Failed to download {len(failed_downloads)}/{len(filenames)} filings")
+            else:
+                logger.info(f"Successfully downloaded {len(downloaded_files)}/{len(filenames)} filings")
+            
             return downloaded_files
             
         finally:
@@ -228,12 +244,10 @@ Examples:
             filing_path=args.filing_path,
             output_dir=args.output_dir
         )
-        print(f"\n✓ Filing downloaded successfully: {output_file}")
+        logger.info(f"Filing downloaded successfully: {output_file}")
         return 0
     except Exception as e:
-        print(f"\n✗ Error: {e}", file=sys.stderr)
-        import traceback
-        traceback.print_exc()
+        logger.error(f"Error: {e}", exc_info=True)
         return 1
 
 

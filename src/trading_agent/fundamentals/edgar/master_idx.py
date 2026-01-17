@@ -7,6 +7,8 @@ This module handles downloading, parsing, and managing SEC EDGAR master.idx file
 import os
 import re
 import gzip
+import logging
+import sys
 from typing import Optional
 from datetime import datetime
 from pathlib import Path
@@ -18,18 +20,18 @@ from tqdm import tqdm
 
 # Handle import for both module import and direct script execution
 try:
+    from ..download_logger import get_download_logger
     from .master_idx_postgres import (
         get_master_idx_download_status, mark_master_idx_download_success,
         mark_master_idx_download_failed, get_quarters_with_data
     )
 except ImportError:
     # Handle direct script execution - use absolute imports
-    import sys
-    from pathlib import Path
     file_path = Path(__file__).resolve()
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
+    from src.trading_agent.fundamentals.download_logger import get_download_logger
     from src.trading_agent.fundamentals.edgar.master_idx_postgres import (
         get_master_idx_download_status, mark_master_idx_download_success,
         mark_master_idx_download_failed, get_quarters_with_data
@@ -40,12 +42,14 @@ try:
     from .edgar import EDGARDownloader
 except ImportError:
     # Handle direct script execution - use absolute imports
-    import sys
     file_path = Path(__file__).resolve()
     project_root = file_path.parent.parent.parent.parent.parent
     if str(project_root) not in sys.path:
         sys.path.insert(0, str(project_root))
     from src.trading_agent.fundamentals.edgar.edgar import EDGARDownloader
+
+# Set up logger using download_logger utility with console output
+logger = get_download_logger('edgar_master_idx', log_level=logging.INFO, add_console_handler=True)
 
 
 class MasterIdxManager(EDGARDownloader):
@@ -79,7 +83,7 @@ class MasterIdxManager(EDGARDownloader):
             conn: PostgreSQL connection for checking/updating ledger
             start_year: Start year for downloading (default: 1993)
         """
-        print("Downloading master.idx files...")
+        logger.info("Downloading master.idx files...")
         start_year = start_year or 1993
         current_year = datetime.now().year
         quarters = ['QTR1', 'QTR2', 'QTR3', 'QTR4']
@@ -113,10 +117,10 @@ class MasterIdxManager(EDGARDownloader):
                 total_items.append((year, quarter))
         
         if not total_items:
-            print("No new or failed quarters to download.")
+            logger.info("No new or failed quarters to download.")
             return
         
-        print(f"Found {len(total_items)} quarters to download (new or failed)")
+        logger.info(f"Found {len(total_items)} quarters to download (new or failed)")
         
         # Progress bar for downloading
         with tqdm(total=len(total_items), desc="Downloading master.idx files", unit="file") as pbar:
@@ -329,7 +333,7 @@ class MasterIdxManager(EDGARDownloader):
                 if (year_int, quarter) not in quarters_with_data:
                     csv_files.append((year_int, quarter, filepath))
                 else:
-                    print(f"Skipping {year_int}/{quarter} - data already exists in database")
+                    logger.debug(f"Skipping {year_int}/{quarter} - data already exists in database")
         
         # Progress bar for database saving
         with tqdm(total=len(csv_files), desc="Saving to database", unit="file") as pbar:

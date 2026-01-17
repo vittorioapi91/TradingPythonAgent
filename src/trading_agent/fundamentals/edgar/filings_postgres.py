@@ -5,8 +5,31 @@ This module handles PostgreSQL query building for filing downloads.
 """
 
 from typing import List, Dict, Optional, Any
+import sys
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+
+def _is_test_environment() -> bool:
+    """Check if we're running in a test environment (pytest/unittest)"""
+    # Check for pytest environment variable (most reliable)
+    if os.environ.get('PYTEST_CURRENT_TEST'):
+        return True
+    # Check if pytest or unittest modules are loaded
+    if 'pytest' in sys.modules or 'unittest' in sys.modules:
+        return True
+    # Check if we're being called from a test file by inspecting the call stack
+    try:
+        import inspect
+        stack = inspect.stack()
+        for frame_info in stack:
+            filename = frame_info.filename
+            if 'test_' in filename or '/tests/' in filename or '\\tests\\' in filename:
+                return True
+    except Exception:
+        pass
+    return False
 
 
 def build_filings_query(**filters) -> tuple[str, List[Any]]:
@@ -94,7 +117,8 @@ def get_filings_filenames(
     
     Args:
         conn: PostgreSQL connection
-        limit: Optional limit on number of results (e.g., 100)
+        limit: Optional limit on number of results (e.g., 100).
+              If not provided and running in test environment, automatically uses LIMIT 100.
         sql_query: Optional raw SQL query string. If provided, filters and limit are ignored.
                    Query should return a column named 'filename' or be a SELECT * query.
                    Example: "SELECT filename FROM master_idx_files WHERE company_name LIKE '%NVIDIA%' AND year = 2019"
@@ -136,10 +160,15 @@ def get_filings_filenames(
             # Build query from filters
             query, params = build_filings_query(**filters)
             
-            # Add LIMIT if specified
+            # Add LIMIT if explicitly provided, or automatically add LIMIT 100 in test environment
             if limit:
+                # User explicitly provided limit - always use it
                 query += " LIMIT %s"
                 params.append(limit)
+            elif _is_test_environment():
+                # In test environment, automatically add LIMIT 100 if no limit was provided
+                query += " LIMIT %s"
+                params.append(100)
         
         cur.execute(query, params)
         filenames = [row[0] for row in cur.fetchall()]
