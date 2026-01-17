@@ -31,7 +31,7 @@ if env not in ["dev", "staging", "prod"]:
     env = "dev"
 
 # Read version from package __init__.py
-version_file = Path(__file__).parent / "src" / "trading_agent" / "__init__.py"
+version_file = Path(__file__).parent / "trading_agent" / "__init__.py"
 version = "0.1.0"  # Default version
 if version_file.exists():
     with open(version_file, "r", encoding="utf-8") as f:
@@ -78,8 +78,7 @@ setup(
     author="Vittorio Apicella",
     author_email="apicellavittorio@hotmail.it",
     url="https://github.com/vittorioapi91/TradingPythonAgent",
-    package_dir={"": "src"},
-    packages=find_packages(where="src", include=["trading_agent*"]),
+    packages=find_packages(include=["trading_agent*"]),
     python_requires=">=3.9",
     install_requires=requirements,
     classifiers=[
@@ -100,7 +99,7 @@ setup(
     # Entry points for command-line scripts (if needed)
     entry_points={
         "console_scripts": [
-            "trading-agent=src.trading_agent.agent:main",
+            "trading-agent=trading_agent.agent:main",
         ],
     },
 )

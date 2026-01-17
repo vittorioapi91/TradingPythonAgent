@@ -19,8 +19,8 @@ project_root = Path(__file__).parent.parent.parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from src.trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
-from src.trading_agent.fundamentals.edgar.master_idx_postgres import (
+from trading_agent.fundamentals.edgar.master_idx import MasterIdxManager
+from trading_agent.fundamentals.edgar.master_idx_postgres import (
     get_master_idx_download_status,
     mark_master_idx_download_success,
     mark_master_idx_download_failed,

@@ -94,6 +94,6 @@ This copies the wheel from `dist/` to `.ops/.airflow/wheels/` where Airflow cont
 ## Notes
 
 - Wheels include all dependencies from `requirements.txt` and environment-specific requirements
-- The version comes from `src/trading_agent/__init__.py` (`__version__`)
+- The version comes from `trading_agent/__init__.py` (`__version__`)
 - Airflow containers automatically select the correct wheel based on `AIRFLOW_ENV`
 - If no matching wheel is found, Airflow will log a warning but continue to start
