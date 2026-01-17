@@ -17,12 +17,20 @@ pipeline {
             steps {
                 checkout scm
                 script {
+                    env.GIT_COMMIT = sh(
+                        script: 'git rev-parse HEAD',
+                        returnStdout: true
+                    ).trim()
                     env.GIT_COMMIT_SHORT = sh(
                         script: 'git rev-parse --short HEAD',
                         returnStdout: true
                     ).trim()
                     env.GIT_BRANCH = sh(
                         script: 'git rev-parse --abbrev-ref HEAD',
+                        returnStdout: true
+                    ).trim()
+                    env.GIT_URL = sh(
+                        script: 'git config --get remote.origin.url',
                         returnStdout: true
                     ).trim()
                     
@@ -294,14 +302,14 @@ pipeline {
         
         stage('Validate Airflow DAGs') {
             when {
-                // Only validate DAGs if .ops/.airflow/dags exists (application code pipeline)
+                // Only validate DAGs if .airflow-dags directory exists
                 expression { 
-                    fileExists('.ops/.airflow/dags') 
+                    fileExists('src/.airflow-dags') 
                 }
             }
             steps {
                 script {
-                    echo "Validating Airflow DAGs (application code validation only)..."
+                    echo "Validating Airflow DAGs from src/.airflow-dags/..."
                     sh """
                         # Create virtual environment if it doesn't exist
                         if [ ! -d "venv" ]; then
@@ -329,14 +337,14 @@ pipeline {
                         
                         # Set environment variables for DAG execution context
                         export AIRFLOW_HOME=/tmp/airflow_home
-                        export AIRFLOW__CORE__DAGS_FOLDER=.ops/.airflow/dags
+                        export AIRFLOW__CORE__DAGS_FOLDER=src/.airflow-dags
                         export AIRFLOW__CORE__LOAD_EXAMPLES=False
                         export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=sqlite:////tmp/airflow_home/airflow.db
                         
                         # Create minimal Airflow config
                         mkdir -p \${AIRFLOW_HOME}
                         echo "[core]" > \${AIRFLOW_HOME}/airflow.cfg
-                        echo "dags_folder = .ops/.airflow/dags" >> \${AIRFLOW_HOME}/airflow.cfg
+                        echo "dags_folder = src/.airflow-dags" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "load_examples = False" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "[database]" >> \${AIRFLOW_HOME}/airflow.cfg
                         echo "sql_alchemy_conn = sqlite:////tmp/airflow_home/airflow.db" >> \${AIRFLOW_HOME}/airflow.cfg
@@ -348,13 +356,36 @@ pipeline {
                         }
                         
                         # Validate DAGs by listing them (this will parse and validate)
-                        echo "Validating DAG files..."
+                        echo "Validating DAG files from src/.airflow-dags/..."
                         \${VENV_PYTHON} -m airflow dags list || {
                             echo "⚠️  DAG validation failed. Check output above for details."
                             exit 1
                         }
                         
                         echo "✓ All DAGs validated successfully"
+                    """
+                }
+            }
+        }
+        
+        stage('Install Airflow DAGs') {
+            when {
+                // Only install DAGs if .airflow-dags directory exists
+                expression { 
+                    fileExists('src/.airflow-dags') 
+                }
+            }
+            steps {
+                script {
+                    echo "Installing Airflow DAGs from src/.airflow-dags/ to .ops/.airflow/dags/..."
+                    sh """
+                        # Run install-dags.sh script
+                        if [ -f "./install-dags.sh" ]; then
+                            chmod +x ./install-dags.sh
+                            ./install-dags.sh
+                        else
+                            echo "⚠️  install-dags.sh not found. Skipping DAG installation."
+                        fi
                     """
                 }
             }
@@ -462,92 +493,157 @@ pipeline {
             }
         }
         
-        stage('Build Docker Image') {
+        stage('Check Registry and Build Docker Image') {
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
-                    echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                    // Use timeout wrapper to prevent Jenkins from thinking the script is hung
-                    // activity: true extends timeout based on activity (output), unit: 'MINUTES'
-                    timeout(time: 60, unit: 'MINUTES', activity: true) {
-                        sh """
-                            set -x  # Enable command tracing for better visibility
-                            
-                            # Ensure buildx is available
-                            if ! docker buildx version >/dev/null 2>&1; then
-                                echo "ERROR: docker buildx is not available"
-                                echo "Please ensure the Jenkins container has buildx installed"
-                                echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
-                                exit 1
+                    def REGISTRY_HOST = "localhost:5000"
+                    def REGISTRY_URL = "http://\${REGISTRY_HOST}"
+                    def REGISTRY_IMAGE = "\${REGISTRY_HOST}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    def BASE_REGISTRY_IMAGE = "\${REGISTRY_HOST}/hmm-model-training-base:base"
+                    
+                    // Check if rebuild is needed
+                    def rebuildNeeded = sh(
+                        script: """
+                            # Check if registry is accessible
+                            if ! curl -s -f \${REGISTRY_URL}/v2/ > /dev/null 2>&1; then
+                                echo "true"  # Registry not accessible, need to build
+                                exit 0
                             fi
                             
-                            echo "[\$(date +%H:%M:%S)] Docker buildx version:"
-                            docker buildx version
+                            # Check if base image exists in registry
+                            if ! curl -s -f \${REGISTRY_URL}/v2/hmm-model-training-base/manifests/base > /dev/null 2>&1; then
+                                echo "true"  # Base image not in registry, need to build
+                                exit 0
+                            fi
                             
-                            # Create and use builder instance
-                            echo "[\$(date +%H:%M:%S)] Setting up buildx builder..."
-                            if ! docker buildx inspect builder >/dev/null 2>&1; then
-                                echo "[\$(date +%H:%M:%S)] Creating buildx builder instance..."
-                                docker buildx create --name builder --use --driver docker-container || {
-                                    echo "[\$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
-                                    docker buildx use builder 2>/dev/null || docker buildx use default
-                                }
+                            # Check if target image exists in registry
+                            if curl -s -f \${REGISTRY_URL}/v2/${env.IMAGE_NAME}/manifests/${env.IMAGE_TAG} > /dev/null 2>&1; then
+                                echo "false"  # Image exists in registry, no rebuild needed
                             else
-                                echo "[\$(date +%H:%M:%S)] Using existing buildx builder..."
-                                docker buildx use builder
+                                echo "true"   # Image not in registry, rebuild needed
                             fi
-                            
-                            # Verify builder is ready
-                            echo "[\$(date +%H:%M:%S)] Verifying buildx builder..."
-                            docker buildx inspect --bootstrap
-                            
-                            # Check if base image exists (base images are built manually, not in pipeline)
-                            if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
-                                echo "[\$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
-                                echo ""
-                                echo "Base images must be built manually before running pipelines."
-                                echo "To build the base image, run:"
-                                echo "  docker build -t hmm-model-training-base:base -f .ops/.kubernetes/Dockerfile.model-training.base ."
-                                echo ""
-                                echo "See .ops/.docker/README_BASE_IMAGES.md for more information."
-                                exit 1
-                            fi
-                            
-                            echo "[\$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
-                            
-                            # Switch to default builder for local base images (container builder can't see host images)
-                            # The default builder has access to local images, container builder doesn't
-                            echo "[\$(date +%H:%M:%S)] Switching to default builder for local base image access..."
-                            docker buildx use default || docker buildx use builder
-                            
-                            # Build incremental image (FROM base) - only copies source code
-                            echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
-                            docker buildx build \
-                                --platform linux/amd64 \
-                                -f .ops/.kubernetes/Dockerfile.model-training \
-                                -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
-                                -t ${latestTag} \
-                                --load \
-                                --progress=plain \
-                                .
-                            
-                            echo "[\$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
-                        """
+                        """,
+                        returnStdout: true
+                    ).trim() == "true"
+                    
+                    if (!rebuildNeeded) {
+                        echo "✓ Image ${REGISTRY_IMAGE} exists in registry - skipping build"
+                        echo "Kind cluster will pull from registry directly"
+                    } else {
+                        echo "Building Docker image: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                        // Use timeout wrapper to prevent Jenkins from thinking the script is hung
+                        // activity: true extends timeout based on activity (output), unit: 'MINUTES'
+                        timeout(time: 60, unit: 'MINUTES', activity: true) {
+                            sh """
+                                set -x  # Enable command tracing for better visibility
+                                
+                                # Ensure buildx is available
+                                if ! docker buildx version >/dev/null 2>&1; then
+                                    echo "ERROR: docker buildx is not available"
+                                    echo "Please ensure the Jenkins container has buildx installed"
+                                    echo "Rebuild the Jenkins image: docker build -t jenkins-custom:lts -f .ops/.docker/Dockerfile.jenkins .ops/.docker"
+                                    exit 1
+                                fi
+                                
+                                echo "[\$(date +%H:%M:%S)] Docker buildx version:"
+                                docker buildx version
+                                
+                                # Create and use builder instance
+                                echo "[\$(date +%H:%M:%S)] Setting up buildx builder..."
+                                if ! docker buildx inspect builder >/dev/null 2>&1; then
+                                    echo "[\$(date +%H:%M:%S)] Creating buildx builder instance..."
+                                    docker buildx create --name builder --use --driver docker-container || {
+                                        echo "[\$(date +%H:%M:%S)] Failed to create buildx builder, trying to use existing..."
+                                        docker buildx use builder 2>/dev/null || docker buildx use default
+                                    }
+                                else
+                                    echo "[\$(date +%H:%M:%S)] Using existing buildx builder..."
+                                    docker buildx use builder
+                                fi
+                                
+                                # Verify builder is ready
+                                echo "[\$(date +%H:%M:%S)] Verifying buildx builder..."
+                                docker buildx inspect --bootstrap
+                                
+                                # Try to pull base image from registry first
+                                echo "[\$(date +%H:%M:%S)] Attempting to pull base image from registry..."
+                                if curl -s -f \${REGISTRY_URL}/v2/hmm-model-training-base/manifests/base > /dev/null 2>&1; then
+                                    docker pull \${BASE_REGISTRY_IMAGE} || {
+                                        echo "[\$(date +%H:%M:%S)] Failed to pull from registry, checking local..."
+                                    }
+                                    # Tag pulled image for local use
+                                    docker tag \${BASE_REGISTRY_IMAGE} hmm-model-training-base:base 2>/dev/null || true
+                                fi
+                                
+                                # Check if base image exists locally (from registry or already built)
+                                if ! docker images --format '{{.Repository}}:{{.Tag}}' | grep -q '^hmm-model-training-base:base\$'; then
+                                    echo "[\$(date +%H:%M:%S)] ❌ ERROR: Base trading agent image 'hmm-model-training-base:base' not found!"
+                                    echo ""
+                                    echo "Base images must be built and pushed to registry before running pipelines."
+                                    echo "To build and push the base image, run:"
+                                    echo "  .ops/.docker/push-base-images.sh"
+                                    echo ""
+                                    exit 1
+                                fi
+                                
+                                echo "[\$(date +%H:%M:%S)] ✓ Base trading agent image found: hmm-model-training-base:base"
+                                
+                                # Switch to default builder for local base images (container builder can't see host images)
+                                # The default builder has access to local images, container builder doesn't
+                                echo "[\$(date +%H:%M:%S)] Switching to default builder for local base image access..."
+                                docker buildx use default || docker buildx use builder
+                                
+                                # Build incremental image (FROM base) - only copies source code
+                                echo "[\$(date +%H:%M:%S)] Building incremental Docker image (FROM base)..."
+                                docker buildx build \
+                                    --platform linux/amd64 \
+                                    -f .ops/.kubernetes/Dockerfile.model-training \
+                                    -t ${env.IMAGE_NAME}:${env.IMAGE_TAG} \
+                                    -t ${latestTag} \
+                                    -t \${REGISTRY_IMAGE} \
+                                    -t \${REGISTRY_HOST}/${latestTag} \
+                                    --load \
+                                    --progress=plain \
+                                    .
+                                
+                                echo "[\$(date +%H:%M:%S)] ✓ Docker image built successfully: ${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                                
+                                # Push to registry
+                                echo "[\$(date +%H:%M:%S)] Pushing image to local registry..."
+                                docker push \${REGISTRY_IMAGE} || {
+                                    echo "[\$(date +%H:%M:%S)] ⚠️  Warning: Failed to push to registry (registry may not be accessible)"
+                                    echo "Image will be loaded into kind directly"
+                                }
+                                docker push \${REGISTRY_HOST}/${latestTag} || true
+                                
+                                echo "[\$(date +%H:%M:%S)] ✓ Image pushed to registry: \${REGISTRY_IMAGE}"
+                            """
+                        }
                     }
                 }
             }
         }
         
-        stage('Load Image into Kind Cluster') {
+        stage('Make Image Available to Kind Cluster') {
             steps {
                 script {
                     def latestTag = env.ENV_SUFFIX ? "${env.IMAGE_NAME}:${env.ENV_SUFFIX}-latest" : "${env.IMAGE_NAME}:latest"
-                    echo "Loading image into kind cluster: ${env.KIND_CLUSTER}"
-                    // TODO: Optimize kind load performance - currently slow for large images
-                    // Consider: kind load using tar pipes, or using registry for faster image distribution
+                    def REGISTRY_HOST = "localhost:5000"
+                    def REGISTRY_IMAGE = "\${REGISTRY_HOST}/${env.IMAGE_NAME}:${env.IMAGE_TAG}"
+                    
+                    echo "Making image available to kind cluster: ${env.KIND_CLUSTER}"
                     sh """
-                        kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER}
-                        kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER}
+                        # Try to pull from registry in kind cluster (faster than kind load)
+                        # If registry is not accessible from kind, fall back to kind load
+                        if kubectl run --rm -i --restart=Never --image=curlimages/curl:latest test-registry-\$\$ --context kind-${env.KIND_CLUSTER} -- curl -s -f http://\${REGISTRY_HOST}/v2/ > /dev/null 2>&1; then
+                            echo "Registry is accessible from kind cluster - images will be pulled automatically"
+                            echo "No need to load images manually"
+                        else
+                            echo "Registry not accessible from kind - loading images directly..."
+                            kind load docker-image ${env.IMAGE_NAME}:${env.IMAGE_TAG} --name ${env.KIND_CLUSTER} || true
+                            kind load docker-image ${latestTag} --name ${env.KIND_CLUSTER} || true
+                        fi
                     """
                 }
             }
@@ -644,9 +740,75 @@ pipeline {
     post {
         success {
             echo "✓ Pipeline succeeded! Image ${env.IMAGE_NAME}:${env.IMAGE_TAG} deployed to ${env.KIND_CLUSTER} (${env.NAMESPACE})"
+            
+            // Post success status to GitHub
+            script {
+                try {
+                    // Extract repo owner/name from git URL
+                    def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
+                    def repoParts = repoUrl.split('/')
+                    def repoOwner = repoParts.size() >= 1 ? repoParts[0] : 'vittorioapi91'
+                    def repoName = repoParts.size() >= 2 ? repoParts[1] : 'TradingPythonAgent'
+                    
+                    // Get GitHub token from credentials (configure in Jenkins)
+                    def githubToken = env.GITHUB_TOKEN ?: ''
+                    
+                    if (githubToken) {
+                        // Post status using curl (works without GitHub plugin)
+                        sh """
+                            curl -X POST \\
+                              -H "Authorization: token ${githubToken}" \\
+                              -H "Accept: application/vnd.github.v3+json" \\
+                              "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/${env.GIT_COMMIT}" \\
+                              -d '{
+                                "state": "success",
+                                "target_url": "${env.BUILD_URL}",
+                                "description": "Jenkins pipeline passed",
+                                "context": "jenkins/pipeline"
+                              }' || echo "Warning: Could not post status to GitHub"
+                        """
+                    } else {
+                        echo "Warning: GITHUB_TOKEN not set. Cannot post status to GitHub."
+                        echo "Configure GITHUB_TOKEN environment variable in Jenkins job settings"
+                    }
+                } catch (Exception e) {
+                    echo "Warning: Could not post status to GitHub: ${e.message}"
+                }
+            }
         }
         failure {
             echo "✗ Pipeline failed. Check logs for details."
+            
+            // Post failure status to GitHub
+            script {
+                try {
+                    def repoUrl = env.GIT_URL.replace('.git', '').replace('git@github.com:', 'https://github.com/').replace('https://github.com/', '')
+                    def repoParts = repoUrl.split('/')
+                    def repoOwner = repoParts.size() >= 1 ? repoParts[0] : 'vittorioapi91'
+                    def repoName = repoParts.size() >= 2 ? repoParts[1] : 'TradingPythonAgent'
+                    
+                    def githubToken = env.GITHUB_TOKEN ?: ''
+                    
+                    if (githubToken) {
+                        sh """
+                            curl -X POST \\
+                              -H "Authorization: token ${githubToken}" \\
+                              -H "Accept: application/vnd.github.v3+json" \\
+                              "https://api.github.com/repos/${repoOwner}/${repoName}/statuses/${env.GIT_COMMIT}" \\
+                              -d '{
+                                "state": "failure",
+                                "target_url": "${env.BUILD_URL}",
+                                "description": "Jenkins pipeline failed",
+                                "context": "jenkins/pipeline"
+                              }' || echo "Warning: Could not post status to GitHub"
+                        """
+                    } else {
+                        echo "Warning: GITHUB_TOKEN not set. Cannot post status to GitHub."
+                    }
+                } catch (Exception e) {
+                    echo "Warning: Could not post status to GitHub: ${e.message}"
+                }
+            }
         }
         always {
             // Clean up old images (optional - keep last 10 builds)

@@ -1,4 +1,0 @@
-"""
-ETF data collection module
-"""
-

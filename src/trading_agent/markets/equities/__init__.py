@@ -1,4 +1,0 @@
-"""
-Equities data collection module
-"""
-

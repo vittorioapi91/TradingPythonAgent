@@ -1,4 +1,0 @@
-"""
-Markets data collection module
-"""
-

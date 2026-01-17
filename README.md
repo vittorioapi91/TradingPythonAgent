@@ -44,7 +44,7 @@ TradingPythonAgent is a production-ready system that:
 
 ```
 TradingPythonAgent/
-├── src/trading_agent/
+├── src/                              # Application source code
 │   ├── config.py                    # Environment configuration
 │   ├── fundamentals/                 # Company fundamentals data
 │   │   ├── edgar/                   # SEC EDGAR filings downloader
@@ -68,13 +68,12 @@ TradingPythonAgent/
 │   ├── kserve.py                    # KServe model serving
 │   ├── kubeflow.py                  # Kubeflow pipelines
 │   └── prometheus.py                # Prometheus metrics
-├── .ops/                            # Operations and infrastructure
-│   ├── .docker/                     # Docker Compose configurations
-│   │   ├── docker-compose.infra-platform.yml  # Infrastructure services (Airflow, Grafana, etc.)
-│   │   └── docker-compose.yml      # Application services (future use)
-│   ├── .jenkins/                    # Jenkins configuration
-│   ├── .kubernetes/                 # Kubernetes manifests
-│   └── .mlflow/                     # MLflow configuration
+├── src/                             # Application code (see above)
+├── tests/                          # Test suite
+├── requirements*.txt               # Python dependencies
+└── README.md                        # This file
+
+**Note**: Infrastructure components (Docker, Kubernetes, Jenkins, etc.) have been moved to a separate repository: [infra-platform](https://github.com/your-org/infra-platform)
 ├── .env.dev                         # Development environment config
 ├── .env.staging                     # Staging environment config
 ├── .env.prod                        # Production environment config
@@ -137,7 +136,7 @@ The project includes a complete ML workflow for modeling macro economic cycles:
 - **Tracking**: MLflow experiment tracking
 - **Feature Store**: Feast for online feature serving
 
-See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for detailed ML documentation.
+See [`src/model/README.md`](src/model/README.md) for detailed ML documentation.
 
 ## 🚀 Quick Start
 
@@ -171,7 +170,7 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
    pip install -r requirements-prod.txt     # For main branch
    
    # Or use the config module to get the right file:
-   python -c "from src.trading_agent.config import get_requirements_file; print(get_requirements_file())"
+   python -c "from src.config import get_requirements_file; print(get_requirements_file())"
    ```
 
 4. **Configure environment**:
@@ -184,13 +183,16 @@ See [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md) for
 
 5. **Start PostgreSQL** (if using Docker):
    ```bash
-   cd .ops/.docker
+   # Infrastructure services are in the infra-platform repository
+   # Clone and start services from: https://github.com/your-org/infra-platform
+   cd ../infra-platform/.docker
    docker-compose -f docker-compose.infra-platform.yml up -d postgres
    ```
 
 6. **Start monitoring services** (optional):
    ```bash
-   cd .ops/.docker
+   # From the infra-platform repository
+   cd ../infra-platform/.docker
    ./start-docker-monitoring.sh
    # Or manually:
    docker-compose -f docker-compose.infra-platform.yml up -d grafana prometheus mlflow
@@ -204,7 +206,7 @@ The project uses environment-aware configuration that automatically detects your
 - **`staging` branch** → Loads `.env.staging` → Uses `test.tradingAgent@localhost`
 - **`main` branch** → Loads `.env.prod` → Uses `prod.tradingAgent@localhost`
 
-Environment variables are loaded automatically when the package is imported. See [`src/trading_agent/config.py`](src/trading_agent/config.py) for details.
+Environment variables are loaded automatically when the package is imported. See [`src/config.py`](src/config.py) for details.
 
 ## 📖 Usage Examples
 
@@ -212,13 +214,13 @@ Environment variables are loaded automatically when the package is imported. See
 
 ```bash
 # Generate catalog of companies and filings
-python -m trading_agent.fundamentals.edgar \
+python -m src.fundamentals.edgar \
     --generate-catalog \
     --download-companies \
     --start-year 2020
 
 # Download filings from database
-python -m trading_agent.fundamentals.edgar \
+python -m src.fundamentals.edgar \
     --from-db \
     --ticker AAPL,MSFT,NVDA
 ```
@@ -227,12 +229,12 @@ python -m trading_agent.fundamentals.edgar \
 
 ```bash
 # Generate database with all downloadable series
-python -m trading_agent.macro.fred.main \
+python -m src.macro.fred.main \
     --generate-db \
     --api-key YOUR_FRED_API_KEY
 
 # Download specific series
-python -m trading_agent.macro.fred.main \
+python -m src.macro.fred.main \
     --series GDP UNRATE CPIAUCSL \
     --start-date 2000-01-01
 ```
@@ -240,7 +242,7 @@ python -m trading_agent.macro.fred.main \
 ### Download BLS Labor Statistics
 
 ```bash
-python -m trading_agent.macro.bls.main \
+python -m src.macro.bls.main \
     --api-key YOUR_BLS_API_KEY \
     --series CUUR0000SA0 \
     --start-year 2020
@@ -249,7 +251,7 @@ python -m trading_agent.macro.bls.main \
 ### Train HMM Model
 
 ```bash
-cd src/trading_agent/model
+cd src/model
 python training_script.py \
     --series-ids GDP UNRATE CPIAUCSL \
     --start-date 2000-01-01 \
@@ -260,7 +262,7 @@ python training_script.py \
 ### Download Stock Market Data
 
 ```bash
-python -m trading_agent.markets.equities.main \
+python -m src.markets.equities.main \
     --tickers AAPL,MSFT,GOOGL \
     --start-date 2020-01-01 \
     --end-date 2024-01-01
@@ -297,7 +299,7 @@ The project includes separate Jenkins CI/CD pipelines for application code and i
 
 ### Application Pipeline (`Jenkinsfile`)
 - **Purpose**: Builds and validates trading_agent application code
-- **Triggers**: On all code changes (except `.ops/` only changes)
+- **Triggers**: On all code changes in this repository
 - **Stages**:
   - JIRA validation (for feature branches)
   - Module validation
@@ -306,13 +308,16 @@ The project includes separate Jenkins CI/CD pipelines for application code and i
   - Docker image builds
   - Kubernetes deployments
 
-### Infrastructure Pipeline (`Jenkinsfile.infra-platform`)
+### Infrastructure Pipeline
+- **Repository**: [infra-platform](https://github.com/your-org/infra-platform)
 - **Purpose**: Validates and builds infrastructure components
-- **Triggers**: Only when `.ops/` directory changes
+- **Triggers**: On infrastructure repository changes
 - **Stages**:
   - Infrastructure configuration validation
   - Docker image builds (e.g., jenkins-custom)
   - Service validation
+
+**Note**: Infrastructure CI/CD is managed in the separate `infra-platform` repository.
 
 **Branch-aware deployments:**
 - **Feature branches** (`dev/{jira_issue}/{project}-{subproject}`): Deploy to dev environment
@@ -382,20 +387,20 @@ Access MLflow UI at `http://localhost:55000`:
 pytest tests/
 
 # Run with coverage
-pytest --cov=src/trading_agent tests/
+pytest --cov=trading_agent tests/
 ```
 
 ## 📚 Documentation
 
-- **ML Modeling**: [`src/trading_agent/model/README.md`](src/trading_agent/model/README.md)
+- **ML Modeling**: [`trading_agent/model/README.md`](trading_agent/model/README.md)
 - **Jenkins CI/CD**: [`JENKINS.md`](JENKINS.md)
-- **Docker Setup**: `.ops/.docker/DOCKER_SETUP.md` (if exists)
+- **Infrastructure**: See [infra-platform](https://github.com/your-org/infra-platform) repository for Docker, Kubernetes, and infrastructure setup
 
 ## 🛠️ Development
 
 ### Adding a New Data Source
 
-1. Create a new module in `src/trading_agent/macro/` or `src/trading_agent/markets/`
+1. Create a new module in `trading_agent/macro/` or `trading_agent/markets/`
 2. Implement downloader class with PostgreSQL integration
 3. Add database schema initialization
 4. Create main entry point script

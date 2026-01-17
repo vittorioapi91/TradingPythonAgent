@@ -68,7 +68,7 @@ When the pipeline runs on a feature branch:
   - Build tag: `dev-<BUILD_NUMBER>-<GIT_COMMIT_SHORT>`
   - Latest tag: `dev-latest`
 - **Kubernetes Context**: `kind-trading-cluster`
-- **Module Path**: `src/{project}/{subproject}` (e.g., `src/trading_agent/fundamentals`)
+- **Module Path**: `{project}/{subproject}` (e.g., `trading_agent/fundamentals`)
 
 ### Staging Branch (`staging`)
 

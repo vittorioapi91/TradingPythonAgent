@@ -84,6 +84,12 @@ dist/
 .ops/.airflow/logs-test/
 .ops/.airflow/logs-prod/
 
+# Airflow DAGs (installed from airflow-dags/ by install-dags.sh)
+# Keep __init__.py and README.md, but ignore installed DAG files
+.ops/.airflow/dags/*.py
+!.ops/.airflow/dags/__init__.py
+!.ops/.airflow/dags/README.md
+
 # SSL certificates (self-signed for local development)
 .ops/.docker/ssl/*.key
 .ops/.docker/ssl/*.crt
