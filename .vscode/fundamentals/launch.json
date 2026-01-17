@@ -2,55 +2,52 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "EDGAR - Download All Companies (10-K, 10-Q)",
+            "name": "EDGAR - Download All Companies (10-K)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--from-db",
+                "--filings",
                 "--output-dir",
                 "${workspaceFolder}/src/trading_agent/fundamentals/edgar_filings",
-                "--filing-types",
-                "10-K",
+                "--form-type",
+                "10-K"
+            ],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "name": "EDGAR - Download All Companies (10-Q)",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
+            "console": "integratedTerminal",
+            "justMyCode": true,
+            "args": [
+                "--filings",
+                "--output-dir",
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar_filings",
+                "--form-type",
                 "10-Q"
             ],
             "cwd": "${workspaceFolder}"
         },
         {
-            "name": "EDGAR - Download Single Ticker (10-K, 10-Q)",
+            "name": "EDGAR - Download by Company Name (WMT, 10-K)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--ticker",
-                "WMT",
+                "--filings",
                 "--output-dir",
                 "${workspaceFolder}/src/trading_agent/fundamentals/edgar_filings",
-                "--filing-types",
-                "10-K",
-                "10-Q"
-            ],
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Download Multiple Tickers (10-K, 10-Q)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--ticker",
-                "NVDA, AAPL, MSFT",
-                "--output-dir",
-                "${workspaceFolder}/src/trading_agent/fundamentals/edgar_filings",
-                "--filing-types",
-                "10-K",
-                "10-Q"
+                "--company-name",
+                "Walmart",
+                "--form-type",
+                "10-K"
             ],
             "cwd": "${workspaceFolder}"
         },
@@ -58,7 +55,7 @@
             "name": "EDGAR - Process ZIP Files",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
@@ -71,84 +68,11 @@
             "name": "EDGAR - Generate Catalog (All Companies)",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
+            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar/edgar.py",
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
                 "--generate-catalog"
-            ],
-            "env": {
-                "POSTGRES_PASSWORD": "2014",
-                "POSTGRES_PORT": "5432"
-            },
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Generate Catalog (10-K, 10-Q, 8-K)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--generate-catalog",
-                "--filing-types",
-                "10-K",
-                "10-K/A",
-                "10-Q",
-                "10-Q/A",
-                "8-K",
-                "8-K/A"
-            ],
-            "env": {
-                "POSTGRES_PASSWORD": "2014",
-                "POSTGRES_PORT": "5432"
-            },
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Generate Catalog (Single Ticker: NVDA)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--generate-catalog",
-                "--ticker",
-                "NVDA",
-                "--filing-types",
-                "10-K",
-                "10-K/A",
-                "10-Q",
-                "10-Q/A",
-                "8-K",
-                "8-K/A"
-            ],
-            "env": {
-                "POSTGRES_PASSWORD": "2014",
-                "POSTGRES_PORT": "5432"
-            },
-            "cwd": "${workspaceFolder}"
-        },
-        {
-            "name": "EDGAR - Generate Catalog (Multiple Tickers)",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/src/trading_agent/fundamentals/edgar.py",
-            "console": "integratedTerminal",
-            "justMyCode": true,
-            "args": [
-                "--generate-catalog",
-                "--ticker",
-                "NVDA, AAPL, MSFT",
-                "--filing-types",
-                "10-K",
-                "10-K/A",
-                "10-Q",
-                "10-Q/A",
-                "8-K",
-                "8-K/A"
             ],
             "env": {
                 "POSTGRES_PASSWORD": "2014",

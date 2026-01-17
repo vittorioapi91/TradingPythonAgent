@@ -1,4 +1,5 @@
 """
-Airflow DAGs for Trading Agent workflows
-"""
+Airflow DAGs for TradingPythonAgent
 
+This package contains Airflow DAGs for orchestrating data collection workflows.
+"""

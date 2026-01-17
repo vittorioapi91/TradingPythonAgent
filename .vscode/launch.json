@@ -9,9 +9,15 @@
             "console": "integratedTerminal",
             "justMyCode": true,
             "args": [
-                "--from-db",
+                "--filings",
                 "--output-dir",
-                "${workspaceFolder}/src/trading_agent/fundamentals/edgar/filings"
+                "${workspaceFolder}/src/trading_agent/fundamentals/edgar",
+                "--year",
+                "2005",
+                "--quarter",
+                "QTR2",
+                "--form-type",
+                "10-K"
             ],
             "cwd": "${workspaceFolder}"
         },
